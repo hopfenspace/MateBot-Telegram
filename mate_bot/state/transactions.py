@@ -8,6 +8,7 @@ import time
 import typing
 import logging
 import tempfile
+import threading
 
 import pytz as _tz
 import tzlocal as _local_tz
@@ -287,17 +288,52 @@ class LoggedTransaction(Transaction):
             transaction_logging = config["chats"]["transactions"]
             if isinstance(config["chats"]["transactions"], int):
                 transaction_logging = [config["chats"]["transactions"]]
-            for chat in transaction_logging:
-                self._bot.send_message(
-                    chat,
-                    "*Incoming transaction*\n\n"
-                    f"Sender: {self.src}\n"
-                    f"Receiver: {self.dst}\n"
-                    f"Amount: {self.amount / 100:.2f}€\n"
-                    f"Reason: `{self.reason}`",
-                    parse_mode="Markdown",
-                    disable_notification=True
+
+            try:
+                for chat in transaction_logging:
+                    self._bot.send_message(
+                        chat,
+                        "*Incoming transaction*\n\n"
+                        f"Sender: {self.src}\n"
+                        f"Receiver: {self.dst}\n"
+                        f"Amount: {self.amount / 100:.2f}€\n"
+                        f"Reason: `{self.reason}`",
+                        parse_mode="Markdown",
+                        disable_notification=True
+                    )
+
+            except Exception as exc:
+                error_chats = config["chats"]["debugging"]
+                if isinstance(config["chats"]["debugging"], int):
+                    error_chats = [config["chats"]["debugging"]]
+                threading.Thread(
+                    target=LoggedTransaction._handle_logging_error,
+                    args=(exc, self._bot, error_chats),
+                    daemon=True
                 )
+                raise
+
+    @staticmethod
+    def _handle_logging_error(exc: Exception, bot: telegram.Bot, chats: list) -> None:
+        """
+        Simple error handler to send error messages after some waiting delay
+
+        You should always execute this function in a separate thread,
+        since it will block for more than 5 minutes.
+        """
+
+        timestamp = time.asctime(time.localtime())
+        logger.debug(f"Executing exception handler for {exc!r} in 300 seconds...")
+        time.sleep(300)
+        logger.debug(f"Now executing exception handler for {exc!r}.")
+
+        for chat in chats:
+            bot.send_message(
+                chat,
+                f"Attention! A critical error occurred at {timestamp!r}! Read the "
+                f"logs for more information. What I can say so far: {exc}",
+                disable_notification=False
+            )
 
 
 class TransactionLog(BackendHelper):

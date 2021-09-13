@@ -211,7 +211,15 @@ class Transaction(BackendHelper):
                 if connection:
                     connection.close()
 
-            self.log_message()
+            logger.debug("Transaction completed.")
+
+            try:
+                self.log_message()
+            except Exception as exc:
+                logger.error(
+                    f"Encountered {type(exc)} while creating logs for fulfilled transaction: {exc}",
+                    exc_info=exc
+                )
 
 
 class LoggedTransaction(Transaction):

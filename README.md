@@ -1,12 +1,17 @@
-# MateBot
+# MateBot Telegram
 
-Telegram Bot that sells Mate, ice cream and pizza and allows you to share bills
+Telegram Bot as frontend to the [MateBot API](https://github.com/CrsiX/MateBot)
+that allows users to buy Mate, ice cream and pizza or more, easily share bills
+or get refunds from the community when they paid for something used by everyone.
+
+**This bot currently works without using the aforementioned API, since it's not
+ready to be used yet. The bot will be updated to use it as soon as possible.**
 
 ## Installation
 
 ### Requirements
 
-- Python 3.7.3 (That's what our server run and we like features)
+- Python >= 3.7.3
 - [python-telegram-bot](https://pypi.org/project/python-telegram-bot/)
 - [tzlocal](https://pypi.org/project/tzlocal/)
 - [pymysql](https://pypi.org/project/PyMySQL/)

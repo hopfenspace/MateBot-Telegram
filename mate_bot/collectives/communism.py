@@ -45,6 +45,11 @@ class Communism(BaseCollective):
         super().__init__(arguments, 0)
         if isinstance(arguments, tuple):
             self.add_user(arguments[0])
+            if len(arguments) == 4 and arguments[3] is not None:
+                message = arguments[3]
+                if getattr(message, "bot", None) is not None:
+                    bot = message.bot
+                    self.edit_all_messages(self.get_markdown(), self._get_inline_keyboard(), bot)
 
     def get_core_info(self) -> str:
         """

@@ -57,14 +57,15 @@ class Communism(BaseCollective):
         :rtype: str
         """
 
-        usernames = ', '.join(self.get_users_names()) or "None"
+        names = self.get_users_names()
+        usernames = ', '.join(names) or "None"
 
         return (
             f"*Communism by {self.creator.name}*\n\n"
             f"Reason: {self.description}\n"
             f"Amount: {self.amount / 100 :.2f}€\n"
             f"Externals: {self.externals}\n"
-            f"Joined users: {usernames}\n"
+            f"Joined users ({len(names)}): {usernames}\n"
         )
 
     def get_markdown(self, status: typing.Optional[str] = None) -> str:

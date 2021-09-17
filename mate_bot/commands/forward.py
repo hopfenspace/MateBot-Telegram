@@ -98,6 +98,16 @@ class ForwardInlineQuery(BaseInlineQuery):
         try:
             collective_id = int(split[0])
             community = CommunityUser()
+            try:
+                BaseCollective.get_type(collective_id)
+            except IndexError:
+                query.answer([self.get_result(
+                    "Communism/payment ID not found!",
+                    "Forwarding the communism or payment request failed, because "
+                    "the communism or payment ID was not found. Always make sure "
+                    "that the unique number in the inline query was not altered."
+                )])
+                raise
 
             users = []
             for word in split[1:]:

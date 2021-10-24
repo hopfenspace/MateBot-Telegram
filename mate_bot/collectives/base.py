@@ -10,7 +10,7 @@ import pytz as _tz
 import tzlocal as _local_tz
 import telegram
 
-from mate_bot import err
+from mate_bot import err, util
 from mate_bot.config import config
 from mate_bot.collectives.coordinators import MessageCoordinator, UserCoordinator
 from mate_bot.state.user import MateBotUser
@@ -230,11 +230,21 @@ class BaseCollective(MessageCoordinator, UserCoordinator):
             logger.debug(f"Sent reply message {reply.message_id} to chat {reply.chat_id}")
 
             if message.chat_id != config["chats"]["internal"]:
-                msg = message.bot.send_message(
-                    config["chats"]["internal"],
-                    self.get_markdown(),
-                    reply_markup=self._get_inline_keyboard(),
-                    parse_mode="Markdown"
+                text = self.get_markdown()
+                msg = util.safe_send(
+                    message.bot.send_message(
+                        config["chats"]["internal"],
+                        text,
+                        reply_markup=self._get_inline_keyboard(),
+                        parse_mode="Markdown"
+                    ),
+                    message.bot.send_message(
+                        config["chats"]["internal"],
+                        text,
+                        reply_markup=self._get_inline_keyboard(),
+                        parse_mode="Markdown"
+                    ),
+                    text
                 )
                 self.register_message(msg.chat_id, msg.message_id)
                 logger.debug(f"Sent reply message {reply.message_id} to internal chat")
@@ -546,12 +556,21 @@ class BaseCollective(MessageCoordinator, UserCoordinator):
 
         for c, m in self.get_messages():
             try:
-                bot.edit_message_text(
-                    content,
-                    chat_id=c,
-                    message_id=m,
-                    reply_markup=markup,
-                    parse_mode=parse_mode
+                util.safe_send(
+                    lambda: bot.edit_message_text(
+                        content,
+                        chat_id=c,
+                        message_id=m,
+                        reply_markup=markup,
+                        parse_mode=parse_mode
+                    ),
+                    lambda: bot.edit_message_text(
+                        content,
+                        chat_id=c,
+                        message_id=m,
+                        reply_markup=markup
+                    ),
+                    content
                 )
 
             except telegram.error.BadRequest as exc:
@@ -590,23 +609,41 @@ class BaseCollective(MessageCoordinator, UserCoordinator):
         if not isinstance(bot, telegram.Bot):
             raise TypeError(f"Expected telegram.Bot object as bot, but got {type(bot)}")
 
-        forwarded = bot.send_message(
-            chat_id=receiver.tid,
-            text=self.get_markdown(),
-            reply_markup=self._get_inline_keyboard(),
-            parse_mode="Markdown"
+        forwarded = util.safe_send(
+            lambda: bot.send_message(
+                chat_id=receiver.tid,
+                text=self.get_markdown(),
+                reply_markup=self._get_inline_keyboard(),
+                parse_mode="Markdown"
+            ),
+            lambda: bot.send_message(
+                chat_id=receiver.tid,
+                text=self.get_markdown(),
+                reply_markup=self._get_inline_keyboard()
+            ),
+            self.get_markdown()
         )
 
         for c, m in self.get_messages(forwarded.chat_id):
-            bot.edit_message_text(
-                chat_id=c,
-                message_id=m,
-                text=self.get_markdown(
-                    "_\nThis management message has been disabled. Look below in this "
-                    "chat to get a more recent version with updated content._"
+            text = self.get_markdown(
+                "_\nThis management message has been disabled. Look below in this "
+                "chat to get a more recent version with updated content._"
+            )
+            util.safe_send(
+                lambda: bot.edit_message_text(
+                    chat_id=c,
+                    message_id=m,
+                    text=text,
+                    reply_markup=telegram.InlineKeyboardMarkup([]),
+                    parse_mode="Markdown"
                 ),
-                reply_markup=telegram.InlineKeyboardMarkup([]),
-                parse_mode="Markdown"
+                lambda: bot.edit_message_text(
+                    chat_id=c,
+                    message_id=m,
+                    text=text,
+                    reply_markup=telegram.InlineKeyboardMarkup([])
+                ),
+                text
             )
 
         self.replace_message(forwarded.chat_id, forwarded.message_id)

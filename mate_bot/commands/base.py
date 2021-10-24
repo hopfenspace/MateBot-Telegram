@@ -394,14 +394,22 @@ class BaseInlineQuery:
         :rtype: telegram.InlineQueryResultArticle
         """
 
-        return telegram.InlineQueryResultArticle(
-            id=self.get_result_id(*args),
-            title=heading,
-            input_message_content=telegram.InputTextMessageContent(
+        content = util.safe_send(
+            lambda: telegram.InputTextMessageContent(
                 message_text=msg_text,
                 parse_mode=parse_mode,
                 disable_web_page_preview=True
-            )
+            ),
+            lambda: telegram.InputTextMessageContent(
+                message_text=msg_text,
+                disable_web_page_preview=True
+            ),
+            msg_text
+        )
+        return telegram.InlineQueryResultArticle(
+            id=self.get_result_id(*args),
+            title=heading,
+            input_message_content=content
         )
 
     def get_help(self) -> telegram.InlineQueryResult:

@@ -7,7 +7,7 @@ import logging
 
 import telegram.ext
 
-from mate_bot import registry
+from mate_bot import registry, util
 from mate_bot.config import config
 from mate_bot.err import ParsingError
 from mate_bot.parsing.parser import CommandParser
@@ -216,7 +216,11 @@ class BaseCommand:
             self.run(args, update)
 
         except ParsingError as err:
-            update.effective_message.reply_markdown(str(err))
+            util.safe_send(
+                lambda: update.effective_message.reply_text(str(err), parse_mode="Markdown"),
+                lambda: update.effective_message.reply_text(str(err)),
+                str(err)
+            )
 
 
 class BaseCallbackQuery:

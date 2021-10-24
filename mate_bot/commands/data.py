@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.state.user import MateBotUser
 from mate_bot.commands.base import BaseCommand
 from mate_bot.parsing.util import Namespace
@@ -80,4 +81,8 @@ class DataCommand(BaseCommand):
             f"Use the /history command to see your transaction log."
         )
 
-        update.effective_message.reply_markdown(result)
+        util.safe_send(
+            lambda: update.effective_message.reply_markdown(result),
+            lambda: update.effective_message.reply_text(result),
+            result
+        )

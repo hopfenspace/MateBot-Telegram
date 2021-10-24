@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.state.user import MateBotUser
 from mate_bot.config import config
 from mate_bot.commands.base import BaseCommand
@@ -78,4 +79,8 @@ class StartCommand(BaseCommand):
                 "<your username>`. Afterwards, you may use this bot."
             )
 
-        update.message.reply_markdown(answer)
+        util.safe_send(
+            lambda: update.message.reply_markdown(answer),
+            lambda: update.message.reply_text(answer),
+            answer
+        )

@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.commands.base import BaseCommand, BaseCallbackQuery
 from mate_bot.parsing import types
 from mate_bot.parsing.util import Namespace
@@ -61,21 +62,22 @@ class VouchCommand(BaseCommand):
             return
 
         def reply(text: str) -> None:
-            update.effective_message.reply_text(
-                text,
-                parse_mode="Markdown",
-                reply_markup=telegram.InlineKeyboardMarkup([
-                    [
-                        telegram.InlineKeyboardButton(
-                            "YES",
-                            callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} accept"
-                        ),
-                        telegram.InlineKeyboardButton(
-                            "NO",
-                            callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} deny"
-                        )
-                    ]
-                ])
+            keyboard = telegram.InlineKeyboardMarkup([
+                [
+                    telegram.InlineKeyboardButton(
+                        "YES",
+                        callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} accept"
+                    ),
+                    telegram.InlineKeyboardButton(
+                        "NO",
+                        callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} deny"
+                    )
+                ]
+            ])
+            util.safe_send(
+                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
+                text
             )
 
         if args.command is None:
@@ -213,10 +215,17 @@ class VouchCallbackQuery(BaseCallbackQuery):
             else:
                 raise ValueError("Invalid query data")
 
-            update.callback_query.message.reply_text(
-                text,
-                parse_mode="Markdown",
-                reply_to_message=update.callback_query.message
+            util.safe_send(
+                lambda: update.callback_query.message.reply_text(
+                    text,
+                    parse_mode="Markdown",
+                    reply_to_message=update.callback_query.message
+                ),
+                lambda: update.callback_query.message.reply_text(
+                    text,
+                    reply_to_message=update.callback_query.message
+                ),
+                text
             )
 
             update.callback_query.message.edit_text(

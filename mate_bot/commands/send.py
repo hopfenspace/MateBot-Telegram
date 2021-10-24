@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.parsing.types import amount as amount_type
 from mate_bot.parsing.types import user as user_type
 from mate_bot.parsing.util import Namespace
@@ -64,16 +65,25 @@ class SendCommand(BaseCommand):
         def e(variant: str) -> str:
             return f"send {variant} {args.amount} {sender.uid} {args.receiver.uid}"
 
-        update.effective_message.reply_text(
-            f"Do you want to send {args.amount / 100 :.2f}€ to {str(args.receiver)}?"
-            f"\nDescription: `{reason}`",
-            reply_markup=telegram.InlineKeyboardMarkup([
-                [
-                    telegram.InlineKeyboardButton("CONFIRM", callback_data=e("confirm")),
-                    telegram.InlineKeyboardButton("ABORT", callback_data=e("abort"))
-                ]
-            ]),
-            parse_mode="Markdown"
+        msg = f"Do you want to send {args.amount / 100 :.2f}€ to {str(args.receiver)}?\nDescription: `{reason}`"
+        keyboard = telegram.InlineKeyboardMarkup([
+            [
+                telegram.InlineKeyboardButton("CONFIRM", callback_data=e("confirm")),
+                telegram.InlineKeyboardButton("ABORT", callback_data=e("abort"))
+            ]
+        ])
+        util.safe_send(
+            lambda: update.effective_message.reply_text(
+                msg,
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            ),
+            lambda: update.effective_message.reply_text(
+                msg,
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            ),
+            msg
         )
 
 

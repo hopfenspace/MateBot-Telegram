@@ -377,7 +377,7 @@ class BaseInlineQuery:
             heading: str,
             msg_text: str,
             *args,
-            parse_mode: str = telegram.ParseMode.MARKDOWN
+            parse_mode: str = None
     ) -> telegram.InlineQueryResultArticle:
         """
         Get an article as possible inline result for an inline query
@@ -394,22 +394,14 @@ class BaseInlineQuery:
         :rtype: telegram.InlineQueryResultArticle
         """
 
-        content = util.safe_send(
-            lambda: telegram.InputTextMessageContent(
-                message_text=msg_text,
-                parse_mode=parse_mode,
-                disable_web_page_preview=True
-            ),
-            lambda: telegram.InputTextMessageContent(
-                message_text=msg_text,
-                disable_web_page_preview=True
-            ),
-            msg_text
-        )
         return telegram.InlineQueryResultArticle(
             id=self.get_result_id(*args),
             title=heading,
-            input_message_content=content
+            input_message_content=telegram.InputTextMessageContent(
+                message_text=msg_text,
+                parse_mode=parse_mode,
+                disable_web_page_preview=True
+            )
         )
 
     def get_help(self) -> telegram.InlineQueryResult:

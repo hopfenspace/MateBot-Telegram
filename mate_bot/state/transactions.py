@@ -14,6 +14,7 @@ import pytz as _tz
 import tzlocal as _local_tz
 import telegram
 
+from mate_bot import util
 from mate_bot.config import config
 from mate_bot.state import user
 from mate_bot.state.dbhelper import BackendHelper
@@ -291,15 +292,26 @@ class LoggedTransaction(Transaction):
 
             try:
                 for chat in transaction_logging:
-                    self._bot.send_message(
-                        chat,
+                    formatted_message = (
                         "*Incoming transaction*\n\n"
                         f"Sender: {self.src}\n"
                         f"Receiver: {self.dst}\n"
                         f"Amount: {self.amount / 100:.2f}€\n"
-                        f"Reason: `{self.reason}`",
-                        parse_mode="Markdown",
-                        disable_notification=True
+                        f"Reason: `{self.reason}`"
+                    )
+                    util.safe_send(
+                        lambda: self._bot.send_message(
+                            chat,
+                            formatted_message,
+                            parse_mode="Markdown",
+                            disable_notification=True
+                        ),
+                        lambda: self._bot.send_message(
+                            chat,
+                            formatted_message,
+                            disable_notification=True
+                        ),
+                        formatted_message
                     )
 
             except Exception as exc:

@@ -215,7 +215,8 @@ class BaseCommand:
             logger.debug(f"Parsed command's arguments: {args}")
             self.run(args, update)
 
-        except ParsingError as err:
+        except ParsingError as exc:
+            err = str(exc)
             util.safe_send(
                 lambda: update.effective_message.reply_text(str(err), parse_mode="Markdown"),
                 lambda: update.effective_message.reply_text(str(err)),

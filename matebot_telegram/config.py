@@ -1,5 +1,5 @@
 """
-MateBot telegram config provider
+MateBot telegram config loader
 """
 
 import os as _os

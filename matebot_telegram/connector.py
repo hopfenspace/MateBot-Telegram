@@ -1,3 +1,8 @@
+"""
+MateBot backend API connector
+"""
+
+import logging
 import urllib.parse
 from typing import Optional
 
@@ -10,12 +15,14 @@ class APIConnector:
             base_url: str,
             app_name: str = None,
             password: str = None,
-            ca_path: str = None
+            ca_path: str = None,
+            logger: logging.Logger = None
     ):
         self.base_url = base_url + ("" if base_url.endswith("/") else "/")
         self.app_name = app_name
         self._password = password
         self._ca_path = ca_path
+        self._logger = logger or logging.getLogger(__name__)
         self._session = requests.Session()
         if self._ca_path:
             self._session.verify = self._ca_path
@@ -39,19 +46,25 @@ class APIConnector:
             )
 
             if not response.ok:
-                raise ValueError(
+                raise RuntimeError(
                     f"Logging in failed for username {self.app_name} (server "
                     f"{self.base_url!r}): response {response.status_code}"
                 )
 
             content = response.json()
             if "token_type" not in content or "access_token" not in content or content["token_type"] != "bearer":
-                raise ValueError(
+                raise RuntimeError(
                     f"Logging in failed for username {self.app_name} (server "
                     f"{self.base_url!r}): missing or invalid key(s) in response"
                 )
 
             self.auth_token = content["access_token"]
+
+            if self.get("/v1/settings").status_code != 200:
+                raise RuntimeError(
+                    f"Authentication failed for username {self.app_name} (server "
+                    f"{self.base_url!r}): querying settings (requiring valid auth) failed"
+                )
 
     def __del__(self):
         self._session.close()
@@ -68,36 +81,52 @@ class APIConnector:
     def status(self):
         return self.get("/v1/status")
 
-    def get(self, endpoint: str, *args, **kwargs):
-        return self._session.get(
-            self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
-            *args,
-            **self._fix_auth_header(kwargs)
-        )
+    def get(self, endpoint: str, *args, logger: logging.Logger = None, **kwargs):
+        try:
+            return self._session.get(
+                self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                *args,
+                **self._fix_auth_header(kwargs)
+            )
+        except:
+            (logger or self._logger).exception(f"Exception on {endpoint!r}")
+            raise
 
-    def post(self, endpoint: str, *args, json_obj: Optional[dict] = None, **kwargs):
-        return self._session.post(
-            self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
-            *args,
-            json=json_obj,
-            **self._fix_auth_header(kwargs)
-        )
+    def post(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
+        try:
+            return self._session.post(
+                self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                *args,
+                json=json_obj,
+                **self._fix_auth_header(kwargs)
+            )
+        except:
+            (logger or self._logger).exception(f"Exception on {endpoint!r}")
+            raise
 
-    def put(self, endpoint: str, *args, json_obj: Optional[dict] = None, **kwargs):
-        return self._session.put(
-            self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
-            *args,
-            json=json_obj,
-            **self._fix_auth_header(kwargs)
-        )
+    def put(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
+        try:
+            return self._session.put(
+                self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                *args,
+                json=json_obj,
+                **self._fix_auth_header(kwargs)
+            )
+        except:
+            (logger or self._logger).exception(f"Exception on {endpoint!r}")
+            raise
 
-    def delete(self, endpoint: str, *args, json_obj: Optional[dict] = None, **kwargs):
-        return self._session.delete(
-            self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
-            *args,
-            json=json_obj,
-            **self._fix_auth_header(kwargs)
-        )
+    def delete(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
+        try:
+            return self._session.delete(
+                self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                *args,
+                json=json_obj,
+                **self._fix_auth_header(kwargs)
+            )
+        except:
+            (logger or self._logger).exception(f"Exception on {endpoint!r}")
+            raise
 
 
 connector = APIConnector("http://localhost:8000/")

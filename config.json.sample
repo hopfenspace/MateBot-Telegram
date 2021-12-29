@@ -1,0 +1,59 @@
+{
+	"application": "<Name of your deployed application>",
+	"password": "<Password of your deployed application>",
+	"ca-path": "<Optional path to a CA file for TLS connections>",
+	"server": "<Base URL to the MateBot backend server>",
+	"token": "<Telegram bot token>",
+	"chats": {
+		"transactions": [],
+		"notification": [],
+		"stacktrace": [],
+		"debugging": []
+	},
+	"logging": {
+		"version": 1,
+		"disable_existing_loggers": true,
+		"incremental": false,
+		"formatters": {
+			"console": {
+				"style": "{",
+				"class": "logging.Formatter",
+				"format": "{asctime}: MateBot {process}: [{levelname}] {name}: {message}",
+				"datefmt": "%d.%m.%Y %H:%M"
+			},
+			"file": {
+				"style": "{",
+				"class": "logging.Formatter",
+				"format": "matebot {process}: [{levelname}] {name}: {message}",
+				"datefmt": "%d.%m.%Y %H:%M"
+			}
+		},
+		"handlers": {
+			"console": {
+				"level": "DEBUG",
+				"class": "logging.StreamHandler",
+				"formatter": "console",
+				"stream": "ext://sys.stdout"
+			},
+			"file": {
+				"level": "DEBUG",
+				"class": "logging.handlers.WatchedFileHandler",
+				"formatter": "file",
+				"filename": "matebot_telegram.log",
+				"encoding": "UTF-8"
+			}
+		},
+		"loggers": {
+			"collectives": {},
+			"commands": {},
+			"config": {},
+			"database": {},
+			"error": {},
+			"state": {}
+		},
+		"root": {
+			"handlers": ["console", "file"],
+			"level": "DEBUG"
+		}
+	}
+}

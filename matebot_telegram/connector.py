@@ -2,6 +2,7 @@
 MateBot backend API connector
 """
 
+import datetime
 import logging
 import urllib.parse
 from typing import Optional
@@ -29,47 +30,53 @@ class APIConnector:
         if self._ca_path:
             self._session.verify = self._ca_path
         self._auth_token = None
+        self.last_login = 0
         self._scope = ""
         self._client_id = ""
         self._client_secret = ""
 
         if self._password is not None:
-            response = self.post(
-                "/v1/login",
-                headers={"Content-Type": "application/x-www-form-urlencoded"},
-                data="&".join([
-                    "grant_type=password",
-                    f"scope={urllib.parse.quote(self._scope)}",
-                    f"username={urllib.parse.quote(self.app_name)}",
-                    f"password={urllib.parse.quote(self._password)}",
-                    f"client_id={urllib.parse.quote(self._client_id)}",
-                    f"client_secret={urllib.parse.quote(self._client_secret)}"
-                ])
-            )
-
-            if not response.ok:
-                raise RuntimeError(
-                    f"Logging in failed for username {self.app_name} (server "
-                    f"{self.base_url!r}): response {response.status_code}"
-                )
-
-            content = response.json()
-            if "token_type" not in content or "access_token" not in content or content["token_type"] != "bearer":
-                raise RuntimeError(
-                    f"Logging in failed for username {self.app_name} (server "
-                    f"{self.base_url!r}): missing or invalid key(s) in response"
-                )
-
-            self._auth_token = content["access_token"]
-
-            if self.get("/v1/settings").status_code != 200:
-                raise RuntimeError(
-                    f"Authentication failed for username {self.app_name} (server "
-                    f"{self.base_url!r}): querying settings (requiring valid auth) failed"
-                )
+            self.refresh_token()
 
     def __del__(self):
         self._session.close()
+
+    def refresh_token(self):
+        response = self.post(
+            "/v1/login",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data="&".join([
+                "grant_type=password",
+                f"scope={urllib.parse.quote(self._scope)}",
+                f"username={urllib.parse.quote(self.app_name)}",
+                f"password={urllib.parse.quote(self._password)}",
+                f"client_id={urllib.parse.quote(self._client_id)}",
+                f"client_secret={urllib.parse.quote(self._client_secret)}"
+            ])
+        )
+
+        if not response.ok:
+            raise RuntimeError(
+                f"Logging in failed for username {self.app_name} (server "
+                f"{self.base_url!r}): response {response.status_code}"
+            )
+
+        content = response.json()
+        if "token_type" not in content or "access_token" not in content or content["token_type"] != "bearer":
+            raise RuntimeError(
+                f"Logging in failed for username {self.app_name} (server "
+                f"{self.base_url!r}): missing or invalid key(s) in response"
+            )
+
+        self._auth_token = content["access_token"]
+
+        if self.get("/v1/settings").status_code != 200:
+            raise RuntimeError(
+                f"Authentication failed for username {self.app_name} (server "
+                f"{self.base_url!r}): querying settings (requiring valid auth) failed"
+            )
+
+        self.last_login = datetime.datetime.now().timestamp()
 
     def _fix_auth_header(self, kwargs) -> dict:
         if self._auth_token is None:

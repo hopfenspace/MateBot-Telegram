@@ -5,7 +5,7 @@ import logging.config
 
 from telegram.ext import Updater, Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
 
-from matebot_telegram import base, config, registry
+from matebot_telegram import config, registry, util
 from matebot_telegram.commands.handler import FilteredChosenInlineResultHandler
 
 
@@ -53,18 +53,13 @@ class NoDebugFilter(logging.Filter):
 
 if __name__ == "__main__":
     logging.config.dictConfig(config.config["logging"])
-    for handler in logging.root.handlers:
-        handler.addFilter(NoDebugFilter("telegram"))
     logger = logging.getLogger()
-    BackendHelper.db_config = config.config["database"]
-    BackendHelper.query_logger = logging.getLogger("database")
-    BackendHelper.get_value("users")
 
     logger.debug("Registering bot token with Updater...")
     updater = Updater(config.config["token"])
 
     logger.info("Adding error handler...")
-    updater.dispatcher.add_error_handler(err.log_error)
+    updater.dispatcher.add_error_handler(util.log_error)
 
     _add(updater.dispatcher, CommandHandler, registry.commands, False)
     _add(updater.dispatcher, CallbackQueryHandler, registry.callback_queries, True)

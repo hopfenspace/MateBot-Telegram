@@ -7,27 +7,9 @@ import logging
 
 import telegram.ext
 
-from matebot_telegram import connector, registry, util
+from matebot_telegram import connector, err, registry, util
 from matebot_telegram.parsing.parser import CommandParser
 from matebot_telegram.parsing.util import Namespace
-
-
-class MateBotException(Exception):
-    """
-    Base class for all project-wide exceptions
-    """
-
-
-class ParsingError(MateBotException):
-    """
-    Exception raised when the argument parser throws an error
-
-    This is likely to happen when a user messes up the syntax of a
-    particular command. Instead of exiting the program, this exception
-    will be raised. You may use it's string representation to gain
-    additional information about what went wrong. This allows a user
-    to correct its command, in case this caused the parser to fail.
-    """
 
 
 class BaseCommand:
@@ -127,12 +109,11 @@ class BaseCommand:
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
             self.run(args, update, connector.connector)
 
-        except ParsingError as exc:
-            err = str(exc)
+        except err.ParsingError as exc:
             util.safe_send(
                 context.bot,
                 update.effective_chat.id,
-                err,
+                str(exc),
                 "Parsing your command failed. Try `/help`!",
                 parse_mode="Markdown",
                 reply=None

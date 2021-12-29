@@ -8,6 +8,8 @@ from typing import Optional
 
 import requests
 
+from matebot_telegram.config import config
+
 
 class APIConnector:
     def __init__(
@@ -58,7 +60,7 @@ class APIConnector:
                     f"{self.base_url!r}): missing or invalid key(s) in response"
                 )
 
-            self.auth_token = content["access_token"]
+            self._auth_token = content["access_token"]
 
             if self.get("/v1/settings").status_code != 200:
                 raise RuntimeError(
@@ -70,12 +72,12 @@ class APIConnector:
         self._session.close()
 
     def _fix_auth_header(self, kwargs) -> dict:
-        if self.auth_token is None:
+        if self._auth_token is None:
             return kwargs
         if "headers" in kwargs:
-            kwargs["headers"].update({"Authorization": f"Bearer {self.auth_token}"})
+            kwargs["headers"].update({"Authorization": f"Bearer {self._auth_token}"})
         else:
-            kwargs["headers"] = {"Authorization": f"Bearer {self.auth_token}"}
+            kwargs["headers"] = {"Authorization": f"Bearer {self._auth_token}"}
         return kwargs
 
     def status(self):
@@ -129,4 +131,4 @@ class APIConnector:
             raise
 
 
-connector = APIConnector("http://localhost:8000/")
+connector = APIConnector("http://localhost:8000/", config["application"], config["password"], config["ca-path"])

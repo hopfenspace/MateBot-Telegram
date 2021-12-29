@@ -5,7 +5,7 @@ MateBot parser's actions class defining arguments.
 from typing import Optional
 import typing
 
-from matebot_telegram.base import ParsingError
+from matebot_telegram.err import ParsingError
 from matebot_telegram.parsing.util import Namespace, Representable
 
 

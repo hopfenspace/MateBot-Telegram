@@ -15,5 +15,6 @@ for path in ["config.json", _os.path.join("..", "config.json")]:
     if _os.path.exists(path):
         with open(path) as f:
             config = _json.load(f)
+        break
 else:
     raise ImportError("No configuration file found")

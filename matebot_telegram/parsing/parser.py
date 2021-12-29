@@ -6,7 +6,7 @@ import typing
 
 import telegram
 
-from matebot_telegram.base import ParsingError
+from matebot_telegram.err import ParsingError
 from matebot_telegram.parsing.util import EntityString, Namespace, Representable
 from matebot_telegram.parsing.usage import CommandUsage
 from matebot_telegram.parsing.actions import Action

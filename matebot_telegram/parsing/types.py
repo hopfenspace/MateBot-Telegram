@@ -91,7 +91,7 @@ def user(arg: EntityString) -> schemas.User:
     #     return usr
 
     elif arg.entity.type == "text_mention":
-        return util.get_user_by_telegram_id(arg.entity.user.id)
+        return util.get_user_by(arg.entity.user, lambda _: None)
 
     else:
         raise ValueError('No user mentioned. Try with "@".')

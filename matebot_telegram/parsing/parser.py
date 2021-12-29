@@ -6,11 +6,11 @@ import typing
 
 import telegram
 
-from matebot_telegram.err import ParsingError
-from matebot_telegram.parsing.util import EntityString, Namespace, Representable
-from matebot_telegram.parsing.usage import CommandUsage
-from matebot_telegram.parsing.actions import Action
-from matebot_telegram.parsing.formatting import plural_s
+from .actions import Action
+from .formatting import plural_s
+from .usage import CommandUsage
+from .util import EntityString, Namespace, Representable
+from ..err import ParsingError
 
 
 class CommandParser(Representable):

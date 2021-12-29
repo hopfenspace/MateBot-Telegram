@@ -4,9 +4,9 @@ Specify the use cases of a MateBot command.
 
 import typing
 
-from matebot_telegram.parsing.util import Representable
-from matebot_telegram.parsing.actions import Action, StoreAction
-from matebot_telegram.parsing.formatting import format_action
+from .actions import Action, StoreAction
+from .formatting import format_action
+from .util import Representable
 
 
 class CommandUsage(Representable):

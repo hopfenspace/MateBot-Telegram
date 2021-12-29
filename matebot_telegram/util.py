@@ -48,6 +48,13 @@ def safe_call(default: Callable[[], Any], fallback: Callable[[], Any], logger: l
         return False
 
 
+def extract_alias_from(user: schemas.User) -> Optional[schemas.Alias]:
+    aliases = [a for a in user.aliases if a.application == config.config["app"]]
+    if len(aliases) == 0:
+        return
+    return aliases[0]
+
+
 def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram.Message, operation: str) -> bool:
     """
     Ensure that a user is allowed to perform an operation that requires specific permissions
@@ -80,11 +87,8 @@ def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram
         return True
 
     if level.value >= 1 and not user.active:
-        aliases = [a for a in user.aliases if a.application == config.config["app"]]
-        if len(aliases) > 0:
-            name = aliases[0]
-        else:
-            name = user.id
+        alias = extract_alias_from(user)
+        name = alias.app_user_id if alias else user.id
         msg.reply_text(f"The user {name!r} is not active. It can't perform {operation!r}.")
         return False
 

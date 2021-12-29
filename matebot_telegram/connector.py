@@ -92,50 +92,83 @@ class APIConnector:
 
     def get(self, endpoint: str, *args, logger: logging.Logger = None, **kwargs):
         try:
-            return self._session.get(
+            response = self._session.get(
                 self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
                 *args,
                 **self._fix_auth_header(kwargs)
             )
+            if response.status_code == 401 and self.last_login < datetime.datetime.now().timestamp() - 5:
+                self.refresh_token()
+                response = self._session.get(
+                    self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                    *args,
+                    **self._fix_auth_header(kwargs)
+                )
+            return response
         except:
             (logger or self._logger).exception(f"Exception on {endpoint!r}")
             raise
 
     def post(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
         try:
-            return self._session.post(
+            response = self._session.post(
                 self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
                 *args,
                 json=json_obj,
                 **self._fix_auth_header(kwargs)
             )
+            if response.status_code == 401 and self.last_login < datetime.datetime.now().timestamp() - 5:
+                self.refresh_token()
+                response = self._session.post(
+                    self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                    *args,
+                    json=json_obj,
+                    **self._fix_auth_header(kwargs)
+                )
+            return response
         except:
             (logger or self._logger).exception(f"Exception on {endpoint!r}")
             raise
 
     def put(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
         try:
-            return self._session.put(
+            response = self._session.put(
                 self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
                 *args,
                 json=json_obj,
                 **self._fix_auth_header(kwargs)
             )
+            if response.status_code == 401 and self.last_login < datetime.datetime.now().timestamp() - 5:
+                response = self._session.put(
+                    self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                    *args,
+                    json=json_obj,
+                    **self._fix_auth_header(kwargs)
+                )
+            return response
         except:
             (logger or self._logger).exception(f"Exception on {endpoint!r}")
             raise
 
     def delete(self, endpoint: str, *args, json_obj: Optional[dict] = None, logger: logging.Logger = None, **kwargs):
         try:
-            return self._session.delete(
+            response = self._session.delete(
                 self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
                 *args,
                 json=json_obj,
                 **self._fix_auth_header(kwargs)
             )
+            if response.status_code == 401 and self.last_login < datetime.datetime.now().timestamp() - 5:
+                response = self._session.delete(
+                    self.base_url + (endpoint[1:] if endpoint.startswith("/") else endpoint),
+                    *args,
+                    json=json_obj,
+                    **self._fix_auth_header(kwargs)
+                )
+            return response
         except:
             (logger or self._logger).exception(f"Exception on {endpoint!r}")
             raise
 
 
-connector = APIConnector("http://localhost:8000/", config["application"], config["password"], config["ca-path"])
+connector = APIConnector(config["server"], config["application"], config["password"], config["ca-path"])

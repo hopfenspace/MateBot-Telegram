@@ -191,35 +191,45 @@ class BaseCallbackQuery:
         if context.match is None:
             raise RuntimeError("No pattern match found")
 
-        self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
+        try:
+            self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
-        if self.targets is None:
-            self.run(update)
-            return
+            if self.targets is None:
+                self.run(update, connector.connector)
+                return
 
-        if self.data in self.targets:
-            self.targets[self.data](update)
-            return
+            if self.data in self.targets:
+                self.targets[self.data](update, connector.connector)
+                return
 
-        available = []
-        for k in self.targets:
-            if self.data.startswith(k):
-                available.append(k)
+            available = []
+            for k in self.targets:
+                if self.data.startswith(k):
+                    available.append(k)
 
-        if len(available) == 0:
-            raise IndexError(f"No target callable found for: '{self.data}'")
+            if len(available) == 0:
+                raise IndexError(f"No target callable found for: '{self.data}'")
 
-        if len(available) > 1:
-            raise IndexError(f"No unambiguous callable found for: '{self.data}'")
+            if len(available) > 1:
+                raise IndexError(f"No unambiguous callable found for: '{self.data}'")
 
-        self.targets[available[0]](update)
+            self.targets[available[0]](update, connector.connector)
 
-    def run(self, update: telegram.Update) -> None:
+        except (IndexError, ValueError, TypeError, RuntimeError):
+            update.callback_query.answer(
+                text="There was an error processing your request. You may file a bug report.",
+                show_alert=True
+            )
+            raise
+
+    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Perform command-specific operations
 
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         :raises NotImplementedError: because this method should be overwritten by subclasses
         """

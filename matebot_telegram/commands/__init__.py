@@ -2,20 +2,20 @@
 MateBot collection of command executors
 """
 
-from mate_bot.config import config
-from mate_bot.commands.balance import BalanceCommand
-from mate_bot.commands.blame import BlameCommand
-from mate_bot.commands.communism import CommunismCommand, CommunismCallbackQuery
-from mate_bot.commands.data import DataCommand
-from mate_bot.commands.forward import ForwardInlineQuery, ForwardInlineResult
-from mate_bot.commands.help import HelpCommand, HelpInlineQuery
-from mate_bot.commands.history import HistoryCommand
-from mate_bot.commands.pay import PayCommand, PayCallbackQuery
-from mate_bot.commands.send import SendCommand, SendCallbackQuery
-from mate_bot.commands.start import StartCommand
-from mate_bot.commands.vouch import VouchCommand, VouchCallbackQuery
-from mate_bot.commands.zwegat import ZwegatCommand
-from mate_bot.commands.consume import ConsumeCommand
+from matebot_telegram.config import config
+from matebot_telegram.commands.balance import BalanceCommand
+from matebot_telegram.commands.blame import BlameCommand
+from matebot_telegram.commands.communism import CommunismCommand, CommunismCallbackQuery
+from matebot_telegram.commands.data import DataCommand
+from matebot_telegram.commands.forward import ForwardInlineQuery, ForwardInlineResult
+from matebot_telegram.commands.help import HelpCommand, HelpInlineQuery
+from matebot_telegram.commands.history import HistoryCommand
+from matebot_telegram.commands.pay import PayCommand, PayCallbackQuery
+from matebot_telegram.commands.send import SendCommand, SendCallbackQuery
+from matebot_telegram.commands.start import StartCommand, StartCallbackQuery
+from matebot_telegram.commands.vouch import VouchCommand, VouchCallbackQuery
+from matebot_telegram.commands.zwegat import ZwegatCommand
+from matebot_telegram.commands.consume import ConsumeCommand
 
 
 # In order to register all executors in the registry, we just
@@ -41,6 +41,7 @@ for consumable in config["consumables"]:
 CommunismCallbackQuery()
 PayCallbackQuery()
 SendCallbackQuery()
+StartCallbackQuery()
 VouchCallbackQuery()
 
 ForwardInlineQuery(r"^\d+(\s?\S?)*")

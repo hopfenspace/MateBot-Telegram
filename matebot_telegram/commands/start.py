@@ -2,10 +2,12 @@
 MateBot command executor classes for /start
 """
 
+from typing import List
+
 import telegram
 
-from matebot_telegram import connector, util
-from matebot_telegram.base import BaseCommand
+from matebot_telegram import connector, schemas, util
+from matebot_telegram.base import BaseCommand, BaseCallbackQuery
 from matebot_telegram.parsing.util import Namespace
 
 
@@ -48,21 +50,16 @@ class StartCommand(BaseCommand):
 
         user = util.get_user_by(update.effective_message.from_user, lambda _: None, connect)
         if user is None:
-            # unknown user
             update.message.reply_text(
                 "It looks like you are a new user. Did you already use this bot in some other application?",
-                reply_markup=telegram.InlineKeyboardMarkup([
-                    [
-                        telegram.InlineKeyboardButton("YES", callback_data=f"start init {sender.id} existing"),
-                        telegram.InlineKeyboardButton("NO", callback_data=f"start init {sender.id} new")
-                    ]
-                ])
+                reply_markup=telegram.InlineKeyboardMarkup([[
+                    telegram.InlineKeyboardButton("YES", callback_data=f"start init {sender.id} existing"),
+                    telegram.InlineKeyboardButton("NO", callback_data=f"start init {sender.id} new")
+                ]])
             )
-            pass
+
         else:
             update.message.reply_text("You are already registered. Using this command twice has no means.")
-            # existing user
-            pass
 
         # if MateBotUser.get_uid_from_tid(sender.id) is not None:
         #     user = MateBotUser(sender)
@@ -98,5 +95,123 @@ class StartCommand(BaseCommand):
         # )
 
 
+class StartCallbackQuery(BaseCallbackQuery):
+    """
+    Callback query executor for /start
+    """
 
+    def __init__(self):
+        super().__init__("start", "^start")
+        self.commands = {
+            "init": self.init,
+            "set-username": self.set_username
+        }
 
+    def init(self, update: telegram.Update, connect: connector.APIConnector, data: List[str]):
+        sender_id = update.callback_query.message.from_user.id
+        sender, selection = data
+        sender = int(sender)
+        if sender_id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        if selection == "new":
+            update.callback_query.message.edit_text(
+                "Do you want to set a username which will be used across all MateBot applications?",
+                reply_markup=telegram.InlineKeyboardMarkup([[
+                    telegram.InlineKeyboardButton("YES", callback_data=f"start set-username {sender_id} yes"),
+                    telegram.InlineKeyboardButton("NO", callback_data=f"start set-username {sender_id} no")
+                ]])
+            )
+
+        elif selection == "existing":
+            # TODO: implement asking for the identifier of another client alias
+            update.callback_query.message.edit_text(
+                "Well, this isn't implemented yet, stay tuned.",
+                reply_markup=telegram.InlineKeyboardMarkup([[]])
+            )
+            raise RuntimeError("Implementation missing")
+
+        else:
+            raise ValueError("Unknown option")
+
+    def set_username(self, update: telegram.Update, connect: connector.APIConnector, data: List[str]):
+        sender_id = update.callback_query.message.from_user.id
+        sender, selection = data
+        sender = int(sender)
+        if sender_id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        if selection == "yes":
+            # TODO: implement asking for the username
+            update.callback_query.message.edit_text(
+                "Well, this isn't implemented yet, stay tuned.",
+                reply_markup=telegram.InlineKeyboardMarkup([[]])
+            )
+            raise RuntimeError("Implementation missing")
+
+        elif selection == "no":
+            response_user = connect.post("/v1/users", json_obj={
+                "external": True,
+                "permission": False,
+                "voucher": None,
+                "name": None
+            })
+            if response_user.ok:
+                user = schemas.User(**response_user.json())
+                response_alias = connect.post("/v1/aliases", json_obj={
+                    "user_id": user.id,
+                    "application": connect.app_name,
+                    "app_user_id": str(sender_id)
+                })
+
+                if response_alias.ok:
+                    update.callback_query.message.edit_text(
+                        "Your account has been successfully created.",
+                        reply_markup=telegram.InlineKeyboardMarkup([[]])
+                    )
+                else:
+                    update.callback_query.message.edit_text(
+                        "Creating your account failed. Please file a bug report.",
+                        reply_markup=telegram.InlineKeyboardMarkup([[]])
+                    )
+                    raise RuntimeError(f"{response_alias.status_code} {response_alias.content}")
+
+            else:
+                update.callback_query.message.edit_text(
+                    "Creating your account failed. Please file a bug report.",
+                    reply_markup=telegram.InlineKeyboardMarkup([[]])
+                )
+                raise RuntimeError(f"{response_user.status_code} {response_user.content}")
+
+        else:
+            raise ValueError("Unknown option")
+
+    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
+        """
+        Process or abort transaction requests based on incoming callback queries
+
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
+        :return: None
+        """
+
+        try:
+            command, *data = self.data.split(" ")
+
+            if command in self.commands:
+                self.commands[command](update, connect, data)
+
+            raise IndexError("Unknown command")
+
+        except (IndexError, ValueError, TypeError, RuntimeError):
+            update.callback_query.answer(
+                text="There was an error processing your request!",
+                show_alert=True
+            )
+            update.callback_query.message.edit_text(
+                "There was an error processing this request. Please try again using /start.",
+                reply_markup=telegram.InlineKeyboardMarkup([])
+            )
+            raise

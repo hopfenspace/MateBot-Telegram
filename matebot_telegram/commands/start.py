@@ -2,13 +2,11 @@
 MateBot command executor classes for /start
 """
 
-from typing import List
-
 import telegram
 
-from matebot_telegram import connector, schemas, util
-from matebot_telegram.base import BaseCommand, BaseCallbackQuery
-from matebot_telegram.parsing.util import Namespace
+from .. import connector, schemas, util
+from ..base import BaseCommand, BaseCallbackQuery
+from ..parsing.util import Namespace
 
 
 class StartCommand(BaseCommand):
@@ -51,7 +49,7 @@ class StartCommand(BaseCommand):
         user = util.get_user_by(update.effective_message.from_user, lambda _: None, connect)
         if user is None:
             update.message.reply_text(
-                "It looks like you are a new user. Did you already use this bot in some other application?",
+                "It looks like you are a new user. Did you already use the MateBot in some other application?",
                 reply_markup=telegram.InlineKeyboardMarkup([[
                     telegram.InlineKeyboardButton("YES", callback_data=f"start init {sender.id} existing"),
                     telegram.InlineKeyboardButton("NO", callback_data=f"start init {sender.id} new")
@@ -61,39 +59,6 @@ class StartCommand(BaseCommand):
         else:
             update.message.reply_text("You are already registered. Using this command twice has no means.")
 
-        # if MateBotUser.get_uid_from_tid(sender.id) is not None:
-        #     user = MateBotUser(sender)
-        #     if not external and user.external:
-        #         user.external = external
-        #         update.message.reply_text(
-        #             "Your account was updated. You are now an internal user."
-        #         )
-        #     return
-        #
-        # user = MateBotUser(sender)
-        # user.external = external
-        #
-        # answer = (
-        #     "**Your user account was created.** You are currently marked as "
-        #     f"{'external' if external else 'internal'} user without vote permissions."
-        # )
-        #
-        # if external:
-        #     answer += (
-        #         "\n\nIn order to be marked as internal user, you have to "
-        #         "send the `/start` command to a privileged chat once. If "
-        #         "you don't have access to them, you may ask someone to invite "
-        #         "you.\nAlternatively, you can ask some internal user to act as your "
-        #         "voucher. To do this, the internal user needs to execute `/vouch "
-        #         "<your username>`. Afterwards, you may use this bot."
-        #     )
-        #
-        # util.safe_send(
-        #     lambda: update.message.reply_markdown(answer),
-        #     lambda: update.message.reply_text(answer),
-        #     answer
-        # )
-
 
 class StartCallbackQuery(BaseCallbackQuery):
     """
@@ -101,15 +66,14 @@ class StartCallbackQuery(BaseCallbackQuery):
     """
 
     def __init__(self):
-        super().__init__("start", "^start")
-        self.commands = {
+        super().__init__("start", "^start", {
             "init": self.init,
             "set-username": self.set_username
-        }
+        })
 
-    def init(self, update: telegram.Update, connect: connector.APIConnector, data: List[str]):
-        sender_id = update.callback_query.message.from_user.id
-        sender, selection = data
+    def init(self, update: telegram.Update, connect: connector.APIConnector):
+        sender_id = update.callback_query.from_user.id
+        _, sender, selection = self.data.split(" ")
         sender = int(sender)
         if sender_id != sender:
             raise ValueError("Wrong Telegram ID")
@@ -134,9 +98,9 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError("Unknown option")
 
-    def set_username(self, update: telegram.Update, connect: connector.APIConnector, data: List[str]):
-        sender_id = update.callback_query.message.from_user.id
-        sender, selection = data
+    def set_username(self, update: telegram.Update, connect: connector.APIConnector):
+        sender_id = update.callback_query.from_user.id
+        _, sender, selection = self.data.split(" ")
         sender = int(sender)
         if sender_id != sender:
             raise ValueError("Wrong Telegram ID")
@@ -185,33 +149,3 @@ class StartCallbackQuery(BaseCallbackQuery):
 
         else:
             raise ValueError("Unknown option")
-
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
-        """
-        Process or abort transaction requests based on incoming callback queries
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
-        :return: None
-        """
-
-        try:
-            command, *data = self.data.split(" ")
-
-            if command in self.commands:
-                self.commands[command](update, connect, data)
-
-            raise IndexError("Unknown command")
-
-        except (IndexError, ValueError, TypeError, RuntimeError):
-            update.callback_query.answer(
-                text="There was an error processing your request!",
-                show_alert=True
-            )
-            update.callback_query.message.edit_text(
-                "There was an error processing this request. Please try again using /start.",
-                reply_markup=telegram.InlineKeyboardMarkup([])
-            )
-            raise

@@ -7,15 +7,27 @@ import logging
 
 import telegram.ext
 
-from mate_bot import registry, util
-from mate_bot.config import config
-from mate_bot.err import ParsingError
-from mate_bot.parsing.parser import CommandParser
-from mate_bot.parsing.util import Namespace
-from mate_bot.state.user import MateBotUser
+from matebot_telegram import connector, registry, util
+from matebot_telegram.parsing.parser import CommandParser
+from matebot_telegram.parsing.util import Namespace
 
 
-logger = logging.getLogger("commands")
+class MateBotException(Exception):
+    """
+    Base class for all project-wide exceptions
+    """
+
+
+class ParsingError(MateBotException):
+    """
+    Exception raised when the argument parser throws an error
+
+    This is likely to happen when a user messes up the syntax of a
+    particular command. Instead of exiting the program, this exception
+    will be raised. You may use it's string representation to gain
+    additional information about what went wrong. This allows a user
+    to correct its command, in case this caused the parser to fail.
+    """
 
 
 class BaseCommand:
@@ -53,6 +65,7 @@ class BaseCommand:
         self._usage = usage
         self.description = description
         self.parser = CommandParser(self.name)
+        self.logger = logging.getLogger("commands")
 
         registry.commands[self.name] = self
 
@@ -67,7 +80,7 @@ class BaseCommand:
         else:
             return self._usage
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Perform command-specific actions
 
@@ -77,121 +90,20 @@ class BaseCommand:
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: connector to easily query the backend API
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         :raises NotImplementedError: because this method should be overwritten by subclasses
         """
 
         raise NotImplementedError("Overwrite the BaseCommand.run() method in a subclass")
 
-    def ensure_permissions(self, user: MateBotUser, level: int, msg: telegram.Message) -> bool:
-        """
-        Ensure that a user is allowed to perform an operation that requires specific permissions
-
-        The parameter ``level`` is an integer and determines the required
-        permission level. It's not calculated but rather interpreted:
-
-          * ``0`` means that any user is allowed to perform the task
-          * ``1`` means that any internal user or external user with voucher is allowed
-          * ``2`` means that only internal users are allowed
-          * ``3`` means that only internal users with vote permissions are allowed
-          * any other value will lead to a ValueError
-
-        .. note::
-
-            This method will automatically reply to the incoming message when
-            the necessary permissions are not fulfilled. Use the return value
-            to determine whether you should simply quit further execution of
-            your method (returned ``False``) or not (returned ``True``).
-
-        :param user: MateBotUser that tries to execute a specific command
-        :type user: MateBotUser
-        :param level: minimal required permission level to be allowed to perform some action
-        :type level: int
-        :param msg: incoming message containing the command in question
-        :type msg: telegram.Message
-        :return: whether further access should be allowed (``True``) or not
-        :rtype: bool
-        :raises TypeError: when the level is no integer
-        :raises ValueError: when the level is not one of the accepted integer values
-        """
-
-        if not isinstance(level, int):
-            raise TypeError(f"Expected int as level, got {type(level)} instead")
-        if level not in range(4):
-            raise ValueError(f"Permission level {level} out of range 0-3")
-
-        if level == 0:
-            return True
-
-        if level == 1 and user.external and user.creditor is None:
-            msg.reply_text(
-                f"You can't perform {self.name}. You are an external user "
-                "without creditor. For security purposes, every external user "
-                "needs an internal voucher. Use /help for more information."
-            )
-            return False
-
-        if level == 2 and user.external:
-            msg.reply_text(
-                f"You can't perform {self.name}. You are an external user. "
-                "To perform this command, you must be marked as internal user. "
-                "Send any command to an internal chat to update your privileges."
-            )
-            return False
-
-        if level == 3 and not user.permission:
-            msg.reply_text(
-                f"You can't perform {self.name}. You don't have permissions to vote."
-            )
-            return False
-
-        return True
-
-    def _verify_internal_membership(
-            self,
-            update: telegram.Update,
-            user: MateBotUser,
-            bot: telegram.Bot
-    ) -> None:
-        """
-        Verify that a user who calls a command from the internal chat is marked as internal user
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param user: existing MateBotUser that executed a command (not ``/start``)
-        :type user: MateBotUser
-        :param bot: Telegram Bot object that can send messages to clients
-        :type bot: telegram.Bot
-        :return: None
-        """
-
-        external = update.effective_message.chat.id != config["chats"]["internal"]
-        if external or not user.external:
-            return
-
-        creditor = user.creditor
-        if creditor is None:
-            user.external = external
-            bot.send_message(
-                user.tid,
-                "Your account was updated. You are now an internal "
-                f"user because you executed /{self.name} in an internal chat."
-            )
-        else:
-            bot.send_message(
-                user.tid,
-                f"You receive this message because you executed /{self.name} in "
-                f"an internal chat. It looks like {MateBotUser(creditor)} vouches "
-                f"for you. You can't have a voucher when you try to become an internal "
-                f"user. Therefore, your account status was not updated."
-            )
-
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
         Parse arguments of the incoming update and execute the .run() method
 
         This method is the callback method used by telegram.CommandHandler.
-        Note that this method also catches any exceptions and prints them.
+        Note that this method also catches and handles ParsingErrors.
 
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -201,26 +113,29 @@ class BaseCommand:
         """
 
         try:
-            logger.debug(f"{type(self).__name__} by {update.effective_message.from_user.name}")
+            self.logger.debug(f"{type(self).__name__} by {update.effective_message.from_user.name}")
 
-            if self.name != "start":
-                if MateBotUser.get_uid_from_tid(update.effective_message.from_user.id) is None:
-                    update.effective_message.reply_text("You need to /start first.")
-                    return
-
-                user = MateBotUser(update.effective_message.from_user)
-                self._verify_internal_membership(update, user, context.bot)
+            # if self.name != "start":
+            #     if MateBotUser.get_uid_from_tid(update.effective_message.from_user.id) is None:
+            #         update.effective_message.reply_text("You need to /start first.")
+            #         return
+            #
+            #     user = MateBotUser(update.effective_message.from_user)
+            #     self._verify_internal_membership(update, user, context.bot)
 
             args = self.parser.parse(update.effective_message)
-            logger.debug(f"Parsed command's arguments: {args}")
-            self.run(args, update)
+            self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
+            self.run(args, update, connector.connector)
 
         except ParsingError as exc:
             err = str(exc)
             util.safe_send(
-                lambda: update.effective_message.reply_text(str(err), parse_mode="Markdown"),
-                lambda: update.effective_message.reply_text(str(err)),
-                str(err)
+                context.bot,
+                update.effective_chat.id,
+                err,
+                "Parsing your command failed. Try `/help`!",
+                parse_mode="Markdown",
+                reply=None
             )
 
 
@@ -271,6 +186,7 @@ class BaseCallbackQuery:
         self.pattern = pattern
         self.data = None
         self.targets = targets
+        self.logger = logging.getLogger("callback")
 
         registry.callback_queries[self.pattern] = self
 
@@ -287,7 +203,7 @@ class BaseCallbackQuery:
         """
 
         data = update.callback_query.data
-        logger.debug(f"{type(self).__name__} by {update.callback_query.from_user.name} with '{data}'")
+        self.logger.debug(f"{type(self).__name__} by {update.callback_query.from_user.name} with '{data}'")
 
         if data is None:
             raise RuntimeError("No callback data found")
@@ -340,6 +256,7 @@ class BaseInlineQuery:
 
     def __init__(self, pattern: str):
         self.pattern = pattern
+        self.logger = logging.getLogger("inline")
 
         registry.inline_queries[self.pattern] = self
 
@@ -357,7 +274,7 @@ class BaseInlineQuery:
             raise TypeError('Update object has no attribute "inline_query"')
 
         query = update.inline_query
-        logger.debug(f"{type(self).__name__} by {query.from_user.name} with '{query.query}'")
+        self.logger.debug(f"{type(self).__name__} by {query.from_user.name} with '{query.query}'")
         self.run(query)
 
     def get_result_id(self, *args) -> str:
@@ -438,6 +355,7 @@ class BaseInlineResult:
 
     def __init__(self, pattern: str):
         self.pattern = pattern
+        self.logger = logging.getLogger("inline-result")
 
         registry.inline_results[self.pattern] = self
 
@@ -455,7 +373,7 @@ class BaseInlineResult:
             raise TypeError('Update object has no attribute "chosen_inline_result"')
 
         result = update.chosen_inline_result
-        logger.debug(f"{type(self).__name__} by {result.from_user.name} with '{result.result_id}'")
+        self.logger.debug(f"{type(self).__name__} by {result.from_user.name} with '{result.result_id}'")
         self.run(result, context.bot)
 
     def run(self, result: telegram.ChosenInlineResult, bot: telegram.Bot) -> None:

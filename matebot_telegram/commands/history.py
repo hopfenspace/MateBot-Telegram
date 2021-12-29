@@ -3,19 +3,14 @@ MateBot command executor classes for /history
 """
 
 import json
-import logging
 import tempfile
 
 import telegram
 
-from mate_bot.state.user import MateBotUser
-from mate_bot.state.transactions import TransactionLog
-from mate_bot.parsing.types import natural as natural_type
-from mate_bot.parsing.util import Namespace
-from mate_bot.commands.base import BaseCommand
-
-
-logger = logging.getLogger("commands")
+from ..base import BaseCommand
+from ..parsing.types import natural as natural_type
+from ..parsing.util import Namespace
+from .. import connector, schemas, util
 
 
 class HistoryCommand(BaseCommand):
@@ -49,22 +44,24 @@ class HistoryCommand(BaseCommand):
             choices=("json", "csv")
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
         if args.export is None:
-            self._handle_report(args, update)
+            self._handle_report(args, update, connect)
         else:
-            self._handle_export(args, update)
+            self._handle_export(args, update, connect)
 
     @staticmethod
-    def _handle_export(args: Namespace, update: telegram.Update) -> None:
+    def _handle_export(args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Handle the request to export the full transaction log of a user
 
@@ -72,6 +69,8 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -79,11 +78,19 @@ class HistoryCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = MateBotUser(update.effective_message.from_user)
+        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
+        if user is None:
+            return
+
+        response = connect.get(f"/v1/transactions/user/{user.id}")
+        if not response.ok:
+            update.effective_message.reply_text("Error processing your request. Please file a bug report.")
+            return
+
+        transactions = [schemas.Transaction(**e) for e in response.json()]
 
         if args.export == "json":
-
-            logs = TransactionLog(user).to_json()
+            logs = [t.json() for t in transactions]
             if len(logs) == 0:
                 update.effective_message.reply_text("You don't have any registered transactions yet.")
                 return
@@ -96,33 +103,36 @@ class HistoryCommand(BaseCommand):
                     document=file,
                     filename="transactions.json",
                     caption=(
-                        "You requested the export of your transaction log. "
-                        f"This file contains all known transactions of {user.name}."
+                        "You requested the export of your transaction log. This file contains "
+                        f"all known transactions of {update.effective_message.from_user.name}."
                     )
                 )
 
         elif args.export == "csv":
+            # TODO: implement CSV export of transactions
+            update.effective_message.reply_text("This feature is not implemented yet.")
+            return
 
-            content = TransactionLog(user).to_csv(True)
-            if content is None:
-                update.effective_message.reply_text("You don't have any registered transactions yet.")
-                return
-
-            with tempfile.TemporaryFile(mode="w+b") as file:
-                file.write(content.encode("UTF-8"))
-                file.seek(0)
-
-                update.effective_message.reply_document(
-                    document=file,
-                    filename="transactions.csv",
-                    caption=(
-                        "You requested the export of your transaction log. "
-                        f"This file contains all known transactions of {user.name}."
-                    )
-                )
+            # content = TransactionLog(user).to_csv(True)
+            # if content is None:
+            #     update.effective_message.reply_text("You don't have any registered transactions yet.")
+            #     return
+            #
+            # with tempfile.TemporaryFile(mode="w+b") as file:
+            #     file.write(content.encode("UTF-8"))
+            #     file.seek(0)
+            #
+            #     update.effective_message.reply_document(
+            #         document=file,
+            #         filename="transactions.csv",
+            #         caption=(
+            #             "You requested the export of your transaction log. "
+            #             f"This file contains all known transactions of {user.name}."
+            #         )
+            #     )
 
     @staticmethod
-    def _handle_report(args: Namespace, update: telegram.Update) -> None:
+    def _handle_report(args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Handle the request to report the most current transaction entries of a user
 
@@ -130,42 +140,61 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
-        user = MateBotUser(update.effective_message.from_user)
-        logs = TransactionLog(user, args.length).to_list()
-        log = "\n".join(logs)
-        heading = f"Transaction history for {user.name}:\n```"
+        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
+        if user is None:
+            return
+
+        response = connect.get(f"/v1/transactions/user/{user.id}")
+        if not response.ok:
+            update.effective_message.reply_text("Error processing your request. Please file a bug report.")
+            return
+
+        # TODO: improve the generation of log entries with a custom format
+        logs = [str(schemas.Transaction(**e)) for e in response.json()]
+        name = update.effective_message.from_user.name
+
+        # TODO: limit the output to the number of requested entries
+
         if len(logs) == 0:
             update.effective_message.reply_text("You don't have any registered transactions yet.")
             return
 
-        if update.effective_message.chat.type != update.effective_chat.PRIVATE:
+        log = "\n".join(logs)
+        heading = f"Transaction history for {name}:\n```"
+        text = f"{heading}\n{log}```"
+        if len(text) < 4096:
+            util.safe_call(
+                lambda: update.effective_message.reply_markdown_v2(text),
+                lambda: update.effective_message.reply_text(text)
+            )
+            return
 
-            text = f"{heading}\n{log}```"
-            if len(text) > 4096:
-                update.effective_message.reply_text(
-                    "Your requested transaction logs are too long. Try a smaller "
-                    "number of entries or execute this command in private chat again."
-                )
-            else:
-                update.effective_message.reply_markdown_v2(text)
+        if update.effective_message.chat.type != update.effective_chat.PRIVATE:
+            update.effective_message.reply_text(
+                "Your requested transaction logs are too long. Try a smaller "
+                "number of entries or execute this command in private chat again."
+            )
 
         else:
-
-            text = f"{heading}\n{log}```"
-            if len(text) < 4096:
-                update.effective_message.reply_markdown_v2(text)
-                return
-
             results = [heading]
             for entry in logs:
                 if len("\n".join(results + [entry])) > 4096:
                     results.append("```")
-                    update.effective_message.reply_markdown_v2("\n".join(results))
+                    util.safe_call(
+                        lambda: update.effective_message.reply_markdown_v2("\n".join(results)),
+                        lambda: update.effective_message.reply_text("\n".join(results))
+                    )
                     results = ["```"]
                 results.append(entry)
 
             if len(results) > 0:
-                update.effective_message.reply_markdown_v2("\n".join(results + ["```"]))
+                text = "\n".join(results + ["```"])
+                util.safe_call(
+                    lambda: update.effective_message.reply_markdown_v2(text),
+                    lambda: update.effective_message.reply_text(text)
+                )

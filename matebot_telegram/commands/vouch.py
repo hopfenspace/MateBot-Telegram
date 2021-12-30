@@ -2,19 +2,12 @@
 MateBot command executor classes for /vouch
 """
 
-import logging
-
 import telegram
 
-from mate_bot import util
-from mate_bot.commands.base import BaseCommand, BaseCallbackQuery
-from mate_bot.parsing import types
-from mate_bot.parsing.util import Namespace
-from mate_bot.state.user import MateBotUser
-from mate_bot.state.transactions import Transaction
-
-
-logger = logging.getLogger("commands")
+from .. import connector, util
+from ..base import BaseCommand, BaseCallbackQuery
+from ..parsing import types
+from ..parsing.util import Namespace
 
 
 class VouchCommand(BaseCommand):
@@ -48,18 +41,25 @@ class VouchCommand(BaseCommand):
             type=types.user
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
-        owner = MateBotUser(update.effective_message.from_user)
-        if not self.ensure_permissions(owner, 2, update.effective_message):
+        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
+        if user is None:
             return
+        if not util.ensure_permissions(user, util.PermissionLevel.ANY_INTERNAL, update.effective_message, "vouch"):
+            return
+
+        # TODO: adapt this command to the new server-client architecture
+        update.effective_message.reply_text("This command has not been fully implemented yet.")
 
         def reply(text: str) -> None:
             keyboard = telegram.InlineKeyboardMarkup([
@@ -171,12 +171,14 @@ class VouchCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("vouch", "^vouch")
 
-    def run(self, update: telegram.Update) -> None:
+    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Process or abort the query to add or remove the debtor user
 
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

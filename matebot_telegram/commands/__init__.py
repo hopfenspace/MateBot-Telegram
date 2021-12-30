@@ -2,20 +2,19 @@
 MateBot collection of command executors
 """
 
-from matebot_telegram.config import config
-from matebot_telegram.commands.balance import BalanceCommand
-from matebot_telegram.commands.blame import BlameCommand
-from matebot_telegram.commands.communism import CommunismCommand, CommunismCallbackQuery
-from matebot_telegram.commands.data import DataCommand
-from matebot_telegram.commands.forward import ForwardInlineQuery, ForwardInlineResult
-from matebot_telegram.commands.help import HelpCommand, HelpInlineQuery
-from matebot_telegram.commands.history import HistoryCommand
-from matebot_telegram.commands.pay import PayCommand, PayCallbackQuery
-from matebot_telegram.commands.send import SendCommand, SendCallbackQuery
-from matebot_telegram.commands.start import StartCommand, StartCallbackQuery
-from matebot_telegram.commands.vouch import VouchCommand, VouchCallbackQuery
-from matebot_telegram.commands.zwegat import ZwegatCommand
-from matebot_telegram.commands.consume import ConsumeCommand
+from .balance import BalanceCommand
+from .blame import BlameCommand
+from .communism import CommunismCommand, CommunismCallbackQuery
+from .consume import ConsumeCommand
+from .data import DataCommand
+from .forward import ForwardInlineQuery, ForwardInlineResult
+from .help import HelpCommand, HelpInlineQuery
+from .history import HistoryCommand
+from .pay import PayCommand, PayCallbackQuery
+from .send import SendCommand, SendCallbackQuery
+from .start import StartCommand, StartCallbackQuery
+from .vouch import VouchCommand, VouchCallbackQuery
+from .zwegat import ZwegatCommand
 
 
 # In order to register all executors in the registry, we just
@@ -25,6 +24,7 @@ from matebot_telegram.commands.consume import ConsumeCommand
 
 BalanceCommand()
 BlameCommand()
+ConsumeCommand()
 CommunismCommand()
 DataCommand()
 HelpCommand()
@@ -34,9 +34,6 @@ SendCommand()
 StartCommand()
 VouchCommand()
 ZwegatCommand()
-
-for consumable in config["consumables"]:
-    ConsumeCommand(**consumable)
 
 CommunismCallbackQuery()
 PayCallbackQuery()

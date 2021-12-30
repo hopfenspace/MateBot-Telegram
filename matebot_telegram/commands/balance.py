@@ -4,11 +4,10 @@ MateBot command executor classes for /balance
 
 import telegram
 
-from matebot_telegram import util
-from matebot_telegram.connector import APIConnector
-from matebot_telegram.base import BaseCommand
-from matebot_telegram.parsing.types import user as user_type
-from matebot_telegram.parsing.util import Namespace
+from .. import connector, util
+from ..base import BaseCommand
+from ..parsing.util import Namespace
+from ..parsing.types import user as user_type
 
 
 class BalanceCommand(BaseCommand):
@@ -28,7 +27,7 @@ class BalanceCommand(BaseCommand):
 
         self.parser.add_argument("user", type=user_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update, connect: APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -42,5 +41,6 @@ class BalanceCommand(BaseCommand):
         if args.user:
             update.effective_message.reply_text(f"Balance of {args.user.name} is: {args.user.balance / 100 : .2f}€")
         else:
-            balance = util.get_user_by_telegram_id(update.effective_message.from_user.id, connect).balance
-            update.effective_message.reply_text(f"Your balance is: {balance / 100 :.2f}€")
+            user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
+            if user is not None:
+                update.effective_message.reply_text(f"Your balance is: {user.balance / 100 :.2f}€")

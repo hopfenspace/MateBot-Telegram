@@ -3,7 +3,12 @@
 	"password": "<Password of your deployed application>",
 	"ca-path": "<Optional path to a CA file for TLS connections>",
 	"server": "<Base URL to the MateBot backend server>",
+	"callback-url": "<Optional base URL of the callback server>",
+	"callback-username": "<Optional username for HTTP Basic Auth to the callback server>",
+	"callback-password": "<Optional password for HTTP Basic Auth to the callback server>",
 	"token": "<Telegram bot token>",
+	"adjust-stock": true,
+	"respect-stock": true,
 	"chats": {
 		"transactions": [],
 		"notification": [],

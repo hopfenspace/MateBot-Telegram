@@ -3,6 +3,7 @@ MateBot command executor classes for /start
 """
 
 import base64
+from typing import Optional
 
 import telegram
 
@@ -70,7 +71,8 @@ class StartCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("start", "^start", {
             "init": self.init,
-            "set-username": self.set_username
+            "set-username": self.set_username,
+            "select": self.select
         })
 
     def init(self, update: telegram.Update, connect: connector.APIConnector):
@@ -135,38 +137,52 @@ class StartCallbackQuery(BaseCallbackQuery):
             )
 
         elif selection == "no":
-            response_user = connect.post("/v1/users", json_obj={
-                "external": True,
-                "permission": False,
-                "voucher": None,
-                "name": None
-            })
-            if response_user.ok:
-                user = schemas.User(**response_user.json())
-                response_alias = connect.post("/v1/aliases", json_obj={
-                    "user_id": user.id,
-                    "application": connect.app_name,
-                    "app_user_id": str(sender_id)
-                })
-
-                if response_alias.ok:
-                    update.callback_query.message.edit_text(
-                        "Your account has been successfully created.",
-                        reply_markup=telegram.InlineKeyboardMarkup([[]])
-                    )
-                else:
-                    update.callback_query.message.edit_text(
-                        "Creating your account failed. Please file a bug report.",
-                        reply_markup=telegram.InlineKeyboardMarkup([[]])
-                    )
-                    raise RuntimeError(f"{response_alias.status_code} {response_alias.content}")
-
-            else:
-                update.callback_query.message.edit_text(
-                    "Creating your account failed. Please file a bug report.",
-                    reply_markup=telegram.InlineKeyboardMarkup([[]])
-                )
-                raise RuntimeError(f"{response_user.status_code} {response_user.content}")
+            _create_user(update, connect, sender_id, None)
 
         else:
             raise ValueError("Unknown option")
+
+    def select(self, update: telegram.Update, connect: connector.APIConnector):
+        sender_id = update.callback_query.from_user.id
+        _, sender, encoded_name = self.data.split(" ")
+        sender = int(sender)
+        if sender_id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        selected_username = base64.b64decode(encoded_name.encode("ASCII")).decode("UTF-8")
+        _create_user(update, connect, sender_id, selected_username)
+
+
+def _create_user(update: telegram.Update, connect: connector.APIConnector, telegram_id: int, username: Optional[str]):
+    response_user = connect.post("/v1/users", json_obj={
+        "external": True,
+        "permission": False,
+        "voucher": None,
+        "name": username
+    })
+    if response_user.ok:
+        user = schemas.User(**response_user.json())
+        response_alias = connect.post("/v1/aliases", json_obj={
+            "user_id": user.id,
+            "application": connect.app_name,
+            "app_user_id": str(telegram_id)
+        })
+
+        if response_alias.ok:
+            update.callback_query.message.edit_text(
+                "Your account has been successfully created.",
+                reply_markup=telegram.InlineKeyboardMarkup([[]])
+            )
+        else:
+            update.callback_query.message.edit_text(
+                "Creating your account failed. Please file a bug report.",
+                reply_markup=telegram.InlineKeyboardMarkup([[]])
+            )
+            raise RuntimeError(f"{response_alias.status_code} {response_alias.content}")
+
+    else:
+        update.callback_query.message.edit_text(
+            "Creating your account failed. Please file a bug report.",
+            reply_markup=telegram.InlineKeyboardMarkup([[]])
+        )
+        raise RuntimeError(f"{response_user.status_code} {response_user.content}")

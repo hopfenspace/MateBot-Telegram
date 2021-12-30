@@ -2,20 +2,15 @@
 MateBot command executor classes for /help
 """
 
-import typing
-import logging
 import datetime
+from typing import Optional
 
 import telegram
 
-from mate_bot import registry
-from mate_bot.commands.base import BaseCommand, BaseInlineQuery
-from mate_bot.parsing.types import command as command_type
-from mate_bot.parsing.util import Namespace
-from mate_bot.state.user import MateBotUser
-
-
-logger = logging.getLogger("commands")
+from .. import connector, registry, schemas, util
+from ..base import BaseCommand, BaseInlineQuery
+from ..parsing.types import command as command_type
+from ..parsing.util import Namespace
 
 
 class HelpCommand(BaseCommand):
@@ -33,39 +28,43 @@ class HelpCommand(BaseCommand):
 
         self.parser.add_argument("command", type=command_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
         if args.command:
             msg = self.get_help_for_command(args.command)
-
         else:
-            user = MateBotUser(update.effective_message.from_user)
+            user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
             msg = self.get_help_usage(registry.commands, self.usage, user)
 
-        update.effective_message.reply_markdown(msg)
+        util.safe_call(
+            lambda: update.effective_message.reply_markdown(msg),
+            lambda: update.effective_message.reply_text(msg)
+        )
 
     @staticmethod
     def get_help_usage(
             commands: dict,
             usage: str,
-            user: typing.Optional[MateBotUser] = None
+            user: Optional[schemas.User] = None
     ) -> str:
         """
         Retrieve the help message from the help command without arguments
 
-        :param commands: dictionary of registered commands, see :mod:`mate_bot.registry`
+        :param commands: dictionary of registered commands, see :mod:`matebot_telegram.registry`
         :type commands: dict
         :param usage: usage string of the help command
         :type usage: str
-        :param user: optional MateBotUser object who issued the help command
-        :type user: typing.Optional[MateBotUser]
+        :param user: optional MateBot User who issued the help command
+        :type user: Optional[matebot_telegram.schemas.User]
         :return: fully formatted help message when invoking the help command without arguments
         :rtype: str
         """
@@ -73,10 +72,13 @@ class HelpCommand(BaseCommand):
         command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(commands.keys())))
         msg = f"{usage}\n\nList of commands:\n\n{command_list}"
 
-        if user and isinstance(user, MateBotUser) and user.external:
+        if user and not user.active:
+            msg += "\n\nYour user account has been disabled. You're not allowed to interact with the bot."
+
+        elif user and user.external:
             msg += "\n\nYou are an external user. Some commands may be restricted."
 
-            if user.creditor is None:
+            if user.voucher is None:
                 msg += (
                     "\nYou don't have any creditor. Your possible interactions "
                     "with the bot are very limited for security purposes. You "
@@ -118,11 +120,11 @@ class HelpInlineQuery(BaseInlineQuery):
 
         return f"help-{int(datetime.datetime.now().timestamp())}"
 
-    def get_command_help(self, command: str) -> typing.Optional[telegram.InlineQueryResult]:
+    def get_command_help(self, command: str) -> Optional[telegram.InlineQueryResult]:
         """
         Get the help message for a specific command requested as possible answer
 
-        :param command: name of one of the supported commands, see :mod:`mate_bot.registry`
+        :param command: name of one of the supported commands, see :mod:`matebot_telegram.registry`
         :type command: str
         :return: help message as inline query result for one specific command
         :rtype: typing.Optional[telegram.InlineQueryResult]

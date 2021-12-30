@@ -114,10 +114,7 @@ class SendCallbackQuery(BaseCallbackQuery):
                 update.callback_query.answer(f"Only the creator of this transaction can {variant} it!")
                 return
 
-            fake_receiver = object()
-            fake_receiver.id = receiver_id
-            fake_receiver.name = "<unknown>"
-            receiver = util.get_user_by(fake_receiver, update.callback_query.answer, connect)  # noqa
+            receiver = util.get_user_by(util.FakeTelegramUser(receiver_id), update.callback_query.answer, connect)
             if receiver is None:
                 return
 

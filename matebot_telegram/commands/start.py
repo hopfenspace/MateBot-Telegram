@@ -165,7 +165,8 @@ def _create_user(update: telegram.Update, connect: connector.APIConnector, teleg
         response_alias = connect.post("/v1/aliases", json_obj={
             "user_id": user.id,
             "application": connect.app_name,
-            "app_user_id": str(telegram_id)
+            "app_user_id": str(telegram_id),
+            "confirmed": True
         })
 
         if response_alias.ok:

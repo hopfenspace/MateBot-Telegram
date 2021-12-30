@@ -3,7 +3,7 @@ import enum
 import json
 import logging
 import traceback
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 import requests
 import telegram.ext
@@ -148,6 +148,15 @@ def get_user_by(obj: Union[int, telegram.User, FakeTelegramUser], answer: Callab
             return handle_unknown_user(obj, answer)
         return schemas.User(**response.json())
     raise TypeError(f"Unexpected type {type(obj)}")
+
+
+def get_consumables(connect: connector.APIConnector = None) -> List[schemas.Consumable]:
+    connect = connect or connector.connector
+    response = connect.get("/v1/consumables")
+    if not response.ok:
+        logging.getLogger("util").error(f"Failed to fetch consumables. HTTP {response.status_code}.")
+        return []
+    return [schemas.Consumable(**entry) for entry in response.json()]
 
 
 def handle_unknown_user(telegram_user: Union[telegram.User, FakeTelegramUser], answer: Callable[[str], Any]):

@@ -4,10 +4,11 @@ See :class:`mate_bot.parsing.actions.Action`'s type parameter
 """
 
 import re
+from typing import Union
 
-from matebot_telegram import registry, schemas, util
-from matebot_telegram.base import BaseCommand
-from matebot_telegram.parsing.util import EntityString
+from .util import EntityString
+from .. import registry, schemas, util
+from ..base import BaseCommand
 
 
 __amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
@@ -107,3 +108,22 @@ def command(arg: str) -> BaseCommand:
         return registry.commands[arg.lower()]
     except KeyError:
         raise ValueError(f"{arg} is an unknown command")
+
+
+def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
+    """
+    Convert the string into a consumable schema, if found, or the special string "?"
+
+    :param arg: the desired consumable's name
+    :type arg: str
+    :return: the found consumable schema or the fixed special string "?"
+    :rtype: Union[matebot_telegram.schemas.Consumable, str]
+    :raises ValueError: when the consumable wasn't found or the string isn't "?"
+    """
+
+    if arg.strip() == "?":
+        return "?"
+    for consumable in util.get_consumables():
+        if consumable.name.lower() == arg.lower():
+            return consumable
+    raise ValueError(f"{arg} is no known consumable")

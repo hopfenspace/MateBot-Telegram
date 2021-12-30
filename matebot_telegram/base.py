@@ -97,26 +97,14 @@ class BaseCommand:
         try:
             self.logger.debug(f"{type(self).__name__} by {update.effective_message.from_user.name}")
 
-            # if self.name != "start":
-            #     if MateBotUser.get_uid_from_tid(update.effective_message.from_user.id) is None:
-            #         update.effective_message.reply_text("You need to /start first.")
-            #         return
-            #
-            #     user = MateBotUser(update.effective_message.from_user)
-            #     self._verify_internal_membership(update, user, context.bot)
-
             args = self.parser.parse(update.effective_message)
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
             self.run(args, update, connector.connector)
 
         except err.ParsingError as exc:
-            util.safe_send(
-                context.bot,
-                update.effective_chat.id,
-                str(exc),
-                "Parsing your command failed. Try `/help`!",
-                parse_mode="Markdown",
-                reply=None
+            util.safe_call(
+                lambda: update.effective_message.reply_markdown(str(exc)),
+                lambda: update.effective_message.reply_text(str(exc))
             )
 
 

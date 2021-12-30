@@ -38,6 +38,10 @@ class User(pydantic.BaseModel):
     created: pydantic.NonNegativeInt
     accessed: pydantic.NonNegativeInt
 
+    @property
+    def username(self) -> str:
+        return self.name if self.name is not None else str(self.id)
+
 
 class Transaction(pydantic.BaseModel):
     id: pydantic.NonNegativeInt

@@ -20,6 +20,12 @@ class PermissionLevel(enum.Enum):
     NOBODY = 5
 
 
+class FakeTelegramUser:
+    def __init__(self, telegram_id: int, name: Optional[str] = None):
+        self.id = telegram_id
+        self.name = name or "<unknown>"
+
+
 def safe_send(bot: telegram.Bot, chat_id: Union[int, str], default: str, fallback: str, *args, **kwargs) -> bool:
     try:
         bot.send_message(chat_id, default, *args, **kwargs)
@@ -118,36 +124,33 @@ def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram
     return True
 
 
-def get_alias_by(telegram_user: telegram.User, answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.Alias]:
+def get_alias_by(obj: Union[telegram.User, FakeTelegramUser], answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.Alias]:
     connect = connect or connector.connector
     response = connect.get(f"/v1/aliases/application/{connect.app_name}")
     if not response.ok:
-        print(response, response.status_code, response.headers.items())
-        print(response.json())
         raise RuntimeError  # TODO: implement better exception handling
-    hits = [e for e in response.json() if e["app_user_id"] == str(telegram_user.id)]
+    hits = [e for e in response.json() if e["app_user_id"] == str(obj.id)]
     if len(hits) == 0:
-        handle_unknown_user(telegram_user, answer)
-        return
+        return handle_unknown_user(obj, answer)
     return schemas.Alias(**hits[0])
 
 
-def get_user_by(telegram_user: telegram.User, answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.User]:
+def get_user_by(obj: Union[int, telegram.User, FakeTelegramUser], answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.User]:
     connect = connect or connector.connector
-    alias = get_alias_by(telegram_user, answer, connect=connect)
-    if alias is None:
-        return
-    response = connect.get(f"/v1/users/{alias.user_id}")
-    if not response.ok:
-        print(response, response.status_code, response.headers.items())
-        print(response.json())
-        assert response.status_code == 404  # TODO: improve this
-        handle_unknown_user(telegram_user, answer)
-        return
-    return schemas.User(**response.json())
+    if isinstance(obj, int):
+        return connect.get(f"/v1/users/{obj}")
+    elif isinstance(obj, telegram.User) or isinstance(obj, FakeTelegramUser):
+        alias = get_alias_by(obj, answer, connect=connect)
+        if alias is None:
+            return
+        response = connect.get(f"/v1/users/{alias.user_id}")
+        if not response.ok:
+            return handle_unknown_user(obj, answer)
+        return schemas.User(**response.json())
+    raise TypeError(f"Unexpected type {type(obj)}")
 
 
-def handle_unknown_user(telegram_user: telegram.User, answer: Callable[[str], Any]):
+def handle_unknown_user(telegram_user: Union[telegram.User, FakeTelegramUser], answer: Callable[[str], Any]):
     answer(
         f"It looks like {telegram_user.name} was not found on the server. "
         "Please write /start to the bot in a private chat to start using it."

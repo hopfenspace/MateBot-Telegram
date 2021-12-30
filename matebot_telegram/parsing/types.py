@@ -7,7 +7,6 @@ import re
 
 from matebot_telegram import registry, schemas, util
 from matebot_telegram.base import BaseCommand
-from matebot_telegram.config import config
 from matebot_telegram.parsing.util import EntityString
 
 
@@ -23,8 +22,6 @@ __amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
 def amount(arg: str) -> int:
     """
     Convert the string into an amount of money.
-
-    A maximum allowed amount, this function accepts, is set in the config.
 
     :param arg: string to be parsed
     :type arg: str
@@ -45,8 +42,6 @@ def amount(arg: str) -> int:
 
     if val == 0:
         raise ValueError("An amount can't be zero")
-    elif val > config["general"]["max-amount"]:
-        raise ValueError("The amount is too high")
 
     return val
 

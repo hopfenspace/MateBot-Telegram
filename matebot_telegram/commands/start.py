@@ -2,6 +2,8 @@
 MateBot command executor classes for /start
 """
 
+import base64
+
 import telegram
 
 from .. import connector, schemas, util
@@ -80,7 +82,8 @@ class StartCallbackQuery(BaseCallbackQuery):
 
         if selection == "new":
             update.callback_query.message.edit_text(
-                "Do you want to set a username which will be used across all MateBot applications?",
+                "Do you want to set a username which will be used across all MateBot applications? "
+                "This is highly recommended, since otherwise your numeric ID will be used as username.",
                 reply_markup=telegram.InlineKeyboardMarkup([[
                     telegram.InlineKeyboardButton("YES", callback_data=f"start set-username {sender_id} yes"),
                     telegram.InlineKeyboardButton("NO", callback_data=f"start set-username {sender_id} no")
@@ -106,12 +109,30 @@ class StartCallbackQuery(BaseCallbackQuery):
             raise ValueError("Wrong Telegram ID")
 
         if selection == "yes":
-            # TODO: implement asking for the username
+            keyboard = [
+                [telegram.InlineKeyboardButton(
+                    name,
+                    callback_data=f"start select {sender_id} {encoded_name}"
+                )]
+                for name, encoded_name in [
+                    (
+                        update.callback_query.from_user.username,
+                        base64.b64encode(update.callback_query.from_user.username.encode("UTF-8")).decode("ASCII")
+                    ),
+                    (
+                        update.callback_query.from_user.first_name,
+                        base64.b64encode(update.callback_query.from_user.first_name.encode("UTF-8")).decode("ASCII")
+                    ),
+                    (
+                        update.callback_query.from_user.full_name,
+                        base64.b64encode(update.callback_query.from_user.full_name.encode("UTF-8")).decode("ASCII")
+                    )
+                ]
+            ]
             update.callback_query.message.edit_text(
-                "Well, this isn't implemented yet, stay tuned.",
-                reply_markup=telegram.InlineKeyboardMarkup([[]])
+                "Which username do you want to use?",
+                reply_markup=telegram.InlineKeyboardMarkup(keyboard)
             )
-            raise RuntimeError("Implementation missing")
 
         elif selection == "no":
             response_user = connect.post("/v1/users", json_obj={

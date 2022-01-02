@@ -3,22 +3,14 @@ MateBot command executor classes for /communism and its callback queries
 """
 
 import typing
-import logging
 
 import telegram.ext
 
-from mate_bot import err
-from mate_bot.collectives.base import BaseCollective
-from mate_bot.collectives.communism import Communism
-from mate_bot.collectives.payment import Payment
-from mate_bot.parsing.types import amount as amount_type
-from mate_bot.parsing.actions import JoinAction
-from mate_bot.parsing.util import Namespace
-from mate_bot.commands.base import BaseCommand, BaseCallbackQuery
-from mate_bot.state.user import MateBotUser
-
-
-logger = logging.getLogger("commands")
+from .. import connector, schemas
+from ..base import BaseCommand, BaseCallbackQuery
+from ..parsing.types import amount as amount_type
+from ..parsing.actions import JoinAction
+from ..parsing.util import Namespace
 
 
 class CommunismCommand(BaseCommand):
@@ -53,12 +45,14 @@ class CommunismCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: connector to easily query the backend API
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -112,7 +106,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    def _get_communism(self) -> Communism:
+    def _get_communism(self) -> schemas.Communism:
         """
         Retrieve the Communism object based on the callback data
 
@@ -137,7 +131,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         except (TypeError, RuntimeError) as exc:
             raise err.CallbackError("The collective has the wrong remote type", exc)
 
-    def get_communism(self, query: telegram.CallbackQuery) -> typing.Optional[Communism]:
+    def get_communism(self, query: telegram.CallbackQuery) -> typing.Optional[schemas.Communism]:
         """
         Retrieve the Communism object based on the callback data
 
@@ -287,12 +281,14 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             if com.cancel(update.callback_query.message.bot):
                 update.callback_query.answer(text="Okay, the communism was cancelled.")
 
-    def run(self, update: telegram.Update) -> None:
+    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Do not do anything (this class does not need run() to work)
 
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: connector to easily query the backend API
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

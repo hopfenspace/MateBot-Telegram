@@ -3,21 +3,14 @@ MateBot command executor classes for /pay and its callback queries
 """
 
 import typing
-import logging
 
 import telegram
 
-from mate_bot.collectives.base import BaseCollective
-from mate_bot.collectives.communism import Communism
-from mate_bot.collectives.payment import Payment
-from mate_bot.commands.base import BaseCommand, BaseCallbackQuery
-from mate_bot.parsing.types import amount as amount_type
-from mate_bot.parsing.actions import JoinAction
-from mate_bot.parsing.util import Namespace
-from mate_bot.state.user import MateBotUser
-
-
-logger = logging.getLogger("commands")
+from .. import connector, schemas
+from ..base import BaseCommand, BaseCallbackQuery
+from ..parsing.actions import JoinAction
+from ..parsing.types import amount as amount_type
+from ..parsing.util import Namespace
 
 
 class PayCommand(BaseCommand):
@@ -50,12 +43,14 @@ class PayCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: connector to easily query the backend API
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -99,7 +94,7 @@ class PayCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("pay", "^pay")
 
-    def _get_payment(self, query: telegram.CallbackQuery) -> typing.Optional[Payment]:
+    def _get_payment(self, query: telegram.CallbackQuery) -> typing.Optional[schemas.Refund]:
         """
         Retrieve the Payment object based on the callback data
 
@@ -134,12 +129,14 @@ class PayCallbackQuery(BaseCallbackQuery):
             query.answer("The payment does not exist in the database!", show_alert=True)
             raise
 
-    def run(self, update: telegram.Update) -> None:
+    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         Check and process the incoming callback query
 
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: connector to easily query the backend API
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

@@ -1,17 +1,12 @@
 """
-MateBot command executor classes for /blame
+Telegram MateBot command executor classes for /blame
 """
-
-import logging
 
 import telegram
 
-from mate_bot.commands.base import BaseCommand
-from mate_bot.state.user import MateBotUser
-from mate_bot.parsing.util import Namespace
-
-
-logger = logging.getLogger("commands")
+from .. import connector, schemas, util
+from ..base import BaseCommand
+from ..parsing.util import Namespace
 
 
 class BlameCommand(BaseCommand):
@@ -28,12 +23,14 @@ class BlameCommand(BaseCommand):
             "This command can only be executed by internal users."
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param connect: API connector
+        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

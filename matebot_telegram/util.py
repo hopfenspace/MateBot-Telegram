@@ -1,6 +1,7 @@
 import sys
 import enum
 import json
+import asyncio
 import logging
 import traceback
 from typing import Any, Callable, List, Optional, Union
@@ -24,6 +25,17 @@ class FakeTelegramUser:
     def __init__(self, telegram_id: int, name: Optional[str] = None):
         self.id = telegram_id
         self.name = name or "<unknown>"
+
+
+def get_event_loop() -> asyncio.AbstractEventLoop:
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            raise RuntimeError(f"Event loop {loop} is closed!")
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    return loop
 
 
 def safe_send(bot: telegram.Bot, chat_id: Union[int, str], default: str, fallback: str, *args, **kwargs) -> bool:
@@ -94,7 +106,7 @@ def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram
 
     if level.value >= 1 and not user.active:
         alias = extract_alias_from(user)
-        name = alias.app_user_id if alias else user.id
+        name = alias.app_username if alias else user.id
         msg.reply_text(f"The user {name!r} is not active. It can't perform {operation!r}.")
         return False
 

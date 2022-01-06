@@ -6,6 +6,7 @@ import typing
 import logging
 
 import telegram.ext
+from matebot_sdk.base import APIException, APIConnectionException, UserAPIException
 
 from matebot_telegram import connector, err, registry, util
 from matebot_telegram.parsing.parser import CommandParser
@@ -106,6 +107,13 @@ class BaseCommand:
                 lambda: update.effective_message.reply_markdown(str(exc)),
                 lambda: update.effective_message.reply_text(str(exc))
             )
+
+        except APIConnectionException as exc:
+            update.effective_message.reply_text(exc.message)
+
+        except (APIException, UserAPIException) as exc:
+            self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            update.effective_message.reply_text(exc.message)
 
 
 class BaseCallbackQuery:

@@ -8,6 +8,7 @@ import telegram
 
 from .. import connector, util
 from ..base import BaseCommand
+from ..client import SDK
 from ..parsing.util import Namespace
 
 
@@ -39,16 +40,16 @@ class DataCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-        if user is None:
-            return
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
 
         if user.external:
             relations = "Voucher user: None"
-            if user.voucher is not None:
-                voucher = util.get_user_by(user.voucher, lambda: None, connect)
+            if user.voucher_id is not None:
+                voucher = util.get_user_by(user.voucher_id, lambda: None, connect)
                 if voucher is not None:
-                    relations = f"Voucher user: {voucher.username}"
+                    relations = f"Voucher user: {voucher.name}"
 
         else:
             # TODO: implement this metric
@@ -64,15 +65,15 @@ class DataCommand(BaseCommand):
             # relations = f"Debtor user{'s' if len(users) != 1 else ''}: {users}"
             relations = "Debtor users: ???"
 
-        aliases = ", ".join([f"{a.app_user_id}@{a.application}" for a in user.aliases])
+        aliases = ", ".join([f"{a.app_username}@{a.application_id}" for a in user.aliases])
 
         result = (
             f"Overview over currently stored data for {user.name}:\n"
             f"\n```\n"
             f"User ID: {user.id}\n"
             f"Telegram ID: {update.effective_message.from_user.id}\n"
-            f"Name: {user.name}\n"
-            f"Username: {user.username}\n"
+            f"Username: {user.name}\n"
+            f"App name: {update.effective_message.from_user.username}\n"
             f"Balance: {user.balance / 100 :.2f}€\n"
             f"Permissions: {user.permission}\n"
             f"External user: {user.external}\n"

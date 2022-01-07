@@ -5,9 +5,10 @@ MateBot command executor classes for /consume
 import random
 
 import telegram
+from matebot_sdk import schemas
 from matebot_sdk.base import PermissionLevel
 
-from .. import schemas, util
+from .. import util
 from ..base import BaseCommand
 from ..client import SDK
 from ..parsing.types import natural as natural_type, extended_consumable_type

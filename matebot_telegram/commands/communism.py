@@ -5,8 +5,8 @@ MateBot command executor classes for /communism and its callback queries
 import typing
 
 import telegram.ext
+from matebot_sdk import schemas
 
-from .. import connector, schemas
 from ..base import BaseCommand, BaseCallbackQuery
 from ..parsing.types import amount as amount_type
 from ..parsing.actions import JoinAction
@@ -278,16 +278,3 @@ class CommunismCallbackQuery(BaseCallbackQuery):
 
             if com.cancel(update.callback_query.message.bot):
                 update.callback_query.answer(text="Okay, the communism was cancelled.")
-
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
-        """
-        Do not do anything (this class does not need run() to work)
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param connect: connector to easily query the backend API
-        :type connect: matebot_telegram.connector.APIConnector
-        :return: None
-        """
-
-        pass

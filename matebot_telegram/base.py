@@ -107,11 +107,16 @@ class BaseCommand:
             )
 
         except APIConnectionException as exc:
-            update.effective_message.reply_text(exc.message)
+            self.logger.exception(f"API connectivity problem @ {type(self).__name__} ({exc.exc})")
+            update.effective_message.reply_text(f"I'm having networking problems. {exc.message}")
 
-        except (APIException, UserAPIException) as exc:
+        except UserAPIException as exc:
             self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
             update.effective_message.reply_text(exc.message)
+
+        except APIException as exc:
+            self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)
+            update.effective_message.reply_text(f"The command couldn't be executed.\n{exc.message}")
 
 
 class BaseCallbackQuery:

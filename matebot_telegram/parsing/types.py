@@ -127,7 +127,7 @@ def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
 
     if arg.strip() == "?":
         return "?"
-    for consumable in util.get_consumables():
+    for consumable in get_event_loop().run_until_complete(SDK.get_consumables()):
         if consumable.name.lower() == arg.lower():
             return consumable
     raise ValueError(f"{arg} is no known consumable")

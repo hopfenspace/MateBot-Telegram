@@ -4,12 +4,12 @@ import json
 import asyncio
 import logging
 import traceback
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Optional, Union
 
 import requests
 import telegram.ext
 
-from . import config, connector, schemas
+from . import config, schemas
 
 
 class PermissionLevel(enum.Enum):
@@ -134,49 +134,6 @@ def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram
         msg.reply_text(f"Nobody is allowed to perform {operation!r}.")
         return False
     return True
-
-
-def get_alias_by(obj: Union[telegram.User, FakeTelegramUser], answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.Alias]:
-    connect = connect or connector.connector
-    response = connect.get(f"/v1/aliases/application/{connect.app_name}")
-    if not response.ok:
-        raise RuntimeError(response)  # TODO: implement better exception handling
-    hits = [e for e in response.json() if e["app_username"] == str(obj.id)]
-    if len(hits) == 0:
-        return handle_unknown_user(obj, answer)
-    return schemas.Alias(**hits[0])
-
-
-def get_user_by(obj: Union[int, telegram.User, FakeTelegramUser], answer: Callable[[str], Any], connect: connector.APIConnector = None) -> Optional[schemas.User]:
-    connect = connect or connector.connector
-    if isinstance(obj, int):
-        return connect.get(f"/v1/users/{obj}")
-    elif isinstance(obj, telegram.User) or isinstance(obj, FakeTelegramUser):
-        alias = get_alias_by(obj, answer, connect=connect)
-        if alias is None:
-            return
-        response = connect.get(f"/v1/users/{alias.user_id}")
-        if not response.ok:
-            return handle_unknown_user(obj, answer)
-        return schemas.User(**response.json())
-    raise TypeError(f"Unexpected type {type(obj)}")
-
-
-def get_consumables(connect: connector.APIConnector = None) -> List[schemas.Consumable]:
-    connect = connect or connector.connector
-    response = connect.get("/v1/consumables")
-    if not response.ok:
-        logging.getLogger("util").error(f"Failed to fetch consumables. HTTP {response.status_code}.")
-        return []
-    return [schemas.Consumable(**entry) for entry in response.json()]
-
-
-def handle_unknown_user(telegram_user: Union[telegram.User, FakeTelegramUser], answer: Callable[[str], Any]):
-    answer(
-        f"It looks like {telegram_user.name} was not found on the server. "
-        "Please write /start to the bot in a private chat to start using it."
-    )
-
 
 def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
     """

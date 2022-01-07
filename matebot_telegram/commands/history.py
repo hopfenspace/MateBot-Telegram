@@ -141,9 +141,9 @@ class HistoryCommand(BaseCommand):
         )
 
         # TODO: improve the generation of log entries with a custom format
-        logs = util.get_event_loop().run_until_complete(
-            SDK.get_transactions_of_user(f"/v1/transactions/user/{user}")
-        )
+        logs = [str(t) for t in util.get_event_loop().run_until_complete(
+            SDK.get_transactions_of_user(user)
+        )]
         name = SDK.get_username(user)
 
         # TODO: limit the output to the number of requested entries

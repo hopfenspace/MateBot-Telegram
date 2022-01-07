@@ -6,7 +6,7 @@ import telegram
 
 from .. import connector, util
 from ..base import BaseCommand, BaseCallbackQuery
-from ..parsing import types
+from ..parsing.types import user_type
 from ..parsing.util import Namespace
 
 
@@ -31,15 +31,8 @@ class VouchCommand(BaseCommand):
         )
 
         p = self.parser.new_usage()
-        p.add_argument(
-            "command",
-            choices=("add", "remove"),
-            type=lambda x: str(x).lower()
-        )
-        p.add_argument(
-            "user",
-            type=types.user
-        )
+        p.add_argument("command", choices=("add", "remove"), type=lambda x: str(x).lower())
+        p.add_argument("user", type=user_type)
 
     def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
         """
@@ -169,7 +162,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
     """
 
     def __init__(self):
-        super().__init__("vouch", "^vouch")
+        super().__init__("vouch", "^vouch", {})  # TODO: add & implement targets
 
     def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
         """

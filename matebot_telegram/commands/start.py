@@ -103,7 +103,7 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError("Unknown option")
 
-    def set_username(self, update: telegram.Update, connect: connector.APIConnector):
+    def set_username(self, update: telegram.Update):
         sender_id = update.callback_query.from_user.id
         _, sender, selection = self.data.split(" ")
         sender = int(sender)
@@ -142,7 +142,7 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError("Unknown option")
 
-    def select(self, update: telegram.Update, connect: connector.APIConnector):
+    def select(self, update: telegram.Update):
         sender_id = update.callback_query.from_user.id
         _, sender, encoded_name = self.data.split(" ")
         sender = int(sender)

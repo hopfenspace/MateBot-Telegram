@@ -140,8 +140,8 @@ def get_alias_by(obj: Union[telegram.User, FakeTelegramUser], answer: Callable[[
     connect = connect or connector.connector
     response = connect.get(f"/v1/aliases/application/{connect.app_name}")
     if not response.ok:
-        raise RuntimeError  # TODO: implement better exception handling
-    hits = [e for e in response.json() if e["app_user_id"] == str(obj.id)]
+        raise RuntimeError(response)  # TODO: implement better exception handling
+    hits = [e for e in response.json() if e["app_username"] == str(obj.id)]
     if len(hits) == 0:
         return handle_unknown_user(obj, answer)
     return schemas.Alias(**hits[0])

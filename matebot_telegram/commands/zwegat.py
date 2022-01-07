@@ -5,11 +5,12 @@ MateBot command executor classes for /zwegat
 import logging
 
 import telegram
+from matebot_sdk.base import PermissionLevel
 
-from matebot_telegram import schemas, util
-from matebot_telegram.base import BaseCommand
-from matebot_telegram.connector import APIConnector
-from matebot_telegram.parsing.util import Namespace
+from .. import util
+from ..base import BaseCommand
+from ..client import SDK
+from ..parsing.util import Namespace
 
 
 logger = logging.getLogger("commands")
@@ -27,23 +28,24 @@ class ZwegatCommand(BaseCommand):
             "This command can only be used by internal users."
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update, _) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
-        sender = util.get_user_by_telegram_id(update.effective_message.from_user.id, connect)
-        if sender.external or not sender.permission:
-            update.effective_message.reply_text("You don't have permission to perform this command.")
+        sender = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
+        permission_check = SDK.ensure_permissions(sender, PermissionLevel.ANY_INTERNAL, "zwegat")
+        if not permission_check[0]:
+            update.effective_message.reply_text(permission_check[1])
             return
 
-        community = schemas.User(**connect.get("/v1/users/community").json())
+        community = util.get_event_loop().run_until_complete(SDK.get_community_user())
 
         total = community.balance / 100
         if total >= 0:

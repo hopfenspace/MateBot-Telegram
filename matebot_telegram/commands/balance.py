@@ -7,7 +7,7 @@ import telegram
 from .. import connector, util
 from ..base import BaseCommand
 from ..parsing.util import Namespace
-from ..parsing.types import user as user_type
+from ..parsing.types import user_type
 
 
 class BalanceCommand(BaseCommand):

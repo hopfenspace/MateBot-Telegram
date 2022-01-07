@@ -74,68 +74,6 @@ def extract_alias_from(user: schemas.User) -> Optional[schemas.Alias]:
     return aliases[0]
 
 
-def ensure_permissions(user: schemas.User, level: PermissionLevel, msg: telegram.Message, operation: str) -> bool:
-    """
-    Ensure that a user is allowed to perform an operation that requires specific permissions
-
-    .. note::
-
-        This function will automatically reply to the incoming message when
-        the necessary permissions are not fulfilled. Use the return value
-        to determine whether you should simply quit further execution of
-        your method (returned ``False``) or not (returned ``True``).
-
-    :param user: MateBot user that tries to execute a specific command
-    :type user: matebot_telegram.schemas.User
-    :param level: minimal required permission level to be allowed to perform some action
-    :type level: int
-    :param msg: incoming message containing the command in question
-    :type msg: telegram.Message
-    :param operation: name of the operation that was attempted by the user
-    :type operation: str
-    :return: whether further access should be allowed (``True``) or not (``False``)
-    :rtype: bool
-    :raises TypeError: when an expected type was violated
-    """
-
-    for i, t in [(user, schemas.User), (level, PermissionLevel), (msg, telegram.Message)]:
-        if not isinstance(i, t):
-            raise TypeError(f"Expected type {t.__name__}, got {type(level)} instead")
-
-    if level.value == 0:
-        return True
-
-    if level.value >= 1 and not user.active:
-        alias = extract_alias_from(user)
-        name = alias.app_username if alias else user.id
-        msg.reply_text(f"The user {name!r} is not active. It can't perform {operation!r}.")
-        return False
-
-    if level.value >= 2 and user.external and user.voucher is None:
-        msg.reply_text(
-            f"You can't perform {operation!r}. You are an external user "
-            "without voucher. For security purposes, every external user "
-            "needs an internal voucher. Use /help for more information."
-        )
-        return False
-
-    if level.value >= 3 and user.external:
-        msg.reply_text(
-            f"You can't perform {operation!r}. You are an external user. "
-            "To perform this command, you must be marked as internal user "
-            "by community approval. Use /help for more information."
-        )
-        return False
-
-    if level.value >= 4 and not user.permission:
-        msg.reply_text(f"You can't perform {operation!r}. You don't have permissions to vote.")
-        return False
-
-    if level.value >= 5:
-        msg.reply_text(f"Nobody is allowed to perform {operation!r}.")
-        return False
-    return True
-
 def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
     """
     Log any error and its traceback to sys.stdout and send it to developers

@@ -6,7 +6,7 @@ import telegram
 from matebot_sdk.base import PermissionLevel
 from matebot_sdk.exceptions import UserAPIException
 
-from .. import connector, schemas, util
+from .. import connector, util
 from ..base import BaseCallbackQuery, BaseCommand
 from ..client import SDK
 from ..parsing.types import amount as amount_type
@@ -89,74 +89,72 @@ class SendCallbackQuery(BaseCallbackQuery):
     """
 
     def __init__(self):
-        super().__init__("send", "^send")
+        super().__init__("send", "^send", {
+            "abort": self.abort,
+            "confirm": self.confirm
+        })
 
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def confirm(self, update: telegram.Update) -> None:
         """
-        Process or abort transaction requests based on incoming callback queries
+        Confirm and process an transaction requests based on incoming callback queries
 
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
+        self.logger.debug("Confirming transaction")
+        _, amount, original_sender, receiver_id = self.data.split(" ")
+        amount = int(amount)
+        original_sender = int(original_sender)
+        receiver_id = int(receiver_id)
+
+        sender = util.get_event_loop().run_until_complete(SDK.get_user_by_app_alias(str(original_sender)))
+        receiver = util.get_event_loop().run_until_complete(SDK.get_user_by_id(receiver_id))
+
+        reason = None
+        for entity in update.callback_query.message.parse_entities():
+            if entity.type == "code":
+                if reason is None:
+                    reason = update.callback_query.message.parse_entity(entity)
+                else:
+                    raise RuntimeError("Multiple reason definitions")
+
+        if reason is None:
+            raise RuntimeError("Unknown reason while confirming a Transaction")
+
         try:
-            variant, amount, original_sender, receiver_id = self.data.split(" ")
-            amount = int(amount)
-            original_sender = int(original_sender)
-            receiver_id = int(receiver_id)
-
-            if variant == "confirm":
-                confirmation = True
-            elif variant == "abort":
-                confirmation = False
-            else:
-                raise ValueError(f"Invalid confirmation setting: '{variant}'")
-
-            if update.callback_query.from_user.id != original_sender:
-                update.callback_query.answer(f"Only the creator of this transaction can {variant} it!")
-                return
-
-            sender = util.get_event_loop().run_until_complete(SDK.get_user_by_app_alias(str(original_sender)))
-            receiver = util.get_event_loop().run_until_complete(SDK.get_user_by_id(receiver_id))
-
-            reason = None
-            for entity in update.callback_query.message.parse_entities():
-                if entity.type == "code":
-                    if reason is None:
-                        reason = update.callback_query.message.parse_entity(entity)
-                    else:
-                        raise RuntimeError("Multiple reason definitions")
-
-            if reason is None:
-                raise RuntimeError("Unknown reason while confirming a Transaction")
-
-            if confirmation:
-                try:
-                    transaction = util.get_event_loop().run_until_complete(
-                        SDK.make_transaction(sender, receiver, amount, reason)
-                    )
-                    update.callback_query.message.edit_text(
-                        f"Okay, you sent {transaction.amount / 100 :.2f}€ to {SDK.get_username(receiver)}",
-                        reply_markup=telegram.InlineKeyboardMarkup([])
-                    )
-                except UserAPIException as exc:
-                    self.logger.warning(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
-                    update.callback_query.edit_message_text(
-                        f"Your request couldn't be processed. No money has been transferred:\n{exc.message}"
-                    )
-
-            else:
-                update.callback_query.message.edit_text(
-                    "You aborted the operation. No money has been sent.",
-                    reply_markup=telegram.InlineKeyboardMarkup([])
-                )
-
-        except (IndexError, ValueError, TypeError, RuntimeError):
+            transaction = util.get_event_loop().run_until_complete(
+                SDK.make_transaction(sender, receiver, amount, reason)
+            )
             update.callback_query.message.edit_text(
-                "There was an error processing this request. No money has been sent.",
+                f"Okay, you sent {transaction.amount / 100 :.2f}€ to {SDK.get_username(receiver)}",
                 reply_markup=telegram.InlineKeyboardMarkup([])
             )
-            raise
+        except UserAPIException as exc:
+            self.logger.warning(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            update.callback_query.edit_message_text(
+                f"Your request couldn't be processed. No money has been transferred:\n{exc.message}"
+            )
+
+    def abort(self, update: telegram.Update) -> None:
+        """
+        Abort an transaction requests
+
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        self.logger.debug("Aborting transaction")
+        _, _, original_sender, _ = self.data.split(" ")
+        original_sender = int(original_sender)
+
+        if update.callback_query.from_user.id != original_sender:
+            update.callback_query.answer(f"Only the creator of this transaction can abort it!")
+            return
+
+        update.callback_query.message.edit_text(
+            "You aborted the operation. No money has been sent.",
+            reply_markup=telegram.InlineKeyboardMarkup([])
+        )

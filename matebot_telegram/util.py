@@ -8,8 +8,9 @@ from typing import Any, Callable, Optional, Union
 
 import requests
 import telegram.ext
+from matebot_sdk import schemas
 
-from . import config, schemas
+from . import config
 
 
 class PermissionLevel(enum.Enum):

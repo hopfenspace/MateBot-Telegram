@@ -3,8 +3,8 @@ MateBot command executor classes for /blame
 """
 
 import telegram
+from matebot_sdk import schemas
 
-from .. import schemas, util
 from ..base import BaseCommand
 from ..client import SDK
 from ..parsing.util import Namespace

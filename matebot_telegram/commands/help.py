@@ -6,8 +6,9 @@ import datetime
 from typing import Optional
 
 import telegram
+from matebot_sdk import schemas
 
-from .. import registry, schemas, util
+from .. import registry, util
 from ..base import BaseCommand, BaseInlineQuery
 from ..client import SDK
 from ..parsing.types import command as command_type

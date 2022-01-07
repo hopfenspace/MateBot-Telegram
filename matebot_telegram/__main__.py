@@ -37,7 +37,7 @@ def _add(dispatcher: Dispatcher, handler: handler_types, pool: dict, pattern: bo
         if pattern:
             dispatcher.add_handler(handler(pool[name], pattern=name))
         else:
-            dispatcher.add_handler(handler(name, pool[name]))
+            dispatcher.add_handler(handler(name, pool[name], run_async=False))
 
 
 class NoDebugFilter(logging.Filter):

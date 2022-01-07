@@ -7,9 +7,10 @@ import re
 from typing import Union
 
 import telegram
+from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import registry, schemas, util
+from .. import registry
 from ..base import BaseCommand
 from ..client import SDK
 from ..util import get_event_loop

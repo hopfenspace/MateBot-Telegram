@@ -2,11 +2,11 @@
 MateBot command handling base library
 """
 
-import typing
 import logging
+from typing import Any, Callable, Dict, Optional
 
 import telegram.ext
-from matebot_sdk.base import APIException, APIConnectionException, UserAPIException
+from matebot_sdk.exceptions import APIException, APIConnectionException, UserAPIException
 
 from matebot_telegram import connector, err, registry, util
 from matebot_telegram.parsing.parser import CommandParser
@@ -43,12 +43,12 @@ class BaseCommand:
     :type usage: Optional[str]
     """
 
-    def __init__(self, name: str, description: str, usage: typing.Optional[str] = None):
+    def __init__(self, name: str, description: str, usage: Optional[str] = None):
         self.name = name
         self._usage = usage
         self.description = description
         self.parser = CommandParser(self.name)
-        self.logger = logging.getLogger("commands")
+        self.logger = logging.getLogger("command")
 
         registry.commands[self.name] = self
 
@@ -120,14 +120,13 @@ class BaseCallbackQuery:
     """
     Base class for all MateBot callback queries executed by the CallbackQueryHandler
 
-    It provides the stripped data of a callback button as string
-    in the data attribute. Some specific implementation should be
-    a subclass of this class. It must either overwrite the run method
-    or provide the constructor's parameter `targets` to work properly.
-    The `targets` parameter is a dictionary connecting the data with
-    associated function calls. Those functions or methods must
+    It provides the stripped data of a callback button as string in the
+    data attribute. Some specific implementation should be a subclass of
+    this class. It must provide the constructor's parameter `targets` to
+    work properly. The `targets` parameter is a dictionary connecting the
+    data with associated function calls. Those functions or methods must
     expect one parameter `update` which is filled with the correct
-    telegram.Update object. No return value is expected.
+    ``telegram.Update`` object. Any return value is ignored.
 
     In order to properly use this class or a subclass thereof, you
     must supply a pattern to filter the callback query against to
@@ -146,17 +145,22 @@ class BaseCallbackQuery:
     :param pattern: regular expression to filter callback query executors
     :type pattern: str
     :param targets: dict to associate data replies with function calls
-    :type targets: Optional[typing.Dict[str, typing.Callable]]
+    :type targets: Dict[str, Callable[[telegram.Update], Any]]
     """
+
+    name: str
+    pattern: str
+    targets: Dict[str, Callable[[telegram.Update], Any]]
+    data: Optional[str]
+    logger: logging.Logger
 
     def __init__(
             self,
             name: str,
             pattern: str,
-            targets: typing.Optional[typing.Dict[str, typing.Callable]] = None
+            targets: Dict[str, Callable[[telegram.Update], Any]]
     ):
-
-        if not isinstance(targets, dict) and targets is not None:
+        if not isinstance(targets, dict):
             raise TypeError("Expected dict or None")
 
         self.name = name
@@ -190,12 +194,8 @@ class BaseCallbackQuery:
         try:
             self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
-            if self.targets is None:
-                self.run(update, connector.connector)
-                return
-
             if self.data in self.targets:
-                self.targets[self.data](update, connector.connector)
+                self.targets[self.data](update)
                 return
 
             available = []
@@ -204,12 +204,25 @@ class BaseCallbackQuery:
                     available.append(k)
 
             if len(available) == 0:
-                raise IndexError(f"No target callable found for: '{self.data}'")
+                raise IndexError(f"No target callable found for: '{self.data}' ({type(self).__name__})")
 
             if len(available) > 1:
-                raise IndexError(f"No unambiguous callable found for: '{self.data}'")
+                raise IndexError(f"No unambiguous callable found for: '{self.data}' ({type(self).__name__})")
 
-            self.targets[available[0]](update, connector.connector)
+            self.targets[available[0]](update)
+
+        except UserAPIException as exc:
+            self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            update.callback_query.edit_message_text(text=exc.message)
+
+        except APIException as exc:
+            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            update.callback_query.answer(text=exc.message, show_alert=True)
+
+        except APIConnectionException as exc:
+            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
+            update.callback_query.answer(text=exc.message, show_alert=True)
+            raise
 
         except (IndexError, ValueError, TypeError, RuntimeError):
             update.callback_query.answer(
@@ -217,20 +230,6 @@ class BaseCallbackQuery:
                 show_alert=True
             )
             raise
-
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
-        """
-        Perform command-specific operations
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
-        :return: None
-        :raises NotImplementedError: because this method should be overwritten by subclasses
-        """
-
-        raise NotImplementedError("Overwrite the BaseCallbackQuery.run() method in a subclass")
 
 
 class BaseInlineQuery:

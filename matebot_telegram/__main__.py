@@ -53,7 +53,7 @@ class NoDebugFilter(logging.Filter):
 
 if __name__ == "__main__":
     logging.config.dictConfig(config.config["logging"])
-    logger = logging.getLogger()
+    logger = logging.getLogger("root")
 
     logger.debug("Registering bot token with Updater...")
     updater = Updater(config.config["token"])

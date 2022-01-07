@@ -45,14 +45,12 @@ class CommunismCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: connector to easily query the backend API
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

@@ -5,8 +5,8 @@ MateBot command executor classes for /pay and its callback queries
 import typing
 
 import telegram
+from matebot_sdk import schemas
 
-from .. import connector, schemas
 from ..base import BaseCommand, BaseCallbackQuery
 from ..parsing.actions import JoinAction
 from ..parsing.types import amount as amount_type
@@ -43,14 +43,12 @@ class PayCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: connector to easily query the backend API
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -129,14 +127,12 @@ class PayCallbackQuery(BaseCallbackQuery):
             query.answer("The payment does not exist in the database!", show_alert=True)
             raise
 
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, update: telegram.Update) -> None:
         """
         Check and process the incoming callback query
 
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: connector to easily query the backend API
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

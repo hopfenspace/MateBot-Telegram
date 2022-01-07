@@ -6,7 +6,7 @@ import time
 
 import telegram
 
-from .. import connector, util
+from .. import util
 from ..base import BaseCommand
 from ..client import SDK
 from ..parsing.util import Namespace
@@ -25,14 +25,12 @@ class DataCommand(BaseCommand):
             "To view your transactions, use the command `/history` instead."
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -47,9 +45,8 @@ class DataCommand(BaseCommand):
         if user.external:
             relations = "Voucher user: None"
             if user.voucher_id is not None:
-                voucher = util.get_user_by(user.voucher_id, lambda: None, connect)
-                if voucher is not None:
-                    relations = f"Voucher user: {voucher.name}"
+                voucher = util.get_event_loop().run_until_complete(SDK.get_user_by_id(user.voucher_id))
+                relations = f"Voucher user: {SDK.get_username(voucher)}"
 
         else:
             # TODO: implement this metric

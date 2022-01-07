@@ -7,8 +7,9 @@ from typing import Optional
 
 import telegram
 
-from .. import connector, registry, schemas, util
+from .. import registry, schemas, util
 from ..base import BaseCommand, BaseInlineQuery
+from ..client import SDK
 from ..parsing.types import command as command_type
 from ..parsing.util import Namespace
 
@@ -28,21 +29,21 @@ class HelpCommand(BaseCommand):
 
         self.parser.add_argument("command", type=command_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
         if args.command:
             msg = self.get_help_for_command(args.command)
         else:
-            user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
+            user = util.get_event_loop().run_until_complete(
+                SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+            )
             msg = self.get_help_usage(registry.commands, self.usage, user)
 
         util.safe_call(
@@ -63,8 +64,8 @@ class HelpCommand(BaseCommand):
         :type commands: dict
         :param usage: usage string of the help command
         :type usage: str
-        :param user: optional MateBot User who issued the help command
-        :type user: Optional[matebot_telegram.schemas.User]
+        :param user: optional User who issued the help command
+        :type user: Optional[matebot_sdk.schemas.User]
         :return: fully formatted help message when invoking the help command without arguments
         :rtype: str
         """
@@ -78,7 +79,7 @@ class HelpCommand(BaseCommand):
         elif user and user.external:
             msg += "\n\nYou are an external user. Some commands may be restricted."
 
-            if user.voucher is None:
+            if user.voucher_id is None:
                 msg += (
                     "\nYou don't have any creditor. Your possible interactions "
                     "with the bot are very limited for security purposes. You "

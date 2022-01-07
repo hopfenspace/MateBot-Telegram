@@ -6,7 +6,7 @@ import telegram
 from matebot_sdk.base import PermissionLevel
 from matebot_sdk.exceptions import UserAPIException
 
-from .. import connector, util
+from .. import util
 from ..base import BaseCallbackQuery, BaseCommand
 from ..client import SDK
 from ..parsing.types import amount as amount_type
@@ -36,14 +36,12 @@ class SendCommand(BaseCommand):
         self.parser.add_argument("receiver", type=user_type)
         self.parser.add_argument("reason", default="<no description>", nargs="*")
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

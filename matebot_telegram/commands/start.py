@@ -6,8 +6,9 @@ import base64
 from typing import Optional
 
 import telegram
+from matebot_sdk import schemas
 
-from .. import connector, schemas, util
+from .. import util
 from ..base import BaseCommand, BaseCallbackQuery
 from ..parsing.util import Namespace
 
@@ -27,14 +28,12 @@ class StartCommand(BaseCommand):
             "Use /help for more information about how to use this bot and its commands."
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -75,7 +74,7 @@ class StartCallbackQuery(BaseCallbackQuery):
             "select": self.select
         })
 
-    def init(self, update: telegram.Update, connect: connector.APIConnector):
+    def init(self, update: telegram.Update):
         sender_id = update.callback_query.from_user.id
         _, sender, selection = self.data.split(" ")
         sender = int(sender)
@@ -153,7 +152,7 @@ class StartCallbackQuery(BaseCallbackQuery):
         _create_user(update, connect, sender_id, selected_username)
 
 
-def _create_user(update: telegram.Update, connect: connector.APIConnector, telegram_id: int, username: Optional[str]):
+def _create_user(update: telegram.Update, telegram_id: int, username: Optional[str]):
     response_user = connect.post("/v1/users", json_obj={
         "external": True,
         "permission": False,

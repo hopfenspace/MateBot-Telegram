@@ -4,8 +4,9 @@ MateBot command executor classes for /balance
 
 import telegram
 
-from .. import connector, util
+from .. import util
 from ..base import BaseCommand
+from ..client import SDK
 from ..parsing.util import Namespace
 from ..parsing.types import user_type
 
@@ -27,20 +28,21 @@ class BalanceCommand(BaseCommand):
 
         self.parser.add_argument("user", type=user_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
         if args.user:
-            update.effective_message.reply_text(f"Balance of {args.user.name} is: {args.user.balance / 100 : .2f}€")
+            update.effective_message.reply_text(
+                f"Balance of {SDK.get_username(args.user)} is: {args.user.balance / 100 : .2f}€"
+            )
         else:
-            user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-            if user is not None:
-                update.effective_message.reply_text(f"Your balance is: {user.balance / 100 :.2f}€")
+            user = util.get_event_loop().run_until_complete(
+                SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+            )
+            update.effective_message.reply_text(f"Your balance is: {user.balance / 100 :.2f}€")

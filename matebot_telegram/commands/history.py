@@ -7,10 +7,11 @@ import tempfile
 
 import telegram
 
+from .. import util
 from ..base import BaseCommand
+from ..client import SDK
 from ..parsing.types import natural as natural_type
 from ..parsing.util import Namespace
-from .. import connector, schemas, util
 
 
 class HistoryCommand(BaseCommand):
@@ -44,24 +45,22 @@ class HistoryCommand(BaseCommand):
             choices=("json", "csv")
         )
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
         if args.export is None:
-            self._handle_report(args, update, connect)
+            self._handle_report(args, update)
         else:
-            self._handle_export(args, update, connect)
+            self._handle_export(args, update)
 
     @staticmethod
-    def _handle_export(args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def _handle_export(args: Namespace, update: telegram.Update) -> None:
         """
         Handle the request to export the full transaction log of a user
 
@@ -69,8 +68,6 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -78,16 +75,12 @@ class HistoryCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-        if user is None:
-            return
-
-        response = connect.get(f"/v1/transactions/user/{user.id}")
-        if not response.ok:
-            update.effective_message.reply_text("Error processing your request. Please file a bug report.")
-            return
-
-        transactions = [schemas.Transaction(**e) for e in response.json()]
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
+        transactions = util.get_event_loop().run_until_complete(
+            SDK.get_transactions_of_user(f"/v1/transactions/user/{user}")
+        )
 
         if args.export == "json":
             logs = [t.json() for t in transactions]
@@ -132,7 +125,7 @@ class HistoryCommand(BaseCommand):
             #     )
 
     @staticmethod
-    def _handle_report(args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def _handle_report(args: Namespace, update: telegram.Update) -> None:
         """
         Handle the request to report the most current transaction entries of a user
 
@@ -140,23 +133,18 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
-        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-        if user is None:
-            return
-
-        response = connect.get(f"/v1/transactions/user/{user.id}")
-        if not response.ok:
-            update.effective_message.reply_text("Error processing your request. Please file a bug report.")
-            return
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
 
         # TODO: improve the generation of log entries with a custom format
-        logs = [str(schemas.Transaction(**e)) for e in response.json()]
-        name = update.effective_message.from_user.name
+        logs = util.get_event_loop().run_until_complete(
+            SDK.get_transactions_of_user(f"/v1/transactions/user/{user}")
+        )
+        name = SDK.get_username(user)
 
         # TODO: limit the output to the number of requested entries
 

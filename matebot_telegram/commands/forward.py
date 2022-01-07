@@ -7,10 +7,10 @@ import datetime
 
 import telegram
 
-# from matebot_telegram.collectives.base import BaseCollective
-# from matebot_telegram.collectives.communism import Communism
-# from matebot_telegram.collectives.payment import Payment
-from matebot_telegram.base import BaseInlineQuery, BaseInlineResult
+from ..base import BaseInlineQuery, BaseInlineResult
+# from ..collectives.base import BaseCollective
+# from ..collectives.communism import Communism
+# from ..collectives.payment import Payment
 
 
 class ForwardInlineQuery(BaseInlineQuery):

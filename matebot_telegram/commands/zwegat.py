@@ -28,7 +28,7 @@ class ZwegatCommand(BaseCommand):
             "This command can only be used by internal users."
         )
 
-    def run(self, args: Namespace, update: telegram.Update, _) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace

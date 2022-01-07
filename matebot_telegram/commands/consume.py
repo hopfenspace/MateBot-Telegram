@@ -32,7 +32,7 @@ class ConsumeCommand(BaseCommand):
         self.parser.add_argument("consumable", type=extended_consumable_type)
         self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update, _) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace

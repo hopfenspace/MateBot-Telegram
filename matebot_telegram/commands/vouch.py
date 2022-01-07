@@ -4,7 +4,7 @@ MateBot command executor classes for /vouch
 
 import telegram
 
-from .. import connector, util
+from .. import util
 from ..base import BaseCommand, BaseCallbackQuery
 from ..parsing.types import user_type
 from ..parsing.util import Namespace
@@ -34,14 +34,12 @@ class VouchCommand(BaseCommand):
         p.add_argument("command", choices=("add", "remove"), type=lambda x: str(x).lower())
         p.add_argument("user", type=user_type)
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 
@@ -164,14 +162,12 @@ class VouchCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("vouch", "^vouch", {})  # TODO: add & implement targets
 
-    def run(self, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, update: telegram.Update) -> None:
         """
         Process or abort the query to add or remove the debtor user
 
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: API connector
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         """
 

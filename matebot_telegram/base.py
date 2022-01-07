@@ -8,9 +8,9 @@ from typing import Any, Callable, Dict, Optional
 import telegram.ext
 from matebot_sdk.exceptions import APIException, APIConnectionException, UserAPIException
 
-from matebot_telegram import connector, err, registry, util
-from matebot_telegram.parsing.parser import CommandParser
-from matebot_telegram.parsing.util import Namespace
+from . import err, registry, util
+from .parsing.parser import CommandParser
+from .parsing.util import Namespace
 
 
 class BaseCommand:
@@ -63,7 +63,7 @@ class BaseCommand:
         else:
             return self._usage
 
-    def run(self, args: Namespace, update: telegram.Update, connect: connector.APIConnector) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         Perform command-specific actions
 
@@ -73,8 +73,6 @@ class BaseCommand:
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param connect: connector to easily query the backend API
-        :type connect: matebot_telegram.connector.APIConnector
         :return: None
         :raises NotImplementedError: because this method should be overwritten by subclasses
         """
@@ -100,7 +98,7 @@ class BaseCommand:
 
             args = self.parser.parse(update.effective_message)
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
-            self.run(args, update, connector.connector)
+            self.run(args, update)
 
         except err.ParsingError as exc:
             util.safe_call(

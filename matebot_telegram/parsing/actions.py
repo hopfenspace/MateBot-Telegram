@@ -57,7 +57,6 @@ class Action(Representable):
                  type: Optional[typing.Callable] = str,
                  choices: Optional[typing.Tuple[str]] = None,
                  metavar: Optional[str] = None):
-        """"""
         self.dest = dest
         self.nargs = nargs
         self.default = default
@@ -162,7 +161,6 @@ class JoinAction(Action):
                  choices: Optional[typing.Tuple[str]] = None,
                  metavar: Optional[str] = None,
                  limit: Optional[int] = 255):
-        """"""
         super(JoinAction, self).__init__(dest, nargs, default, type, choices, metavar)
         self.limit = limit
 

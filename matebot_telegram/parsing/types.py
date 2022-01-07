@@ -6,9 +6,13 @@ See :class:`mate_bot.parsing.actions.Action`'s type parameter
 import re
 from typing import Union
 
+import telegram
+
 from .util import EntityString
 from .. import registry, schemas, util
 from ..base import BaseCommand
+from ..client import SDK
+from ..util import get_event_loop
 
 
 __amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
@@ -64,30 +68,30 @@ def natural(arg: str) -> int:
     return result
 
 
-def user(arg: EntityString) -> schemas.User:
+def user_type(arg: EntityString) -> schemas.User:
     """
-    Convert the string into a MateBot user as defined in the ``state`` package
+    Convert an entity string into a User schema
 
     :param arg: string to be parsed
     :type arg: EntityString
-    :return: fully functional MateBot user
-    :rtype: MateBotUser
+    :return: fully functional MateBot User schema
+    :rtype: matebot_sdk.schemas.User
     :raises ValueError: when username is ambiguous or the argument wasn't a mention
     """
 
     if arg.entity is None:
         raise ValueError('No user mentioned. Try with "@".')
 
-    # TODO: searching by username is not supported by the server
-    # elif arg.entity.type == "mention":
-    #     # search by username
-    #     usr = find_user_by_username(arg)
-    #     if usr is None:
-    #         raise ValueError("Ambiguous username. Please send /start to the bot privately.")
-    #     return usr
-
-    elif arg.entity.type == "text_mention":
-        return util.get_user_by(arg.entity.user, lambda _: None)
+    elif arg.entity.type in (telegram.constants.MESSAGEENTITY_MENTION, telegram.constants.MESSAGEENTITY_TEXT_MENTION):
+        users = get_event_loop().run_until_complete(SDK.get_users_by_app_alias(str(arg)))
+        if len(users) == 0:
+            raise ValueError(
+                "Ambiguous username. Make sure the username is correct and the "
+                "user recently used the bot. Try sending /start to the bot privately."
+            )
+        if len(users) > 2:
+            raise ValueError("Ambiguous username. Please ensure the users talked to the bot recently.")
+        return users[0]
 
     else:
         raise ValueError('No user mentioned. Try with "@".')

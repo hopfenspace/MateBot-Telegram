@@ -93,6 +93,12 @@ def format_action(action: Action) -> str:
 
     * ``'*'``: add ... after the name and surround it with [ ]
 
+    .. code-block::
+
+        >>> action = Action("foo", nargs="*")
+        >>> format_action(action)
+        '[foo ...]'
+
     :param action: the argument to get the formatted string for
     :type action: Action
     :return: action as formatted string

@@ -6,11 +6,63 @@ import typing
 
 import telegram.ext
 from matebot_sdk import schemas
+from matebot_sdk.base import PermissionLevel
 
+from .. import util
 from ..base import BaseCommand, BaseCallbackQuery
+from ..client import SDK
 from ..parsing.types import amount as amount_type
 from ..parsing.actions import JoinAction
 from ..parsing.util import Namespace
+
+
+def _get_text(communism: schemas.Communism) -> str:
+    users = util.get_event_loop().run_until_complete(SDK.get_users())
+
+    def f(user_id: int, quantity: int) -> str:
+        user = [u for u in users if u.id == user_id]
+        if len(user) != 1:
+            raise ValueError(f"User ID {user_id} couldn't be converted to username properly.")
+        return f"{SDK.get_username(user)} ({quantity}x)"
+
+    usernames = ', '.join(f(p.user_id, p.quantity) for p in communism.participants) or "None"
+    markdown = (
+        f"*Communism by {SDK.get_username(communism.creator)}*\n\n"
+        f"Reason: {communism.description}\n"
+        f"Amount: {communism.amount / 100 :.2f}€\n"
+        f"Joined users ({sum(p.quantity for p in communism.participants)}): {usernames}\n"
+    )
+
+    if communism.active:
+        markdown += "\n_The communism is currently active._"
+    elif not communism.active:
+        markdown += "\n_The communism has been closed._"
+        if communism.transactions:
+            markdown += f"\n{len(communism.transactions)} transactions have been processed. "
+            markdown += "Take a look at /history for more details."
+        else:
+            markdown += "\nThe communism was aborted. No transactions have been processed."
+
+    return markdown
+
+
+def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
+    def f(cmd):
+        return f"communism {cmd} {communism.id}"
+
+    return telegram.InlineKeyboardMarkup([
+        [
+            telegram.InlineKeyboardButton("JOIN (+)", callback_data=f("join")),
+            telegram.InlineKeyboardButton("LEAVE (-)", callback_data=f("leave")),
+        ],
+        [
+            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{communism.id} ")
+        ],
+        [
+            telegram.InlineKeyboardButton("ACCEPT", callback_data=f("accept")),
+            telegram.InlineKeyboardButton("CANCEL", callback_data=f("cancel")),
+        ]
+    ])
 
 
 class CommunismCommand(BaseCommand):
@@ -23,13 +75,14 @@ class CommunismCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "communism",
-            "Use this command to start a communism.\n\n"
+            "Use this command to start, stop or show a communism.\n\n"
             "When you pay for something that is used or otherwise consumed by a bigger "
             "group of people, you can open a communism for it to get your money back.\n\n"
             "When you use this command, you specify a reason and the price. The others "
-            "can join afterwards (you might need to remember them). Users without "
-            "Telegram can also join by adding an 'external'. You have to collect the "
-            "money from each external by yourself. After everyone has joined, "
+            "can join afterwards (you might need to remember them). People who don't use "
+            "the MateBot may be respected by joining multiple times - therefore paying more "
+            "than normal and effectively taking the bill of those people. You may collect "
+            "the money from each external user by yourself. After everyone has joined, "
             "you close the communism to calculate and evenly distribute the price.\n\n"
             "There are two subcommands that can be used. You can get your "
             "active communism as a new message in the current chat by using `show`. "
@@ -54,36 +107,47 @@ class CommunismCommand(BaseCommand):
         :return: None
         """
 
-        user = MateBotUser(update.effective_message.from_user)
-        if not self.ensure_permissions(user, 1, update.effective_message):
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
+        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, "communism")
+        if not permission_check[0]:
+            update.effective_message.reply_text(permission_check[1])
             return
 
+        active_communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
         if args.subcommand is None:
-            if BaseCollective.has_user_active_collective(user):
-                update.effective_message.reply_text("You already have a collective in progress.")
+            if active_communisms:
+                update.effective_message.reply_text("You already have a communism in progress. Please handle it first.")
                 return
 
-            Communism((user, args.amount, args.reason, update.effective_message))
+            # TODO: handle shared message stuff
+            communism = util.get_event_loop().run_until_complete(SDK.make_new_communism(user, args.amount, args.reason))
+            text = _get_text(communism)
+            keyboard = _get_keyboard(communism)
+            util.safe_call(
+                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
+            )
             return
 
-        collective_id = BaseCollective.get_cid_from_active_creator(user)
-        if collective_id is None:
-            update.effective_message.reply_text("You don't have a collective in progress.")
+        if not active_communisms:
+            update.effective_message.reply_text("You don't have a communism in progress.")
             return
 
-        if BaseCollective.get_type(collective_id):
-            collective = Communism(collective_id)
-        else:
-            collective = Payment(collective_id)
+        if len(active_communisms) > 1:
             update.effective_message.reply_text(
-                "Note that your currently active collective is no communism, it's a payment request."
+                "You have more than one active communism. The subcommand will use the oldest active communism."
             )
 
         if args.subcommand == "show":
-            collective.show(update.effective_message)
+            # TODO: implement showing the currently active communism in the current chat & updating the shared messages
+            update.effective_message.reply_text("Not implemented.")
 
         elif args.subcommand == "stop":
-            collective.cancel(update.effective_message.bot)
+            communism = util.get_event_loop().run_until_complete(SDK.cancel_communism(active_communisms[0]))
+            # TODO: create new communism and shared messages and stuff
+            update.effective_message.reply_text("Not implemented: shared messages. But the communism was cancelled.")
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):
@@ -96,9 +160,8 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             "communism",
             "^communism",
             {
-                "toggle": self.toggle,
-                "increase": self.increase,
-                "decrease": self.decrease,
+                "join": self.join,
+                "leave": self.leave,
                 "accept": self.accept,
                 "cancel": self.cancel
             }
@@ -235,6 +298,24 @@ class CommunismCallbackQuery(BaseCallbackQuery):
                 update.effective_message.bot
             )
             update.callback_query.answer("Okay, decremented.")
+
+    def join(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        raise ValueError("Not implemented")
+
+    def leave(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        raise ValueError("Not implemented")
 
     def accept(self, update: telegram.Update) -> None:
         """

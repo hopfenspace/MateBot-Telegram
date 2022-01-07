@@ -3,11 +3,14 @@ MateBot command executor classes for /send
 """
 
 import telegram
+from matebot_sdk.base import PermissionLevel
+from matebot_sdk.exceptions import UserAPIException
 
 from .. import connector, schemas, util
 from ..base import BaseCallbackQuery, BaseCommand
+from ..client import SDK
 from ..parsing.types import amount as amount_type
-from ..parsing.types import user as user_type
+from ..parsing.types import user_type
 from ..parsing.util import Namespace
 
 
@@ -44,22 +47,27 @@ class SendCommand(BaseCommand):
         :return: None
         """
 
-        sender = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-        if sender is None:
-            return
-        if not util.ensure_permissions(sender, util.PermissionLevel.ANY_WITH_VOUCHER, update.effective_message, "send"):
+        sender = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
+        permission_check = SDK.ensure_permissions(sender, PermissionLevel.ANY_WITH_VOUCHER, "send")
+        if not permission_check[0]:
+            update.effective_message.reply_text(permission_check[1])
             return
         if not args.receiver:
             update.effective_message.reply_text("The receiver was not found on the server!")
+            return
+        if args.receiver.id == sender.id:
+            update.effective_message.reply_text("You can't send money to yourself.")
             return
 
         if isinstance(args.reason, list):
             reason = "send: " + " ".join(map(str, args.reason))
         else:
-            reason = "send: " + args.reason
+            reason = "send: " + str(args.reason)
 
         def e(variant: str) -> str:
-            return f"send {variant} {args.amount} {sender.id} {args.receiver.id}"
+            return f"send {variant} {args.amount} {update.effective_message.from_user.id} {args.receiver.id}"
 
         msg = f"Do you want to send {args.amount / 100 :.2f}€ to {args.receiver.name}?\nDescription: `{reason}`"
         keyboard = telegram.InlineKeyboardMarkup([[
@@ -97,8 +105,8 @@ class SendCallbackQuery(BaseCallbackQuery):
         try:
             variant, amount, original_sender, receiver_id = self.data.split(" ")
             amount = int(amount)
-            receiver_id = int(receiver_id)
             original_sender = int(original_sender)
+            receiver_id = int(receiver_id)
 
             if variant == "confirm":
                 confirmation = True
@@ -107,16 +115,12 @@ class SendCallbackQuery(BaseCallbackQuery):
             else:
                 raise ValueError(f"Invalid confirmation setting: '{variant}'")
 
-            sender = util.get_user_by(update.callback_query.from_user, update.callback_query.answer, connect)
-            if sender is None:
-                return
-            if sender.id != original_sender:
+            if update.callback_query.from_user.id != original_sender:
                 update.callback_query.answer(f"Only the creator of this transaction can {variant} it!")
                 return
 
-            receiver = util.get_user_by(util.FakeTelegramUser(receiver_id), update.callback_query.answer, connect)
-            if receiver is None:
-                return
+            sender = util.get_event_loop().run_until_complete(SDK.get_user_by_app_alias(str(original_sender)))
+            receiver = util.get_event_loop().run_until_complete(SDK.get_user_by_id(receiver_id))
 
             reason = None
             for entity in update.callback_query.message.parse_entities():
@@ -130,24 +134,18 @@ class SendCallbackQuery(BaseCallbackQuery):
                 raise RuntimeError("Unknown reason while confirming a Transaction")
 
             if confirmation:
-                response = connect.post("/v1/transactions", json_obj={
-                    "sender": sender.id,
-                    "receiver": receiver.id,
-                    "amount": amount,
-                    "reason": reason
-                })
-
-                if response.ok:
-                    transaction = schemas.Transaction(**response.json())
+                try:
+                    transaction = util.get_event_loop().run_until_complete(
+                        SDK.make_transaction(sender, receiver, amount, reason)
+                    )
                     update.callback_query.message.edit_text(
-                        f"Okay, you sent {transaction.amount / 100 :.2f}€ to {receiver.name}",
+                        f"Okay, you sent {transaction.amount / 100 :.2f}€ to {SDK.get_username(receiver)}",
                         reply_markup=telegram.InlineKeyboardMarkup([])
                     )
-                else:
-                    update.callback_query.message.edit_text(
-                        "Your request couldn't be processed. No money has been transferred.\n"
-                        f"Extra information: `Error {response.status_code}`\n\n`{response.json()}`",
-                        reply_markup=telegram.InlineKeyboardMarkup([])
+                except UserAPIException as exc:
+                    self.logger.warning(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+                    update.callback_query.edit_message_text(
+                        f"Your request couldn't be processed. No money has been transferred:\n{exc.message}"
                     )
 
             else:

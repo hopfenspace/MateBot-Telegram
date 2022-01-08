@@ -49,6 +49,9 @@ def _get_text(communism: schemas.Communism) -> str:
 
 
 def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
+    if not communism.active:
+        return telegram.InlineKeyboardMarkup([])
+
     def f(cmd):
         return f"communism {cmd} {communism.id}"
 
@@ -123,7 +126,6 @@ class CommunismCommand(BaseCommand):
                 update.effective_message.reply_text("You already have a communism in progress. Please handle it first.")
                 return
 
-            # TODO: handle shared message stuff
             communism = util.get_event_loop().run_until_complete(SDK.make_new_communism(user, args.amount, args.reason))
             text = _get_text(communism)
             keyboard = _get_keyboard(communism)
@@ -133,7 +135,14 @@ class CommunismCommand(BaseCommand):
                 use_result=True
             )
             shared_message_handler.add_message_by("communism", communism.id, message.chat_id, message.message_id)
-            util.send_auto_share_messages(update.callback_query.bot, "communism", communism.id, text, keyboard)
+            util.send_auto_share_messages(
+                update.effective_message.bot,
+                "communism",
+                communism.id,
+                text,
+                logger=self.logger,
+                keyboard=keyboard
+            )
             return
 
         if not active_communisms:
@@ -151,8 +160,17 @@ class CommunismCommand(BaseCommand):
 
         elif args.subcommand == "stop":
             communism = util.get_event_loop().run_until_complete(SDK.cancel_communism(active_communisms[0]))
-            # TODO: create new communism and shared messages and stuff
-            update.effective_message.reply_text("Not implemented: shared messages. But the communism was cancelled.")
+            text = _get_text(communism)
+            keyboard = _get_keyboard(communism)
+            util.update_all_shared_messages(
+                update.effective_message.bot,
+                "communism",
+                communism.id,
+                text,
+                logger=self.logger,
+                keyboard=keyboard
+            )
+            shared_message_handler.delete_messages("communism", communism.id)
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):

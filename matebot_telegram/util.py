@@ -79,6 +79,39 @@ def send_auto_share_messages(
     return True
 
 
+def update_all_shared_messages(
+        bot: telegram.Bot,
+        share_type: str,
+        share_id: int,
+        text: str,
+        logger: Optional[logging.Logger] = None,
+        keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
+        try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN
+) -> bool:
+    logger = logger or logging.getLogger(__name__)
+    shared_messages = shared_message_handler.get_messages_of(share_type, share_id)
+    logger.debug(f"Found shared messages for {share_type} ({share_id}): {[s.to_dict() for s in shared_messages]}")
+    success = True
+    for msg in shared_messages:
+        success = success and safe_call(
+            lambda: bot.edit_message_text(
+                text=text,
+                chat_id=msg.chat_id,
+                message_id=msg.message_id,
+                parse_mode=try_parse_mode,
+                reply_markup=keyboard
+            ),
+            lambda: bot.edit_message_text(
+                text=text,
+                chat_id=msg.chat_id,
+                message_id=msg.message_id,
+                reply_markup=keyboard
+            )
+        )
+        logger.debug(f"Updated message {msg.message_id} in chat {msg.chat_id} by {share_type} ({share_id})")
+    return success
+
+
 def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
     """
     Log any error and its traceback to sys.stdout and send it to developers

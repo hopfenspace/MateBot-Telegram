@@ -26,7 +26,7 @@ class SharedMessage:
             return NotImplemented
         return vars(self) == vars(other)
 
-    def to_json(self) -> Dict[str, Union[int, str]]:
+    def to_dict(self) -> Dict[str, Union[int, str]]:
         return {
             "share_type": self.share_type,
             "share_id": self.share_id,
@@ -60,7 +60,7 @@ class SharedMessageHandler:
         with self._lock:
             with open(self.storage_path) as f:
                 content = json.load(f)
-            content.append(shared_message.to_json())
+            content.append(shared_message.to_dict())
             with open(self.storage_path, "w") as f:
                 json.dump(content, f)
         return True

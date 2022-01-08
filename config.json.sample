@@ -7,6 +7,7 @@
 	"callback-username": "<Optional username for HTTP Basic Auth to the callback server>",
 	"callback-password": "<Optional password for HTTP Basic Auth to the callback server>",
 	"token": "<Telegram bot token>",
+	"bot-storage": "bot_storage.json",
 	"adjust-stock": true,
 	"respect-stock": true,
 	"chats": {

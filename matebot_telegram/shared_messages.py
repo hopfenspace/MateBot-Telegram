@@ -2,6 +2,7 @@
 MateBot telegram shared message library
 """
 
+import os
 import threading
 from typing import Dict, List, Optional, Union
 
@@ -38,6 +39,10 @@ class SharedMessageHandler:
     def __init__(self, storage_path: str):
         self.storage_path = storage_path
         self._lock = threading.Lock()
+        if not os.path.exists(self.storage_path):
+            with self._lock:
+                with open(self.storage_path, "w") as f:
+                    f.write("[]")
 
     def get_all_messages(self) -> List[SharedMessage]:
         with self._lock:
@@ -60,7 +65,7 @@ class SharedMessageHandler:
                 json.dump(content, f)
         return True
 
-    def add_message_by(self, share_type: str, share_id: int, chat_id: int, message_id: int):
+    def add_message_by(self, share_type: str, share_id: int, chat_id: int, message_id: int) -> bool:
         return self.add_message(SharedMessage(share_type, share_id, chat_id, message_id))
 
     def delete_message(self, shared_message: SharedMessage) -> bool:
@@ -74,7 +79,7 @@ class SharedMessageHandler:
                 json.dump(content, f)
         return old_length > new_length
 
-    def delete_message_by(self, share_type: str, share_id: int, chat_id: int, message_id: int):
+    def delete_message_by(self, share_type: str, share_id: int, chat_id: int, message_id: int) -> bool:
         return self.delete_message(SharedMessage(share_type, share_id, chat_id, message_id))
 
 

@@ -1,31 +1,14 @@
 import sys
-import enum
 import json
 import asyncio
 import logging
 import traceback
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable
 
 import requests
 import telegram.ext
-from matebot_sdk import schemas
 
 from . import config
-
-
-class PermissionLevel(enum.Enum):
-    ANYONE = 0
-    ANY_ACTIVE = 1
-    ANY_WITH_VOUCHER = 2
-    ANY_INTERNAL = 3
-    ANY_WITH_PERMISSION = 4
-    NOBODY = 5
-
-
-class FakeTelegramUser:
-    def __init__(self, telegram_id: int, name: Optional[str] = None):
-        self.id = telegram_id
-        self.name = name or "<unknown>"
 
 
 def get_event_loop() -> asyncio.AbstractEventLoop:
@@ -39,39 +22,36 @@ def get_event_loop() -> asyncio.AbstractEventLoop:
     return loop
 
 
-def safe_send(bot: telegram.Bot, chat_id: Union[int, str], default: str, fallback: str, *args, **kwargs) -> bool:
+def safe_call(
+        default: Callable[[], Any],
+        fallback: Callable[[], Any],
+        use_result: bool = False,
+        logger: logging.Logger = None
+) -> Any:
     try:
-        bot.send_message(chat_id, default, *args, **kwargs)
-        return True
-    except telegram.error.BadRequest as exc:
-        if not str(exc).startswith("Can't parse entities"):
-            raise
-        logger = kwargs.get("logger") or logging.getLogger(__name__)
-        logger.exception(f"Sending {default!r} failed due to entity parsing problems: {exc!s}")
-        bot.send_message(chat_id, fallback, *args, **kwargs)
-        logger.debug("The message has been sent without formatting enabled (raw text).")
-        return False
-
-
-def safe_call(default: Callable[[], Any], fallback: Callable[[], Any], logger: logging.Logger = None) -> bool:
-    try:
-        default()
-        return True
+        result = default()
+        return result if use_result else True
     except telegram.error.BadRequest as exc:
         if not str(exc).startswith("Can't parse entities"):
             raise
         logger = logger or logging.getLogger(__name__)
         logger.exception(f"Calling sender function {default} failed due to entity parsing problems: {exc!s}")
-        fallback()
+        result = fallback()
         logger.debug(f"Calling fallback function {fallback} was successful instead.")
-        return False
+        return result if use_result else False
 
 
-def extract_alias_from(user: schemas.User) -> Optional[schemas.Alias]:
-    aliases = [a for a in user.aliases if a.application == config.config["app"]]
-    if len(aliases) == 0:
-        return
-    return aliases[0]
+def safe_call_returns(default: Callable[[], Any], fallback: Callable[[], Any], logger: logging.Logger = None) -> Any:
+    try:
+        return default()
+    except telegram.error.BadRequest as exc:
+        if not str(exc).startswith("Can't parse entities"):
+            raise
+        logger = logger or logging.getLogger(__name__)
+        logger.exception(f"Calling sender function {default} failed due to entity parsing problems: {exc!s}")
+        result = fallback()
+        logger.debug(f"Calling fallback function {fallback} was successful instead.")
+        return result
 
 
 def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) -> None:

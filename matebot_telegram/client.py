@@ -4,7 +4,7 @@ MateBot SDK client to be used across the project
 
 import logging
 
-from matebot_sdk.schemas import ClientConfig
+from matebot_sdk.schemas.sdk import ClientConfig
 from matebot_sdk.sdk import AsyncSDK
 
 from .config import config

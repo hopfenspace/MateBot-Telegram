@@ -79,7 +79,7 @@ class HistoryCommand(BaseCommand):
             SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         )
         transactions = util.get_event_loop().run_until_complete(
-            SDK.get_transactions_of_user(f"/v1/transactions/user/{user}")
+            SDK.get_transactions_of_user(user)
         )
 
         if args.export == "json":

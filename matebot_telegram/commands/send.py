@@ -123,7 +123,7 @@ class SendCallbackQuery(BaseCallbackQuery):
 
         try:
             transaction = util.get_event_loop().run_until_complete(
-                SDK.make_transaction(sender, receiver, amount, reason)
+                SDK.make_new_transaction(sender, receiver, amount, reason)
             )
             update.callback_query.message.edit_text(
                 f"Okay, you sent {transaction.amount / 100 :.2f}€ to {SDK.get_username(receiver)}",

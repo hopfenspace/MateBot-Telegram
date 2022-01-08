@@ -65,10 +65,9 @@ class VouchCommand(BaseCommand):
                     )
                 ]
             ])
-            util.safe_send(
+            util.safe_call(
                 lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
-                text
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
             )
 
         if args.command is None:
@@ -206,7 +205,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
             else:
                 raise ValueError("Invalid query data")
 
-            util.safe_send(
+            util.safe_call(
                 lambda: update.callback_query.message.reply_text(
                     text,
                     parse_mode="Markdown",
@@ -215,8 +214,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
                 lambda: update.callback_query.message.reply_text(
                     text,
                     reply_to_message=update.callback_query.message
-                ),
-                text
+                )
             )
 
             update.callback_query.message.edit_text(

@@ -10,6 +10,11 @@
 	"bot-storage": "bot_storage.json",
 	"adjust-stock": true,
 	"respect-stock": true,
+	"auto-forward": {
+	    "communism": [],
+	    "poll": [],
+	    "refund": []
+	},
 	"chats": {
 		"transactions": [],
 		"notification": [],

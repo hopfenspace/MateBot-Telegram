@@ -3,12 +3,13 @@ import json
 import asyncio
 import logging
 import traceback
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import requests
 import telegram.ext
 
-from . import config
+from .config import config
+from .shared_messages import shared_message_handler
 
 
 def get_event_loop() -> asyncio.AbstractEventLoop:
@@ -41,17 +42,41 @@ def safe_call(
         return result if use_result else False
 
 
-def safe_call_returns(default: Callable[[], Any], fallback: Callable[[], Any], logger: logging.Logger = None) -> Any:
-    try:
-        return default()
-    except telegram.error.BadRequest as exc:
-        if not str(exc).startswith("Can't parse entities"):
-            raise
-        logger = logger or logging.getLogger(__name__)
-        logger.exception(f"Calling sender function {default} failed due to entity parsing problems: {exc!s}")
-        result = fallback()
-        logger.debug(f"Calling fallback function {fallback} was successful instead.")
-        return result
+def send_auto_share_messages(
+        bot: telegram.Bot,
+        share_type: str,
+        share_id: int,
+        text: str,
+        logger: Optional[logging.Logger] = None,
+        keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
+        try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
+        disable_notification: bool = True
+) -> bool:
+    logger = logger or logging.getLogger(__name__)
+    if share_type not in config["auto-forward"]:
+        return False
+    receivers = [*map(int, config["auto-forward"][share_type])]
+    logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
+    for receiver in receivers:
+        message = safe_call(
+            lambda: bot.send_message(
+                chat_id=receiver,
+                text=text,
+                parse_mode=try_parse_mode,
+                disable_notification=disable_notification,
+                reply_markup=keyboard,
+            ),
+            lambda: bot.send_message(
+                chat_id=receiver,
+                text=text,
+                disable_notification=disable_notification,
+                reply_markup=keyboard,
+            ),
+            use_result=True
+        )
+        shared_message_handler.add_message_by(share_type, share_id, message.chat_id, message.message_id)
+        logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
+    return True
 
 
 def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
@@ -68,7 +93,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
     logger = logging.getLogger("error")
     if update is None:
         logger.warning("Error handler called without Update object. Check for network/connection errors!")
-        token = config.config["token"]
+        token = config["token"]
         response = requests.get(f"https://api.telegram.org/bot{token}/getme")
         if response.status_code != 200:
             logger.error("Network check failed. Telegram API seems to be unreachable.")
@@ -90,7 +115,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         except telegram.TelegramError:
             logger.exception(f"Error while sending logs to {rcv}!")
 
-    for receiver in config.config["chats"]["notification"]:
+    for receiver in config["chats"]["notification"]:
         send_to(
             context,
             receiver,
@@ -98,7 +123,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             None
         )
 
-    for receiver in config.config["chats"]["stacktrace"]:
+    for receiver in config["chats"]["stacktrace"]:
         send_to(
             context,
             receiver,
@@ -106,7 +131,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             "MarkdownV2"
         )
 
-    for receiver in config.config["chats"]["debugging"]:
+    for receiver in config["chats"]["debugging"]:
         extra = "No Update object found."
         if update is not None:
             extra = json.dumps(update.to_dict(), indent=2, sort_keys=True)

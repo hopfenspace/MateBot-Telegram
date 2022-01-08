@@ -11,7 +11,7 @@ try:
 except ImportError:
     import json
 
-from config import config
+from .config import config
 
 
 class SharedMessage:

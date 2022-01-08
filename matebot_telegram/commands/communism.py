@@ -14,10 +14,12 @@ from ..client import SDK
 from ..parsing.types import amount as amount_type
 from ..parsing.actions import JoinAction
 from ..parsing.util import Namespace
+from ..shared_messages import shared_message_handler
 
 
 def _get_text(communism: schemas.Communism) -> str:
     users = util.get_event_loop().run_until_complete(SDK.get_users())
+    creator = [user for user in users if user.id == communism.creator_id][0]
 
     def f(user_id: int, quantity: int) -> str:
         user = [u for u in users if u.id == user_id]
@@ -27,7 +29,7 @@ def _get_text(communism: schemas.Communism) -> str:
 
     usernames = ', '.join(f(p.user_id, p.quantity) for p in communism.participants) or "None"
     markdown = (
-        f"*Communism by {SDK.get_username(communism.creator)}*\n\n"
+        f"*Communism by {SDK.get_username(creator)}*\n\n"
         f"Reason: {communism.description}\n"
         f"Amount: {communism.amount / 100 :.2f}€\n"
         f"Joined users ({sum(p.quantity for p in communism.participants)}): {usernames}\n"
@@ -125,10 +127,13 @@ class CommunismCommand(BaseCommand):
             communism = util.get_event_loop().run_until_complete(SDK.make_new_communism(user, args.amount, args.reason))
             text = _get_text(communism)
             keyboard = _get_keyboard(communism)
-            util.safe_call(
+            message: telegram.Message = util.safe_call(
                 lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
+                use_result=True
             )
+            shared_message_handler.add_message_by("communism", communism.id, message.chat_id, message.message_id)
+            util.send_auto_share_messages(update.callback_query.bot, "communism", communism.id, text, keyboard)
             return
 
         if not active_communisms:

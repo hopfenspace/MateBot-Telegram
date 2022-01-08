@@ -16,10 +16,10 @@ from .config import config
 
 class SharedMessage:
     def __init__(self, share_type: str, share_id: int, chat_id: int, message_id: int):
-        self.share_type = share_type
-        self.share_id = share_id
-        self.chat_id = chat_id
-        self.message_id = message_id
+        self.share_type = str(share_type)
+        self.share_id = int(share_id)
+        self.chat_id = int(chat_id)
+        self.message_id = int(message_id)
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):
@@ -73,7 +73,10 @@ class SharedMessageHandler:
             with open(self.storage_path) as f:
                 content = json.load(f)
             old_length = len(content)
-            shared_messages = [msg for msg in [SharedMessage(**entry) for entry in content] if msg != shared_message]
+            shared_messages = [
+                msg.to_dict() for msg in [SharedMessage(**entry) for entry in content]
+                if msg != shared_message
+            ]
             new_length = len(shared_messages)
             with open(self.storage_path, "w") as f:
                 json.dump(content, f)
@@ -81,6 +84,20 @@ class SharedMessageHandler:
 
     def delete_message_by(self, share_type: str, share_id: int, chat_id: int, message_id: int) -> bool:
         return self.delete_message(SharedMessage(share_type, share_id, chat_id, message_id))
+
+    def delete_messages(self, share_type: str, share_id: int) -> bool:
+        with self._lock:
+            with open(self.storage_path) as f:
+                content = json.load(f)
+            old_length = len(content)
+            content = [
+                msg.to_dict() for msg in [SharedMessage(**entry) for entry in content]
+                if msg.share_type != share_type or msg.share_id != share_id
+            ]
+            new_length = len(content)
+            with open(self.storage_path, "w") as f:
+                json.dump(content, f)
+        return old_length > new_length
 
 
 shared_message_handler = SharedMessageHandler(config["bot-storage"])

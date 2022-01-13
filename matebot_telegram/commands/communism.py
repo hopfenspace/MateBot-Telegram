@@ -2,7 +2,7 @@
 MateBot command executor classes for /communism and its callback queries
 """
 
-from typing import Callable, Coroutine, Optional
+from typing import Callable, Coroutine, Optional, Tuple
 
 import telegram.ext
 from matebot_sdk import schemas
@@ -192,10 +192,12 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    def _change_membership(
+    def _handle_communism_updates(
             self,
             update: telegram.Update,
-            get_sdk_func: Callable[[schemas.Communism, schemas.User], Coroutine]
+            pre_check_func: Callable[[schemas.Communism, schemas.User], Tuple[str, bool]],
+            get_sdk_func: Callable[[schemas.Communism, schemas.User], Coroutine],
+            after_update_func: Optional[Callable[[schemas.Communism, schemas.User], None]] = None
     ) -> None:
         _, communism_id = self.data.split(" ")
         communism_id = int(communism_id)
@@ -204,7 +206,13 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
         )
         communism = util.get_event_loop().run_until_complete(SDK.get_communism_by_id(communism_id))
-        util.get_event_loop().run_until_complete(get_sdk_func(communism, user))
+        pre_check = pre_check_func(communism, user)
+        if pre_check[0]:
+            update.callback_query.answer(text=pre_check[0], show_alert=pre_check[1])
+            return
+        result = util.get_event_loop().run_until_complete(get_sdk_func(communism, user))
+        if isinstance(result, schemas.Communism) and result.id == communism.id:
+            communism = result
 
         util.update_all_shared_messages(
             update.callback_query.bot,
@@ -216,6 +224,9 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             telegram.ParseMode.MARKDOWN
         )
 
+        if after_update_func:
+            after_update_func(communism, user)
+
     def join(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
@@ -223,7 +234,11 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return self._change_membership(update, lambda c, u: SDK.increase_communism_member(c, u, 1))
+        return self._handle_communism_updates(
+            update,
+            lambda c, u: ("", False),
+            lambda c, u: SDK.increase_communism_member(c, u, 1)
+        )
 
     def leave(self, update: telegram.Update) -> None:
         """
@@ -232,7 +247,11 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return self._change_membership(update, lambda c, u: SDK.decrease_communism_member(c, u, 1))
+        return self._handle_communism_updates(
+            update,
+            lambda c, u: ("", False),
+            lambda c, u: SDK.decrease_communism_member(c, u, 1)
+        )
 
     def accept(self, update: telegram.Update) -> None:
         """
@@ -265,14 +284,12 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        com = self.get_communism(update.callback_query)
-        if com is not None:
-            if com.creator != MateBotUser(update.callback_query.from_user):
-                update.callback_query.answer(
-                    text="You can't close this communism. You are not the creator.",
-                    show_alert=True
-                )
-                return
-
-            if com.cancel(update.callback_query.message.bot):
-                update.callback_query.answer(text="Okay, the communism was cancelled.")
+        return self._handle_communism_updates(
+            update,
+            lambda c, u:
+                ("", False)
+                if c.creator_id == u.id
+                else ("You can't close this communism. You are not the creator.", True),
+            lambda c, u: SDK.cancel_communism(c),
+            lambda c, u: shared_message_handler.delete_messages("communism", c.id)
+        )

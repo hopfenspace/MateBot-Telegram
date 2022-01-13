@@ -6,7 +6,7 @@ import datetime
 from typing import Optional
 
 import telegram
-from matebot_sdk import schemas
+from matebot_sdk import exceptions, schemas
 
 from .. import registry, util
 from ..base import BaseCommand, BaseInlineQuery
@@ -42,9 +42,17 @@ class HelpCommand(BaseCommand):
         if args.command:
             msg = self.get_help_for_command(args.command)
         else:
-            user = util.get_event_loop().run_until_complete(
-                SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-            )
+            try:
+                user = util.get_event_loop().run_until_complete(
+                    SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+                )
+            except exceptions.APIConnectionException:
+                msg = self.get_help_usage(registry.commands, self.usage, None)
+                util.safe_call(
+                    lambda: update.effective_message.reply_markdown(msg),
+                    lambda: update.effective_message.reply_text(msg)
+                )
+                raise
             msg = self.get_help_usage(registry.commands, self.usage, user)
 
         util.safe_call(

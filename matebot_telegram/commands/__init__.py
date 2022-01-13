@@ -11,6 +11,7 @@ from .forward import ForwardInlineQuery, ForwardInlineResult
 from .help import HelpCommand, HelpInlineQuery
 from .history import HistoryCommand
 from .pay import PayCommand, PayCallbackQuery
+from .refund import RefundCommand, RefundCallbackQuery
 from .send import SendCommand, SendCallbackQuery
 from .start import StartCommand, StartCallbackQuery
 from .vouch import VouchCommand, VouchCallbackQuery
@@ -30,6 +31,7 @@ DataCommand()
 HelpCommand()
 HistoryCommand()
 PayCommand()
+RefundCommand()
 SendCommand()
 StartCommand()
 VouchCommand()
@@ -37,6 +39,7 @@ ZwegatCommand()
 
 CommunismCallbackQuery()
 PayCallbackQuery()
+RefundCallbackQuery()
 SendCallbackQuery()
 StartCallbackQuery()
 VouchCallbackQuery()

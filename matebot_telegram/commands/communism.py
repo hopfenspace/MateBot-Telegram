@@ -260,22 +260,15 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        com = self.get_communism(update.callback_query)
-        if com is not None:
-            if com.creator != MateBotUser(update.callback_query.from_user):
-                update.callback_query.answer(
-                    text="You can't accept this communism. You are not the creator.",
-                    show_alert=True
-                )
-                return
-
-            if com.accept(update.callback_query.message.bot):
-                update.callback_query.answer(text="The communism has been closed successfully.")
-            else:
-                update.callback_query.answer(
-                    text="The communism was not accepted. Are there any members?",
-                    show_alert=True
-                )
+        return self._handle_communism_updates(
+            update,
+            lambda c, u:
+            ("", False)
+            if c.creator_id == u.id
+            else ("You can't accept this communism. You are not the creator.", True),
+            lambda c, u: SDK.accept_communism(c),
+            lambda c, u: shared_message_handler.delete_messages("communism", c.id)
+        )
 
     def cancel(self, update: telegram.Update) -> None:
         """

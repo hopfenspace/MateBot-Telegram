@@ -2,7 +2,7 @@
 MateBot command executor classes for /communism and its callback queries
 """
 
-import typing
+from typing import Callable, Coroutine, Optional
 
 import telegram.ext
 from matebot_sdk import schemas
@@ -25,7 +25,7 @@ def _get_text(communism: schemas.Communism) -> str:
         user = [u for u in users if u.id == user_id]
         if len(user) != 1:
             raise ValueError(f"User ID {user_id} couldn't be converted to username properly.")
-        return f"{SDK.get_username(user)} ({quantity}x)"
+        return f"{SDK.get_username(user[0])} ({quantity}x)"
 
     usernames = ', '.join(f(p.user_id, p.quantity) for p in communism.participants) or "None"
     markdown = (
@@ -215,7 +215,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         except (TypeError, RuntimeError) as exc:
             raise err.CallbackError("The collective has the wrong remote type", exc)
 
-    def get_communism(self, query: telegram.CallbackQuery) -> typing.Optional[schemas.Communism]:
+    def get_communism(self, query: telegram.CallbackQuery) -> Optional[schemas.Communism]:
         """
         Retrieve the Communism object based on the callback data
 
@@ -322,6 +322,30 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             )
             update.callback_query.answer("Okay, decremented.")
 
+    def _change_membership(
+            self,
+            update: telegram.Update,
+            get_sdk_func: Callable[[schemas.Communism, schemas.User], Coroutine]
+    ) -> None:
+        _, communism_id = self.data.split(" ")
+        communism_id = int(communism_id)
+
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        )
+        communism = util.get_event_loop().run_until_complete(SDK.get_communism_by_id(communism_id))
+        util.get_event_loop().run_until_complete(get_sdk_func(communism, user))
+
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            "communism",
+            communism.id,
+            _get_text(communism),
+            self.logger,
+            _get_keyboard(communism),
+            telegram.ParseMode.MARKDOWN
+        )
+
     def join(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
@@ -329,7 +353,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise ValueError("Not implemented")
+        return self._change_membership(update, lambda c, u: SDK.increase_communism_member(c, u, 1))
 
     def leave(self, update: telegram.Update) -> None:
         """
@@ -338,7 +362,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise ValueError("Not implemented")
+        return self._change_membership(update, lambda c, u: SDK.decrease_communism_member(c, u, 1))
 
     def accept(self, update: telegram.Update) -> None:
         """

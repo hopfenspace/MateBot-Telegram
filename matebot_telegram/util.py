@@ -3,7 +3,7 @@ import json
 import asyncio
 import logging
 import traceback
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 import requests
 import telegram.ext
@@ -49,15 +49,19 @@ def send_auto_share_messages(
         text: str,
         logger: Optional[logging.Logger] = None,
         keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
+        excluded: List[int] = None,
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
         disable_notification: bool = True
 ) -> bool:
     logger = logger or logging.getLogger(__name__)
+    excluded = excluded or []
     if share_type not in config["auto-forward"]:
         return False
     receivers = [*map(int, config["auto-forward"][share_type])]
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
+        if receiver in excluded:
+            continue
         message = safe_call(
             lambda: bot.send_message(
                 chat_id=receiver,

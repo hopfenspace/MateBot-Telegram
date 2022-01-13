@@ -6,7 +6,7 @@ import logging
 from typing import Any, Callable, Dict, Optional
 
 import telegram.ext
-from matebot_sdk.exceptions import APIException, APIConnectionException, UserAPIException
+from matebot_sdk.exceptions import APIException, APIConnectionException, UserException, UserAPIException
 
 from . import err, registry, util
 from .parsing.parser import CommandParser
@@ -216,7 +216,7 @@ class BaseCallbackQuery:
 
         except UserAPIException as exc:
             self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
-            update.callback_query.edit_message_text(text=exc.message)
+            update.callback_query.answer(text=exc.message)
 
         except APIException as exc:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
@@ -226,6 +226,10 @@ class BaseCallbackQuery:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
             update.callback_query.answer(text=exc.message, show_alert=True)
             raise
+
+        except UserException as exc:
+            self.logger.debug(f"{type(exc).__name__}: {exc.message} (UserException)")
+            update.callback_query.answer(text=exc.message)
 
         except (IndexError, ValueError, TypeError, RuntimeError):
             update.callback_query.answer(

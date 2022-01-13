@@ -120,7 +120,8 @@ class CommunismCommand(BaseCommand):
             update.effective_message.reply_text(permission_check[1])
             return
 
-        active_communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
+        communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
+        active_communisms = [communism for communism in communisms if communism.active]
         if args.subcommand is None:
             if active_communisms:
                 update.effective_message.reply_text("You already have a communism in progress. Please handle it first.")
@@ -141,7 +142,8 @@ class CommunismCommand(BaseCommand):
                 communism.id,
                 text,
                 logger=self.logger,
-                keyboard=keyboard
+                keyboard=keyboard,
+                excluded=[message.chat_id]
             )
             return
 
@@ -189,138 +191,6 @@ class CommunismCallbackQuery(BaseCallbackQuery):
                 "cancel": self.cancel
             }
         )
-
-    def _get_communism(self) -> schemas.Communism:
-        """
-        Retrieve the Communism object based on the callback data
-
-        :return: Communism object that handles the current collective
-        :rtype: Communism
-        :raises err.CallbackError: when something went wrong
-        """
-
-        if self.data is None or self.data == "":
-            raise err.CallbackError("Empty stripped callback data")
-
-        communism_id = self.data.split(" ")[-1]
-        try:
-            communism_id = int(communism_id)
-        except ValueError as exc:
-            raise err.CallbackError("Wrong communism ID format", exc)
-
-        try:
-            return Communism(communism_id)
-        except IndexError as exc:
-            raise err.CallbackError("The collective does not exist in the database", exc)
-        except (TypeError, RuntimeError) as exc:
-            raise err.CallbackError("The collective has the wrong remote type", exc)
-
-    def get_communism(self, query: telegram.CallbackQuery) -> Optional[schemas.Communism]:
-        """
-        Retrieve the Communism object based on the callback data
-
-        By convention, everything after the last space symbol
-        should be interpreted as communism ID. If some error occurs
-        while trying to get the Communism object, an alert message
-        will be shown to the user and an exception will be raised.
-
-        :param query: incoming Telegram callback query with its attached data
-        :type query: telegram.CallbackQuery
-        :return: Communism object that handles the current collective
-        :rtype: typing.Optional[Communism]
-        :raises err.CallbackError: when something went wrong
-        """
-
-        try:
-            com = self._get_communism()
-            if com.active:
-                return com
-            query.answer("The communism is not active anymore!")
-
-        except err.CallbackError:
-            query.answer(
-                text="Your requested action was not performed! Please try again later.",
-                show_alert=True
-            )
-            raise
-
-    def toggle(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        com = self.get_communism(update.callback_query)
-        if com is not None:
-            user = MateBotUser(update.callback_query.from_user)
-            previous_member = com.is_participating(user)[0]
-            com.toggle_user(user)
-            com.edit_all_messages(
-                com.get_markdown(),
-                com._get_inline_keyboard(),
-                update.effective_message.bot
-            )
-
-            if previous_member:
-                update.callback_query.answer("Okay, you were removed.")
-            else:
-                update.callback_query.answer("Okay, you were added.")
-
-    def increase(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        com = self.get_communism(update.callback_query)
-        if com is not None:
-            if com.creator != MateBotUser(update.callback_query.from_user):
-                update.callback_query.answer(
-                    text="You can't increase the external counter. You are not the creator.",
-                    show_alert=True
-                )
-                return
-
-            com.externals += 1
-            com.edit_all_messages(
-                com.get_markdown(),
-                com._get_inline_keyboard(),
-                update.effective_message.bot
-            )
-            update.callback_query.answer("Okay, incremented.")
-
-    def decrease(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        com = self.get_communism(update.callback_query)
-        if com is not None:
-            if com.creator != MateBotUser(update.callback_query.from_user):
-                update.callback_query.answer(
-                    text="You can't decrease the external counter. You are not the creator.",
-                    show_alert=True
-                )
-                return
-
-            if com.externals == 0:
-                update.callback_query.answer(
-                    text="The externals counter can't be negative!",
-                    show_alert=True
-                )
-                return
-
-            com.externals -= 1
-            com.edit_all_messages(
-                com.get_markdown(),
-                com._get_inline_keyboard(),
-                update.effective_message.bot
-            )
-            update.callback_query.answer("Okay, decremented.")
 
     def _change_membership(
             self,

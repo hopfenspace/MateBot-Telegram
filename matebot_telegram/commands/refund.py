@@ -2,8 +2,7 @@
 MateBot command executor classes for /refund and its callback queries
 """
 
-import json
-from typing import ClassVar
+from typing import Callable, ClassVar, Coroutine
 
 import telegram
 from matebot_sdk import schemas
@@ -18,7 +17,37 @@ from ..shared_messages import shared_message_handler
 
 
 def _get_text(refund: schemas.Refund) -> str:
-    return str(json.dumps(refund.dict(), indent=2))  # TODO: heavily improve this!
+    users = util.get_event_loop().run_until_complete(SDK.get_users())
+
+    def get_username(vote: schemas.Vote) -> str:
+        user = [u for u in users if u.id == vote.user_id]
+        if len(user) != 1:
+            raise ValueError(f"User ID {vote.user_id} couldn't be converted to username properly.")
+        return SDK.get_username(user[0])
+
+    approving = [get_username(vote) for vote in refund.poll.votes if vote.vote == 1]
+    neutral = [get_username(vote) for vote in refund.poll.votes if vote.vote == 0]
+    disapproving = [get_username(vote) for vote in refund.poll.votes if vote.vote == -1]
+    markdown = (
+        f"*Refund by {SDK.get_username(refund.creator)}*\n"
+        f"Reason: {refund.description}\n"
+        f"Amount: {refund.amount / 100 :.2f}€\n\n"
+        f"*Votes ({len(refund.poll.votes)})*\n"
+        f"Proponents ({len(approving)}): {', '.join(approving)}\n"
+        f"Opposers ({len(disapproving)}): {', '.join(disapproving)}\n"
+        + (f"Neutral ({len(neutral)}): {', '.join(neutral)}\n" if neutral else "")
+    )
+
+    if refund.active:
+        markdown += "\n_The refund request is currently active._"
+    elif not refund.active:
+        markdown += "\n_The refund request has been closed._"
+        if refund.transaction:
+            markdown += f"\nThe transaction has been processed. Take a look at /history for more details."
+        else:
+            markdown += "\nThe refund request was denied or cancelled. No transactions have been processed."
+
+    return markdown
 
 
 def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
@@ -154,21 +183,16 @@ class RefundCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    def approve(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
+    def _handle_add_vote(self, update: telegram.Update, get_sdk_func: Callable[[int, schemas.User], Coroutine]) -> None:
         _, refund_id = self.data.split(" ")
         refund_id = int(refund_id)
 
         user = util.get_event_loop().run_until_complete(
             SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
         )
-        vote = util.get_event_loop().run_until_complete(SDK.approve_refund(refund_id, user))
-        update.callback_query.answer(vote.dict())  # TODO: add better reply
+
+        vote = util.get_event_loop().run_until_complete(get_sdk_func(refund_id, user))
+        update.callback_query.answer(f"You successfully voted {('against', 'for')[vote.vote > 0]} the request.")
 
         refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
         text = _get_text(refund)
@@ -181,6 +205,15 @@ class RefundCallbackQuery(BaseCallbackQuery):
             logger=self.logger,
             keyboard=keyboard
         )
+
+    def approve(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        return self._handle_add_vote(update, lambda r, u: SDK.approve_refund(r, u))
 
     def disapprove(self, update: telegram.Update) -> None:
         """
@@ -189,26 +222,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        _, refund_id = self.data.split(" ")
-        refund_id = int(refund_id)
-
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        )
-        vote = util.get_event_loop().run_until_complete(SDK.disapprove_refund(refund_id, user))
-        update.callback_query.answer(vote.dict())  # TODO: add better reply
-
-        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
-        text = _get_text(refund)
-        keyboard = _get_keyboard(refund)
-        util.update_all_shared_messages(
-            update.callback_query.bot,
-            "refund",
-            refund.id,
-            text,
-            logger=self.logger,
-            keyboard=keyboard
-        )
+        return self._handle_add_vote(update, lambda r, u: SDK.disapprove_refund(r, u))
 
     def close(self, update: telegram.Update) -> None:
         """

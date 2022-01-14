@@ -2,6 +2,7 @@
 MateBot command executor classes for /refund and its callback queries
 """
 
+import json
 from typing import ClassVar
 
 import telegram
@@ -17,7 +18,7 @@ from ..shared_messages import shared_message_handler
 
 
 def _get_text(refund: schemas.Refund) -> str:
-    return str(refund)  # TODO: heavily improve this!
+    return str(json.dumps(refund.dict(), indent=2))  # TODO: heavily improve this!
 
 
 def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
@@ -148,7 +149,8 @@ class RefundCallbackQuery(BaseCallbackQuery):
             "^refund",
             {
                 "approve": self.approve,
-                "disapprove": self.disapprove
+                "disapprove": self.disapprove,
+                "close": self.close
             }
         )
 
@@ -159,7 +161,26 @@ class RefundCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise NotImplementedError
+        _, refund_id = self.data.split(" ")
+        refund_id = int(refund_id)
+
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        )
+        vote = util.get_event_loop().run_until_complete(SDK.approve_refund(refund_id, user))
+        update.callback_query.answer(vote.dict())  # TODO: add better reply
+
+        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
+        text = _get_text(refund)
+        keyboard = _get_keyboard(refund)
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            "refund",
+            refund.id,
+            text,
+            logger=self.logger,
+            keyboard=keyboard
+        )
 
     def disapprove(self, update: telegram.Update) -> None:
         """
@@ -168,4 +189,54 @@ class RefundCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise NotImplementedError
+        _, refund_id = self.data.split(" ")
+        refund_id = int(refund_id)
+
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        )
+        vote = util.get_event_loop().run_until_complete(SDK.disapprove_refund(refund_id, user))
+        update.callback_query.answer(vote.dict())  # TODO: add better reply
+
+        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
+        text = _get_text(refund)
+        keyboard = _get_keyboard(refund)
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            "refund",
+            refund.id,
+            text,
+            logger=self.logger,
+            keyboard=keyboard
+        )
+
+    def close(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        _, refund_id = self.data.split(" ")
+        refund_id = int(refund_id)
+
+        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        )
+        if refund.creator.id != user.id:
+            update.callback_query.answer(f"Only the creator of this refund can close it!")
+            return
+
+        refund = util.get_event_loop().run_until_complete(SDK.cancel_refund(refund))
+        text = _get_text(refund)
+        keyboard = _get_keyboard(refund)
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            "refund",
+            refund.id,
+            text,
+            logger=self.logger,
+            keyboard=keyboard
+        )
+        shared_message_handler.delete_messages("refund", refund.id)

@@ -6,7 +6,6 @@ from typing import ClassVar
 
 import telegram
 from matebot_sdk import schemas
-from matebot_sdk.base import PermissionLevel
 
 from .. import util
 from ..base import BaseCallbackQuery, BaseCommand
@@ -31,7 +30,8 @@ def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
             telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"refund disapprove {refund.id}"),
         ],
         [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{refund.id} ")
+            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{refund.id} "),
+            telegram.InlineKeyboardButton("CLOSE", callback_data=f"refund close {refund.id}")
         ]
     ])
 
@@ -47,8 +47,8 @@ class RefundCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             type(self).COMMAND_NAME,
-            "Use this command to create a refund request.\n\n"
-            "When you want to get money from the community, a refund "
+            f"Use this command to create a {type(self).COMMAND_NAME} request.\n\n"
+            f"When you want to get money from the community, a {type(self).COMMAND_NAME} "
             "request needs to be created. It requires an amount and a description. "
             "The community members with vote permissions will then vote for or against "
             "your request to verify that your request is valid and legitimate. "
@@ -79,14 +79,6 @@ class RefundCommand(BaseCommand):
         user = util.get_event_loop().run_until_complete(
             SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         )
-        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, type(self).COMMAND_NAME)
-        if not permission_check[0]:
-            update.effective_message.reply_text(permission_check[1])
-            return
-
-        if args.subcommand is None:
-            return  # TODO: create new refund
-
         refunds = util.get_event_loop().run_until_complete(SDK.get_refunds_by_creator(user))
         active_refunds = [refund for refund in refunds if refund.active]
         if args.subcommand is None:

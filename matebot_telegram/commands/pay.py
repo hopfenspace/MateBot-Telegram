@@ -14,7 +14,7 @@ class PayCommand(RefundCommand):
     This command is considered deprecated and will only provide an alias for /refund.
     """
 
-    COMMAND_NAME: ClassVar[str] = "refund"
+    COMMAND_NAME: ClassVar[str] = "pay"
 
     def __init__(self):
         super().__init__()

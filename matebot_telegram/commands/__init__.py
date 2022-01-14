@@ -10,7 +10,7 @@ from .data import DataCommand
 from .forward import ForwardInlineQuery, ForwardInlineResult
 from .help import HelpCommand, HelpInlineQuery
 from .history import HistoryCommand
-from .pay import PayCommand, PayCallbackQuery
+from .pay import PayCommand
 from .refund import RefundCommand, RefundCallbackQuery
 from .send import SendCommand, SendCallbackQuery
 from .start import StartCommand, StartCallbackQuery
@@ -38,7 +38,6 @@ VouchCommand()
 ZwegatCommand()
 
 CommunismCallbackQuery()
-PayCallbackQuery()
 RefundCallbackQuery()
 SendCallbackQuery()
 StartCallbackQuery()

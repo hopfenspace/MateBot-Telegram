@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /send
+MateBot command executor classes for /send and its callback queries
 """
 
 import telegram
@@ -106,6 +106,10 @@ class SendCallbackQuery(BaseCallbackQuery):
         amount = int(amount)
         original_sender = int(original_sender)
         receiver_id = int(receiver_id)
+
+        if update.callback_query.from_user.id != original_sender:
+            update.callback_query.answer(f"Only the creator of this transaction can confirm it!")
+            return
 
         sender = util.get_event_loop().run_until_complete(SDK.get_user_by_app_alias(str(original_sender)))
         receiver = util.get_event_loop().run_until_complete(SDK.get_user_by_id(receiver_id))

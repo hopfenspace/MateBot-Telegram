@@ -151,6 +151,12 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
                 msg.reply_text(extra_text, parse_mode=parse_mode, quote=True)
         except telegram.TelegramError:
             logger.exception(f"Error while sending logs to {rcv}!")
+            try:
+                env.bot.send_message(rcv, "An error has occurred, but it crashed the error handler.")
+            except Exception as exc:
+                logger.critical(f"{type(exc).__name__} in the additional fallback error handler!", exc_info=True)
+                raise
+            logger.info("A shortened error message has been emitted successfully.")
 
     for receiver in config["chats"]["notification"]:
         send_to(

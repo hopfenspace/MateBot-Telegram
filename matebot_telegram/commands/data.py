@@ -49,18 +49,9 @@ class DataCommand(BaseCommand):
                 relations = f"Voucher user: {SDK.get_username(voucher)}"
 
         else:
-            # TODO: implement this metric
-            # users = ", ".join(map(
-            #     lambda u: f"{u.name} ({u.username})" if u.username else u.name,
-            #     map(
-            #         lambda i: MateBotUser(i),
-            #         user.debtors
-            #     )
-            # ))
-            # if len(users) == 0:
-            #     users = "None"
-            # relations = f"Debtor user{'s' if len(users) != 1 else ''}: {users}"
-            relations = "Debtor users: ???"
+            all_users = util.get_event_loop().run_until_complete(SDK.get_users())
+            debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
+            relations = f"Debtor user{'s' if len(debtors) != 1 else ''}: {', '.join(debtors) or 'None'}"
 
         aliases = ", ".join([f"{a.app_username}@{a.application_id}" for a in user.aliases])
 

@@ -144,7 +144,7 @@ class HelpInlineQuery(BaseInlineQuery):
             return
 
         text = HelpCommand.get_help_for_command(registry.commands[command])
-        return self.get_result(f"Help on /{command}", text)
+        return self.get_result(f"Help on /{command}", text, parse_mode=telegram.ParseMode.MARKDOWN)
 
     def get_help(self) -> telegram.InlineQueryResult:
         """
@@ -158,10 +158,12 @@ class HelpInlineQuery(BaseInlineQuery):
             "Help",
             "This bot provides limited inline support. To get more information about inline "
             "bots, look at [the Telegram blog](https://telegram.org/blog/inline-bots).\n\n"
-            "Currently, a basic user search to forward communisms (see /communism) and payment "
-            "requests (see /pay) is supported. You may have a look at those two commands in "
-            "order to know how you might be able to use the inline feature of this bot.\n"
-            "You could try out the inline feature with some of the supported commands!"
+            "Currently, a basic user search to forward communisms (see /communism) and refund "
+            "requests (see /refund; an alias for the deprecated command /pay still exists) "
+            "is supported. You may have a look at those two commands in order to know "
+            "how you might be able to use the inline feature of this bot.\n"
+            "You could try out the inline feature with some of the supported commands!",
+            parse_mode=telegram.ParseMode.MARKDOWN
         )
 
     def run(self, query: telegram.InlineQuery) -> None:

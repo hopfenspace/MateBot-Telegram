@@ -152,7 +152,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         except telegram.TelegramError:
             logger.exception(f"Error while sending logs to {rcv}!")
             try:
-                env.bot.send_message(rcv, "An error has occurred, but it crashed the error handler.")
+                env.bot.send_message(rcv, "*An error has occurred, but it crashed the error handler!*")
             except Exception as exc:
                 logger.critical(f"{type(exc).__name__} in the additional fallback error handler!", exc_info=True)
                 raise

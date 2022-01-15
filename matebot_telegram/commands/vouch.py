@@ -55,7 +55,7 @@ class VouchCommand(BaseCommand):
             return
 
         permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_INTERNAL, "vouch")
-        if args.command is None and permission_check[0]:
+        if args.command is None and not permission_check[0]:
             voucher = SDK.get_username(util.get_event_loop().run_until_complete(SDK.get_user_by_id(user.voucher_id)))
             update.effective_message.reply_text(
                 "You're an external user, but you are allowed to interact "
@@ -88,7 +88,8 @@ class VouchCommand(BaseCommand):
             if len(debtors) == 0:
                 update.effective_message.reply_text(
                     "You don't vouch for any external user at the moment. "
-                    "To change this, use `/vouch add|remove <username>`."
+                    "To change this, use `/vouch add|remove <username>`.",
+                    parse_mode=telegram.ParseMode.MARKDOWN
                 )
 
             else:

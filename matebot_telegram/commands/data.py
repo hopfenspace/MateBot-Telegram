@@ -53,7 +53,18 @@ class DataCommand(BaseCommand):
             debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
             relations = f"Debtor user{'s' if len(debtors) != 1 else ''}: {', '.join(debtors) or 'None'}"
 
-        aliases = ", ".join([f"{a.app_username}@{a.application_id}" for a in user.aliases])
+        app = util.get_event_loop().run_until_complete(SDK.application)
+        apps = util.get_event_loop().run_until_complete(SDK.get_applications())
+        other_aliases = [
+            f'{a.app_username}@{[c for c in apps if c.id == a.application_id][0].name}'
+            for a in user.aliases if a.application_id != app.id
+        ]
+        votes = util.get_event_loop().run_until_complete(SDK.get_votes())
+        my_votes = [v for v in votes if v.user_id == user.id]
+        created_communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
+        created_refunds = util.get_event_loop().run_until_complete(SDK.get_refunds_by_creator(user))
+        open_created_communisms = [c for c in created_communisms if c.active]
+        open_created_refunds = [r for r in created_refunds if r.active]
 
         result = (
             f"Overview over currently stored data for {user.name}:\n"
@@ -66,9 +77,13 @@ class DataCommand(BaseCommand):
             f"Permissions: {user.permission}\n"
             f"External user: {user.external}\n"
             f"{relations}\n"
+            f"Created communisms: {len(created_communisms)} ({len(open_created_communisms)} open)\n"
+            f"Created refunds: {len(created_refunds)} ({len(open_created_refunds)} open)\n"
+            f"Votes in polls: {len(my_votes)}\n"
             f"Account created: {time.asctime(time.localtime(user.created))}\n"
             f"Last transaction: {time.asctime(time.localtime(user.accessed))}\n"
-            f"Aliases: {aliases}"
+            f"App aliases: {', '.join([f'{a.app_username}' for a in user.aliases if a.application_id == app.id])}\n"
+            f"Other aliases: {', '.join(other_aliases) or 'None'}"
             f"```\n\n"
             f"Use the /history command to see your transaction log."
         )

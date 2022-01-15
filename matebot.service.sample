@@ -1,0 +1,16 @@
+[Unit]
+Description=MateBot Telegram Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/matebot-telegram/MateBot-Telegram/venv/bin/python3 -m matebot_telegram
+User=matebot-telegram
+Group=matebot-telegram
+WorkingDirectory=/home/matebot-telegram/MateBot-Telegram
+Restart=always
+SyslogIdentifier=matebot-telegram
+
+[Install]
+WantedBy=multi-user.target

@@ -20,10 +20,18 @@ or get refunds from the community when they paid for something used by everyone.
 
 `venv/bin/python3 -m matebot_telegram`
 
+Optional: This repository provides a systemd sample file at
+`matebot-telegram.service.sample`. Copy this file to `matebot-telegram.service`
+and adapt the settings in there to fit your environment. Then create a symlink
+from the systemd unit file storage (e.g. `/etc/systemd/system/` on Debian-like
+systems) to this file and run `systemctl daemon-reload`. You should now have a
+systemd service `matebot-telegram` that can be started and stopped easily.
+To enable auto-start at system boot, use `systemctl enable matebot-telegram`.
+
 ## Documentation
 
 See `docs` folder or [our deployed documentation](https://docs.hopfenspace.org/matebot).
 
 ## License
 
-See [license](LICENSE)
+See [license](LICENSE).

@@ -1,11 +1,14 @@
 """
-MateBot command executor classes for /vouch
+MateBot command executor classes for /vouch and its callback queries
 """
 
 import telegram
+from matebot_sdk import messages
+from matebot_sdk.base import PermissionLevel
 
 from .. import util
 from ..base import BaseCommand, BaseCallbackQuery
+from ..client import SDK
 from ..parsing.types import user_type
 from ..parsing.util import Namespace
 
@@ -43,25 +46,33 @@ class VouchCommand(BaseCommand):
         :return: None
         """
 
-        user = util.get_user_by(update.effective_message.from_user, update.effective_message.reply_text, connect)
-        if user is None:
-            return
-        if not util.ensure_permissions(user, util.PermissionLevel.ANY_INTERNAL, update.effective_message, "vouch"):
+        user = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        )
+        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, "vouch")
+        if not permission_check[0]:
+            update.effective_message.reply_text(permission_check[1])
             return
 
-        # TODO: adapt this command to the new server-client architecture
-        update.effective_message.reply_text("This command has not been fully implemented yet.")
+        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_INTERNAL, "vouch")
+        if args.command is None and permission_check[0]:
+            voucher = SDK.get_username(util.get_event_loop().run_until_complete(SDK.get_user_by_id(user.voucher_id)))
+            update.effective_message.reply_text(
+                "You're an external user, but you are allowed to interact "
+                f"with the bot, since {voucher} vouches for you."
+            )
+            return
 
         def reply(text: str) -> None:
             keyboard = telegram.InlineKeyboardMarkup([
                 [
                     telegram.InlineKeyboardButton(
                         "YES",
-                        callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} accept"
+                        callback_data=f"vouch {args.command} {args.user.id} {user.id} accept"
                     ),
                     telegram.InlineKeyboardButton(
                         "NO",
-                        callback_data=f"vouch {args.command} {args.user.uid} {owner.uid} deny"
+                        callback_data=f"vouch {args.command} {args.user.id} {user.id} deny"
                     )
                 ]
             ])
@@ -70,86 +81,73 @@ class VouchCommand(BaseCommand):
                 lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
             )
 
+        all_users = util.get_event_loop().run_until_complete(SDK.get_users())
         if args.command is None:
-            debtors = ", ".join(map(
-                lambda u: f"{u.name} ({u.username})" if u.username else u.name,
-                map(
-                    lambda i: MateBotUser(i),
-                    owner.debtors
-                )
-            ))
+            debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
 
             if len(debtors) == 0:
                 update.effective_message.reply_text(
                     "You don't vouch for any external user at the moment. "
-                    "To change this, use `/vouch add|remove <username>`.",
-                    parse_mode="Markdown"
+                    "To change this, use `/vouch add|remove <username>`."
                 )
 
             else:
                 update.effective_message.reply_text(
-                    "You currently vouch for the following "
-                    f"user{'s' if len(debtors) != 1 else ''}: {debtors}",
-                    parse_mode="Markdown"
+                    "You currently vouch for the following user"
+                    f"{'s' if len(debtors) != 1 else ''}: {', '.join(debtors)}"
                 )
+
+            return
+
+        if update.effective_message.chat.type != telegram.Chat.PRIVATE:
+            update.effective_message.reply_text("This command should be executed in private chat.")
 
         elif not args.user.external:
             update.effective_message.reply_text(
-                f"This user is not external. Therefore, you can't vouch for {args.user}."
+                f"This user is not external. Therefore, you can't vouch for {SDK.get_username(args.user)}."
             )
 
         elif args.command == "add":
-            if args.user.creditor == owner.uid:
-                update.effective_message.reply_text(
-                    f"You already vouch for {args.user.name}. If you want to "
-                    "stop this, use the command `/vouch remove "
-                    f"{args.user.username if args.user.username else '<username>'}`.",
-                    parse_mode="Markdown"
+            if args.user.voucher_id == user.id:
+                msg = f"You already vouch for {SDK.get_username(args.user)}. If you " \
+                    "want to stop this, use the command `/vouch remove <username>`."
+                util.safe_call(
+                    lambda: update.effective_message.reply_text(msg, parse_mode=telegram.ParseMode.MARKDOWN),
+                    lambda: update.effective_message.reply_text(msg)
                 )
 
-            elif args.user.creditor is not None:
+            elif args.user.voucher_id is not None:
                 update.effective_message.reply_text(
                     "Someone else is already vouching for this user. "
-                    f"Therefore, you can't vouch for {args.user.name}."
+                    f"Therefore, you can't vouch for {SDK.get_username(args.user)}."
                 )
 
             else:
-                reply(
-                    f"*Do you really want to vouch for {args.user}?*\n\n"
-                    "This will have some consequences:\n"
-                    "- The external user will become able to perform operations that change "
-                    "the balance like /send or consumption commands.\n"
-                    f"- You **must pay all debts** to the community when {args.user.name} "
-                    "leaves the community for a longer period or forever or in case you stop "
-                    f"vouching for {args.user.name}. On the other side, you will "
-                    "get all the virtual money the user had when there's some.\n\n"
-                    f"We encourage you to talk to {args.user.name} regularly or use /balance to "
-                    "check the balance (this is currently possible for all registered users)."
-                )
+                reply(messages.START_VOUCHING_INFORMATION_MARKDOWN.format(debtor=SDK.get_username(args.user)))
 
         elif args.command == "remove":
-            if args.user.creditor is None:
+            if args.user.voucher_id is None:
                 update.effective_message.reply_text(
                     "No one is vouching for this user yet. Therefore, you "
-                    f"can't remove {args.user.name} from your list of debtors."
+                    f"can't remove {SDK.get_username(args.user)} from your list of debtors."
                 )
 
-            elif args.user.creditor != owner.uid:
+            elif args.user.voucher_id != user.id:
                 update.effective_message.reply_text(
                     "You don't vouch for this user, but someone else does. Therefore, you "
-                    f"can't remove {args.user.name} from your list of debtors."
+                    f"can't remove {SDK.get_username(args.user)} from your list of debtors."
                 )
 
             else:
                 checkout = args.user.balance
                 reply(
-                    f"*Do you really want to stop vouching for {args.user}?*\n\n"
+                    f"*Do you really want to stop vouching for {SDK.get_username(args.user)}?*\n\n"
                     "This will have some consequences:\n"
-                    f"- {args.user.name} won't be able to perform commands that would change "
+                    f"- {SDK.get_username(args.user)} won't be able to perform commands that would change "
                     "the balance anymore (e.g. /send or consumption commands).\n"
-                    f"- The balance of {args.user.name} will be set to `0`.\n"
+                    f"- The balance of {SDK.get_username(args.user)} will be set to `0`.\n"
                     f"- You will {'pay' if checkout < 0 else 'get'} {checkout / 100:.2f}€ "
-                    f"{'to' if checkout < 0 else 'from'} {args.user.name}."
+                    f"{'to' if checkout < 0 else 'from'} {SDK.get_username(args.user)}."
                 )
 
 
@@ -159,7 +157,52 @@ class VouchCallbackQuery(BaseCallbackQuery):
     """
 
     def __init__(self):
-        super().__init__("vouch", "^vouch", {})  # TODO: add & implement targets
+        super().__init__("vouch", "^vouch", {
+            "add": self.add,
+            "remove": self.remove
+        })
+
+    def add(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        _, debtor_id, voucher_id, option = self.data.split(" ")
+        debtor_id = int(debtor_id)
+        voucher_id = int(voucher_id)
+
+        debtor = SDK.get_user_by_id(debtor_id)
+        voucher = SDK.get_user_by_id(voucher_id)
+
+        sender = util.get_event_loop().run_until_complete(
+            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        )
+        if sender.id != voucher.id:
+            update.callback_query.answer("Only the creator of this request can answer questions!", show_alert=True)
+            return
+
+        if option == "deny":
+            update.callback_query.message.edit_text(
+                "You aborted the request.",
+                reply_markup=telegram.InlineKeyboardMarkup([])
+            )
+
+        elif option == "accept":
+            update.callback_query.answer("Not implemented.")
+
+        else:
+            raise ValueError(f"Invalid query data format: {self.data!r}")
+
+    def remove(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        update.callback_query.answer("Not implemented.")
 
     def run(self, update: telegram.Update) -> None:
         """

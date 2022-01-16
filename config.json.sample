@@ -3,13 +3,18 @@
 	"password": "<Password of your deployed application>",
 	"ca-path": "<Optional path to a CA file for TLS connections>",
 	"server": "<Base URL to the MateBot backend server>",
-	"callback-url": "<Optional base URL of the callback server>",
-	"callback-username": "<Optional username for HTTP Basic Auth to the callback server>",
-	"callback-password": "<Optional password for HTTP Basic Auth to the callback server>",
 	"token": "<Telegram bot token>",
 	"bot-storage": "bot_storage.json",
 	"adjust-stock": true,
 	"respect-stock": true,
+	"callback": {
+		"enabled": false,
+		"public-url": "<Public base URL of the callback server (reachable by the API server)>",
+		"address": "<Address the callback server should bind to, e.g. '0.0.0.0'>",
+		"port": 8080,
+		"username": "<Optional username for HTTP Basic Auth to the callback server by the API server>",
+		"password": "<Optional password for HTTP Basic Auth to the callback server by the API server>"
+	},
 	"auto-forward": {
 	    "communism": [],
 	    "poll": [],

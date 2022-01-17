@@ -34,6 +34,7 @@ class PatchedUpdater(telegram.ext.Updater):
 
     def stop(self) -> None:
         self.callback_server.stop()
+        # TODO: gracefully shutdown the SDK client
         # util.get_event_loop().run_until_complete(SDK.close())
         result = super().stop()
         if self.callback_server_thread:

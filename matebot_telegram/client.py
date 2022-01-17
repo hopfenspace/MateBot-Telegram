@@ -20,6 +20,7 @@ SDK = AsyncSDK(
         adjust_stock=config["adjust-stock"],
         respect_stock=config["respect-stock"]
     ),
+    callbacks=(config["callback"]["public-url"], config["callback"]["username"], config["callback"]["password"]),
     logger=logging.getLogger("sdk.client")
 )
 

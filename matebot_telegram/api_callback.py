@@ -3,18 +3,48 @@ MateBot API callback handler implementation
 """
 
 import logging
-from typing import Awaitable, Optional
+import collections
+from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
-import telegram
 import tornado.web
+from matebot_sdk.base import CallbackUpdate
 
 
 logger = logging.getLogger("api-callback")
 
+STORAGE_TYPE = Dict[
+    Tuple[CallbackUpdate, Optional[str]],
+    List[Tuple[Callable[[CallbackUpdate, str, int, ...], Optional[Awaitable[None]]], tuple, dict]]
+]
+
+
+class APICallbackDispatcher:
+    def __init__(self):
+        self._storage: STORAGE_TYPE = collections.defaultdict(list)
+
+    def register(self, event: Tuple[CallbackUpdate, Optional[str]], func, *args, **kwargs):
+        self._storage[event].append((func, args, kwargs))
+
+    async def dispatch(self, method: CallbackUpdate, model: str, model_id: int):
+        for event in self._storage:
+            if event[0] == method and (event[1] is None or event[1] == model):
+                for handler in self._storage.get(event):
+                    func, args, kwargs = handler
+                    try:
+                        result = func(method, model, model_id, *args, **kwargs)
+                        if result is not None:
+                            await result
+                    except Exception as exc:
+                        logger.warning(f"{type(exc).__name__} in API callback handler for event {event}")
+                        raise
+
+
+dispatcher = APICallbackDispatcher()
+
 
 class APICallbackApp(tornado.web.Application):
-    def __init__(self, bot: telegram.Bot, config: dict):
-        handlers = [(r"(?i)/(create|update|delete)/(.+)/([0-9]+)", APICallbackHandler, {"bot": bot, "config": config})]
+    def __init__(self):
+        handlers = [(r"(?i)/(create|update|delete)/(.+)/([0-9]+)", APICallbackHandler)]
         tornado.web.Application.__init__(self, handlers)
 
     def log_request(self, handler: tornado.web.RequestHandler) -> None:
@@ -22,20 +52,17 @@ class APICallbackApp(tornado.web.Application):
 
 
 class APICallbackHandler(tornado.web.RequestHandler):
-    bot: telegram.Bot
-    config: dict
-
     def data_received(self, chunk: bytes) -> Optional[Awaitable[None]]:
         raise NotImplementedError
 
-    def initialize(self, bot: telegram.Bot, config: dict) -> None:
-        self.bot = bot
-        self.config = config
-
     async def get(self, action: str, model: str, model_id: str):
-        action = action.lower()
-        model = model.lower()
+        action = str(action).lower()
+        model = str(model).lower()
         model_id = int(model_id)
         logger.debug(f"Incoming callback query: '{action.upper()} {model} {model_id}'")
-
-        # TODO: add actual dispatching of the incoming queries to the specific handlers
+        method = {
+            "create": CallbackUpdate.CREATE,
+            "update": CallbackUpdate.UPDATE,
+            "delete": CallbackUpdate.DELETE
+        }[action]
+        await dispatcher.dispatch(method, model, model_id)

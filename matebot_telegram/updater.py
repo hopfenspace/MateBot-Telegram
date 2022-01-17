@@ -24,7 +24,7 @@ class PatchedUpdater(telegram.ext.Updater):
         self.callback_server_thread = None
 
     def start_api_callback_server(self, config: dict):
-        app = APICallbackApp(self.bot, config)
+        app = APICallbackApp()
         self.callback_server = app.listen(address=config["address"], port=config["port"])
         self.callback_server_thread = threading.Thread(
             target=tornado.ioloop.IOLoop.current().start,
@@ -38,5 +38,5 @@ class PatchedUpdater(telegram.ext.Updater):
         # util.get_event_loop().run_until_complete(SDK.close())
         result = super().stop()
         if self.callback_server_thread:
-            self.callback_server.join(timeout=SERVER_THREAD_JOIN_TIMEOUT)
+            self.callback_server_thread.join(timeout=SERVER_THREAD_JOIN_TIMEOUT)
         return result

@@ -108,25 +108,16 @@ class StartCallbackQuery(BaseCallbackQuery):
             raise ValueError("Wrong Telegram ID")
 
         if selection == "yes":
+            def encode(s: str) -> str:
+                return base64.b64encode(s.encode("UTF-8")).decode("ASCII")
+            from_user = update.callback_query.from_user
             keyboard = [
                 [telegram.InlineKeyboardButton(
                     name,
-                    callback_data=f"start select-username {sender} {encoded_name}"
+                    callback_data=f"start select-username {sender} {encode(name)}"
                 )]
-                for name, encoded_name in [
-                    (
-                        update.callback_query.from_user.username,
-                        base64.b64encode(update.callback_query.from_user.username.encode("UTF-8")).decode("ASCII")
-                    ),
-                    (
-                        update.callback_query.from_user.first_name,
-                        base64.b64encode(update.callback_query.from_user.first_name.encode("UTF-8")).decode("ASCII")
-                    ),
-                    (
-                        update.callback_query.from_user.full_name,
-                        base64.b64encode(update.callback_query.from_user.full_name.encode("UTF-8")).decode("ASCII")
-                    )
-                ]
+                for name in [from_user.username, from_user.first_name, from_user.full_name]
+                if name is not None
             ]
             update.callback_query.message.edit_text(
                 "Which username do you want to use?",

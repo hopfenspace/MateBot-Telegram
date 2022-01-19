@@ -149,7 +149,7 @@ class VouchCommand(BaseCommand):
                     f"- {SDK.get_username(args.user)} won't be able to perform commands that would change "
                     "the balance anymore (e.g. /send or consumption commands).\n"
                     f"- The balance of {SDK.get_username(args.user)} will be set to `0`.\n"
-                    f"- You will {'pay' if checkout < 0 else 'get'} {checkout / 100:.2f}€ "
+                    f"- You will {'pay' if checkout < 0 else 'get'} {abs(checkout / 100):.2f}€ "
                     f"{'to' if checkout < 0 else 'from'} {SDK.get_username(args.user)}."
                 )
 

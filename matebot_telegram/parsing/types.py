@@ -84,23 +84,22 @@ def user_type(arg: EntityString) -> schemas.User:
     :raises ValueError: when username is ambiguous or the argument wasn't a mention
     """
 
-    if arg.entity is None:
-        raise ValueError('No user mentioned. Try with "@".')
-
-    elif arg.entity.type in (telegram.constants.MESSAGEENTITY_MENTION, telegram.constants.MESSAGEENTITY_TEXT_MENTION):
-        fut = asyncio.run_coroutine_threadsafe(SDK.get_users_by_app_alias(str(arg)), loop=util.event_loop)
-        users = fut.result()
-        if len(users) == 0:
-            raise ValueError(
-                "Ambiguous username. Make sure the username is correct and the "
-                "user recently used the bot. Try sending /start to the bot privately."
-            )
-        if len(users) > 2:
-            raise ValueError("Ambiguous username. Please ensure the users talked to the bot recently.")
-        return users[0]
-
+    if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
+        name = str(arg.entity.user.id)
+    elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
+        name = str(arg)
     else:
         raise ValueError('No user mentioned. Try with "@".')
+
+    users = asyncio.run_coroutine_threadsafe(SDK.get_users_by_app_alias(name), loop=util.event_loop).result()
+    if len(users) == 0:
+        raise ValueError(
+            "Ambiguous username. Make sure the username is correct and the "
+            "user recently used the bot. Try sending /start to the bot privately."
+        )
+    if len(users) > 2:
+        raise ValueError("Ambiguous username. Please ensure the users talked to the bot recently.")
+    return users[0]
 
 
 def command(arg: str) -> BaseCommand:

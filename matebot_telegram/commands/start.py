@@ -65,38 +65,43 @@ class StartCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("start", "^start", {
             "init": self.init,
-            "set-username": self.set_username,
-            "select": self.select
+            "use-username": self.use_username,
+            "select-username": self.select_username,
+            "select-app": self.select_app
         })
 
-    def init(self, update: telegram.Update):
+    async def init(self, update: telegram.Update):
         _, sender, selection = self.data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        if selection == "new":
+        other_apps = [app for app in await SDK.get_applications() if app.id != (await SDK.application).id]
+
+        if selection == "new" or len(other_apps) == 0:
             update.callback_query.message.edit_text(
                 "Do you want to set a username which will be used across all MateBot applications? "
                 "This is highly recommended, since otherwise your numeric ID will be used as username.",
                 reply_markup=telegram.InlineKeyboardMarkup([[
-                    telegram.InlineKeyboardButton("YES", callback_data=f"start set-username {sender} yes"),
-                    telegram.InlineKeyboardButton("NO", callback_data=f"start set-username {sender} no")
+                    telegram.InlineKeyboardButton("YES", callback_data=f"start use-username {sender} yes"),
+                    telegram.InlineKeyboardButton("NO", callback_data=f"start use-username {sender} no")
                 ]])
             )
 
         elif selection == "existing":
-            # TODO: implement asking for the identifier of another client alias
+            no_app = telegram.InlineKeyboardButton("None of them", callback_data=f"start select-app {sender} -1")
             update.callback_query.message.edit_text(
-                "Well, this isn't implemented yet, stay tuned.",
-                reply_markup=telegram.InlineKeyboardMarkup([[]])
+                "Which other application have you used before?",
+                reply_markup=telegram.InlineKeyboardMarkup([[telegram.InlineKeyboardButton(
+                    app.name,
+                    callback_data=f"start select-app {sender} {app.id}"
+                )] for app in other_apps] + [[no_app]])
             )
-            raise RuntimeError("Implementation missing")
 
         else:
             raise ValueError(f"Unknown option {selection!r}")
 
-    async def set_username(self, update: telegram.Update):
+    async def use_username(self, update: telegram.Update):
         _, sender, selection = self.data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -106,7 +111,7 @@ class StartCallbackQuery(BaseCallbackQuery):
             keyboard = [
                 [telegram.InlineKeyboardButton(
                     name,
-                    callback_data=f"start select {sender} {encoded_name}"
+                    callback_data=f"start select-username {sender} {encoded_name}"
                 )]
                 for name, encoded_name in [
                     (
@@ -137,7 +142,21 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError(f"Unknown option {selection!r}")
 
-    async def select(self, update: telegram.Update):
+    async def select_app(self, update: telegram.Update):
+        _, sender, app_id = self.data.split(" ")
+        sender = int(sender)
+        app_id = int(app_id)
+        if update.callback_query.from_user.id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        if app_id == -1:
+            self.data = f"init {sender} new"
+            await self.init(update)
+            return
+
+        raise NotImplementedError
+
+    async def select_username(self, update: telegram.Update):
         _, sender, encoded_name = self.data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:

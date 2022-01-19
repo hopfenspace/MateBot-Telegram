@@ -5,7 +5,6 @@ MateBot SDK client to be used across the project
 import asyncio
 import logging
 
-from matebot_sdk.exceptions import APIConnectionException
 from matebot_sdk.schemas.sdk import ClientConfig
 from matebot_sdk.sdk import AsyncSDK
 
@@ -34,8 +33,5 @@ def setup_sdk() -> bool:
     if util.event_loop is None:
         logger.error("Event loop uninitialized! Refusing to setup SDK client!")
         return False
-    try:
-        asyncio.run_coroutine_threadsafe(SDK.setup(), loop=util.event_loop).result()
-    except APIConnectionException as exc:
-        raise ImportError(f"Unable to connect to API server at {config['server']}") from exc
+    asyncio.run_coroutine_threadsafe(SDK.setup(), loop=util.event_loop).result()
     return True

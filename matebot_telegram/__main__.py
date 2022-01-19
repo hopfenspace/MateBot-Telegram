@@ -4,6 +4,7 @@ import typing
 import logging.config
 
 from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
+from matebot_sdk.exceptions import APIConnectionException
 
 from matebot_telegram import client, config, registry, updater, util
 from matebot_telegram.commands.handler import FilteredChosenInlineResultHandler
@@ -74,7 +75,17 @@ if __name__ == "__main__":
     logger.debug("Started event thread.")
     util.event_thread_started.wait()
     logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
-    client.setup_sdk()
+
+    try:
+        client.setup_sdk()
+    except APIConnectionException as exc:
+        logger.critical(
+            f"Connecting to the API server failed! Please review your "
+            f"config and ensure {config.config['server']} is reachable."
+        )
+        updater.callback_server.stop()
+        util.event_thread_running.set()
+        raise
 
     logger.info("Starting bot...")
     updater.start_polling()

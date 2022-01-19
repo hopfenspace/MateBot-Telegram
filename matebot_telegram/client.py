@@ -35,9 +35,7 @@ def setup_sdk() -> bool:
         logger.error("Event loop uninitialized! Refusing to setup SDK client!")
         return False
     try:
-        fut = asyncio.run_coroutine_threadsafe(SDK.setup(), loop=util.event_loop)
-        fut.result()
-        # get_event_loop().run_until_complete(SDK.setup())
+        asyncio.run_coroutine_threadsafe(SDK.setup(), loop=util.event_loop).result()
     except APIConnectionException as exc:
         raise ImportError(f"Unable to connect to API server at {config['server']}") from exc
     return True

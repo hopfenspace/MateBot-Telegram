@@ -2,12 +2,15 @@
 MateBot command executor classes for /refund and its callback queries
 """
 
+import logging
 from typing import Callable, ClassVar, Coroutine
 
 import telegram
 from matebot_sdk import schemas
+from matebot_sdk.base import CallbackUpdate
 
 from .. import util
+from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery, BaseCommand
 from ..client import SDK
 from ..parsing.actions import JoinAction
@@ -251,3 +254,18 @@ class RefundCallbackQuery(BaseCallbackQuery):
             keyboard=keyboard
         )
         shared_message_handler.delete_messages("refund", refund.id)
+
+
+async def _refund_callback_handler(method: CallbackUpdate, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    refund = await SDK.get_refund_by_id(id_)
+    if method == method.CREATE:
+        util.send_auto_share_messages(bot, "refund", id_, await _get_text(refund), logger, _get_keyboard(refund))
+    elif method == method.UPDATE or method == method.DELETE:
+        util.update_all_shared_messages(bot, "refund", id_, await _get_text(refund), logger, _get_keyboard(refund))
+        if method == method.DELETE:
+            shared_message_handler.delete_messages("refund", refund.id)
+
+
+dispatcher.register((CallbackUpdate.CREATE, "refund"), _refund_callback_handler)
+dispatcher.register((CallbackUpdate.UPDATE, "refund"), _refund_callback_handler)
+dispatcher.register((CallbackUpdate.DELETE, "refund"), _refund_callback_handler)

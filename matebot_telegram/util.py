@@ -40,17 +40,6 @@ async def async_thread():
 event_thread: threading.Thread = threading.Thread(target=lambda: asyncio.run(async_thread()), name="AsyncWorkerThread")
 
 
-def get_event_loop() -> asyncio.AbstractEventLoop:
-    try:
-        loop = asyncio.get_event_loop()
-        if loop.is_closed():
-            raise RuntimeError(f"Event loop {loop} is closed!")
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    return loop
-
-
 def safe_call(
         default: Callable[[], Any],
         fallback: Callable[[], Any],

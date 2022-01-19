@@ -16,8 +16,8 @@ from ..parsing.util import Namespace
 from ..shared_messages import shared_message_handler
 
 
-def _get_text(refund: schemas.Refund) -> str:
-    users = util.get_event_loop().run_until_complete(SDK.get_users())
+async def _get_text(refund: schemas.Refund) -> str:
+    users = await SDK.get_users()
 
     def get_username(vote: schemas.Vote) -> str:
         user = [u for u in users if u.id == vote.user_id]
@@ -97,7 +97,7 @@ class RefundCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -106,10 +106,8 @@ class RefundCommand(BaseCommand):
         :return: None
         """
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
-        refunds = util.get_event_loop().run_until_complete(SDK.get_refunds_by_creator(user))
+        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        refunds = await SDK.get_refunds_by_creator(user)
         active_refunds = [refund for refund in refunds if refund.active]
         if args.subcommand is None:
             if active_refunds:
@@ -118,8 +116,8 @@ class RefundCommand(BaseCommand):
                 )
                 return
 
-            refund = util.get_event_loop().run_until_complete(SDK.make_new_refund(user, args.amount, args.reason))
-            text = _get_text(refund)
+            refund = await SDK.make_new_refund(user, args.amount, args.reason)
+            text = await _get_text(refund)
             keyboard = _get_keyboard(refund)
             message: telegram.Message = util.safe_call(
                 lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
@@ -153,8 +151,8 @@ class RefundCommand(BaseCommand):
             update.effective_message.reply_text("Not implemented.")
 
         elif args.subcommand == "stop":
-            refund = util.get_event_loop().run_until_complete(SDK.cancel_refund(active_refunds[0]))
-            text = _get_text(refund)
+            refund = await SDK.cancel_refund(active_refunds[0])
+            text = await _get_text(refund)
             keyboard = _get_keyboard(refund)
             util.update_all_shared_messages(
                 update.effective_message.bot,
@@ -183,19 +181,20 @@ class RefundCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    def _handle_add_vote(self, update: telegram.Update, get_sdk_func: Callable[[int, schemas.User], Coroutine]) -> None:
+    async def _handle_add_vote(
+            self,
+            update: telegram.Update,
+            get_sdk_func: Callable[[int, schemas.User], Coroutine]
+    ) -> None:
         _, refund_id = self.data.split(" ")
         refund_id = int(refund_id)
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        )
-
-        vote = util.get_event_loop().run_until_complete(get_sdk_func(refund_id, user))
+        user = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        vote = await get_sdk_func(refund_id, user)
         update.callback_query.answer(f"You successfully voted {('against', 'for')[vote.vote > 0]} the request.")
 
-        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
-        text = _get_text(refund)
+        refund = await SDK.get_refund_by_id(refund_id)
+        text = await _get_text(refund)
         keyboard = _get_keyboard(refund)
         util.update_all_shared_messages(
             update.callback_query.bot,
@@ -206,25 +205,25 @@ class RefundCallbackQuery(BaseCallbackQuery):
             keyboard=keyboard
         )
 
-    def approve(self, update: telegram.Update) -> None:
+    async def approve(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_add_vote(update, lambda r, u: SDK.approve_refund(r, u))
+        return await self._handle_add_vote(update, lambda r, u: SDK.approve_refund(r, u))
 
-    def disapprove(self, update: telegram.Update) -> None:
+    async def disapprove(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_add_vote(update, lambda r, u: SDK.disapprove_refund(r, u))
+        return await self._handle_add_vote(update, lambda r, u: SDK.disapprove_refund(r, u))
 
-    def close(self, update: telegram.Update) -> None:
+    async def close(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -234,16 +233,14 @@ class RefundCallbackQuery(BaseCallbackQuery):
         _, refund_id = self.data.split(" ")
         refund_id = int(refund_id)
 
-        refund = util.get_event_loop().run_until_complete(SDK.get_refund_by_id(refund_id))
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        )
+        refund = await SDK.get_refund_by_id(refund_id)
+        user = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
         if refund.creator.id != user.id:
             update.callback_query.answer(f"Only the creator of this refund can close it!")
             return
 
-        refund = util.get_event_loop().run_until_complete(SDK.cancel_refund(refund))
-        text = _get_text(refund)
+        refund = await SDK.cancel_refund(refund)
+        text = await _get_text(refund)
         keyboard = _get_keyboard(refund)
         util.update_all_shared_messages(
             update.callback_query.bot,

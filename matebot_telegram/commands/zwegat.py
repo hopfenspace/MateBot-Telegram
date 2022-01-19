@@ -7,7 +7,6 @@ import logging
 import telegram
 from matebot_sdk.base import PermissionLevel
 
-from .. import util
 from ..base import BaseCommand
 from ..client import SDK
 from ..parsing.util import Namespace
@@ -28,7 +27,7 @@ class ZwegatCommand(BaseCommand):
             "This command can only be used by internal users."
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -37,15 +36,13 @@ class ZwegatCommand(BaseCommand):
         :return: None
         """
 
-        sender = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
+        sender = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         permission_check = SDK.ensure_permissions(sender, PermissionLevel.ANY_INTERNAL, "zwegat")
         if not permission_check[0]:
             update.effective_message.reply_text(permission_check[1])
             return
 
-        community = util.get_event_loop().run_until_complete(SDK.get_community_user())
+        community = await SDK.get_community_user()
 
         total = community.balance / 100
         if total >= 0:

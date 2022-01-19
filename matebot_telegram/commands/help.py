@@ -30,7 +30,7 @@ class HelpCommand(BaseCommand):
 
         self.parser.add_argument("command", type=command_type, nargs="?")
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -43,9 +43,7 @@ class HelpCommand(BaseCommand):
             msg = self.get_help_for_command(args.command)
         else:
             try:
-                user = util.get_event_loop().run_until_complete(
-                    SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-                )
+                user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
             except exceptions.APIConnectionException:
                 msg = self.get_help_usage(registry.commands, self.usage, None)
                 util.safe_call(

@@ -37,7 +37,7 @@ class VouchCommand(BaseCommand):
         p.add_argument("command", choices=("add", "remove"), type=lambda x: str(x).lower())
         p.add_argument("user", type=user_type)
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -46,9 +46,7 @@ class VouchCommand(BaseCommand):
         :return: None
         """
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
+        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, "vouch")
         if not permission_check[0]:
             update.effective_message.reply_text(permission_check[1])
@@ -56,7 +54,7 @@ class VouchCommand(BaseCommand):
 
         permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_INTERNAL, "vouch")
         if args.command is None and not permission_check[0]:
-            voucher = SDK.get_username(util.get_event_loop().run_until_complete(SDK.get_user_by_id(user.voucher_id)))
+            voucher = SDK.get_username(await SDK.get_user_by_id(user.voucher_id))
             update.effective_message.reply_text(
                 "You're an external user, but you are allowed to interact "
                 f"with the bot, since {voucher} vouches for you."
@@ -81,7 +79,7 @@ class VouchCommand(BaseCommand):
                 lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
             )
 
-        all_users = util.get_event_loop().run_until_complete(SDK.get_users())
+        all_users = await SDK.get_users()
         if args.command is None:
             debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
 
@@ -163,7 +161,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
             "remove": self.remove
         })
 
-    def add(self, update: telegram.Update) -> None:
+    async def add(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -174,12 +172,10 @@ class VouchCallbackQuery(BaseCallbackQuery):
         debtor_id = int(debtor_id)
         voucher_id = int(voucher_id)
 
-        debtor = SDK.get_user_by_id(debtor_id)
-        voucher = SDK.get_user_by_id(voucher_id)
+        debtor = await SDK.get_user_by_id(debtor_id)
+        voucher = await SDK.get_user_by_id(voucher_id)
 
-        sender = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        )
+        sender = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
         if sender.id != voucher.id:
             update.callback_query.answer("Only the creator of this request can answer questions!", show_alert=True)
             return
@@ -196,7 +192,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError(f"Invalid query data format: {self.data!r}")
 
-    def remove(self, update: telegram.Update) -> None:
+    async def remove(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -205,7 +201,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
 
         update.callback_query.answer("Not implemented.")
 
-    def run(self, update: telegram.Update) -> None:
+    async def run(self, update: telegram.Update) -> None:
         """
         Process or abort the query to add or remove the debtor user
 

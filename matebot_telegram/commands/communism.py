@@ -17,8 +17,8 @@ from ..parsing.util import Namespace
 from ..shared_messages import shared_message_handler
 
 
-def _get_text(communism: schemas.Communism) -> str:
-    users = util.get_event_loop().run_until_complete(SDK.get_users())
+async def _get_text(communism: schemas.Communism) -> str:
+    users = await SDK.get_users()
     creator = [user for user in users if user.id == communism.creator_id][0]
 
     def f(user_id: int, quantity: int) -> str:
@@ -103,7 +103,7 @@ class CommunismCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -112,23 +112,21 @@ class CommunismCommand(BaseCommand):
         :return: None
         """
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
+        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, "communism")
         if not permission_check[0]:
             update.effective_message.reply_text(permission_check[1])
             return
 
-        communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
+        communisms = await SDK.get_communisms_by_creator(user)
         active_communisms = [communism for communism in communisms if communism.active]
         if args.subcommand is None:
             if active_communisms:
                 update.effective_message.reply_text("You already have a communism in progress. Please handle it first.")
                 return
 
-            communism = util.get_event_loop().run_until_complete(SDK.make_new_communism(user, args.amount, args.reason))
-            text = _get_text(communism)
+            communism = await SDK.make_new_communism(user, args.amount, args.reason)
+            text = await _get_text(communism)
             keyboard = _get_keyboard(communism)
             message: telegram.Message = util.safe_call(
                 lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
@@ -161,8 +159,8 @@ class CommunismCommand(BaseCommand):
             update.effective_message.reply_text("Not implemented.")
 
         elif args.subcommand == "stop":
-            communism = util.get_event_loop().run_until_complete(SDK.cancel_communism(active_communisms[0]))
-            text = _get_text(communism)
+            communism = await SDK.cancel_communism(active_communisms[0])
+            text = await _get_text(communism)
             keyboard = _get_keyboard(communism)
             util.update_all_shared_messages(
                 update.effective_message.bot,
@@ -192,7 +190,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    def _handle_communism_updates(
+    async def _handle_communism_updates(
             self,
             update: telegram.Update,
             pre_check_func: Callable[[schemas.Communism, schemas.User], Tuple[str, bool]],
@@ -202,16 +200,14 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         _, communism_id = self.data.split(" ")
         communism_id = int(communism_id)
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        )
-        communism = util.get_event_loop().run_until_complete(SDK.get_communism_by_id(communism_id))
+        user = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+        communism = await SDK.get_communism_by_id(communism_id)
         pre_check = pre_check_func(communism, user)
         if pre_check[0]:
             update.callback_query.answer(text=pre_check[0], show_alert=pre_check[1])
             return
 
-        result = util.get_event_loop().run_until_complete(get_sdk_func(communism, user))
+        result = await get_sdk_func(communism, user)
         if isinstance(result, schemas.Communism) and result.id == communism.id:
             communism = result
 
@@ -219,7 +215,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             update.callback_query.bot,
             "communism",
             communism.id,
-            _get_text(communism),
+            await _get_text(communism),
             self.logger,
             _get_keyboard(communism),
             telegram.ParseMode.MARKDOWN
@@ -228,40 +224,40 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         if after_update_func:
             after_update_func(communism, user)
 
-    def join(self, update: telegram.Update) -> None:
+    async def join(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_communism_updates(
+        return await self._handle_communism_updates(
             update,
             lambda c, u: ("", False),
             lambda c, u: SDK.increase_communism_member(c, u, 1)
         )
 
-    def leave(self, update: telegram.Update) -> None:
+    async def leave(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_communism_updates(
+        return await self._handle_communism_updates(
             update,
             lambda c, u: ("", False),
             lambda c, u: SDK.decrease_communism_member(c, u, 1)
         )
 
-    def accept(self, update: telegram.Update) -> None:
+    async def accept(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_communism_updates(
+        return await self._handle_communism_updates(
             update,
             lambda c, u:
             ("", False)
@@ -271,14 +267,14 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             lambda c, u: shared_message_handler.delete_messages("communism", c.id)
         )
 
-    def cancel(self, update: telegram.Update) -> None:
+    async def cancel(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return self._handle_communism_updates(
+        return await self._handle_communism_updates(
             update,
             lambda c, u:
                 ("", False)

@@ -36,7 +36,7 @@ class SendCommand(BaseCommand):
         self.parser.add_argument("receiver", type=user_type)
         self.parser.add_argument("reason", default="<no description>", nargs="*")
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -45,9 +45,7 @@ class SendCommand(BaseCommand):
         :return: None
         """
 
-        sender = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
+        sender = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
         permission_check = SDK.ensure_permissions(sender, PermissionLevel.ANY_WITH_VOUCHER, "send")
         if not permission_check[0]:
             update.effective_message.reply_text(permission_check[1])
@@ -92,7 +90,7 @@ class SendCallbackQuery(BaseCallbackQuery):
             "confirm": self.confirm
         })
 
-    def confirm(self, update: telegram.Update) -> None:
+    async def confirm(self, update: telegram.Update) -> None:
         """
         Confirm and process an transaction requests based on incoming callback queries
 
@@ -111,8 +109,8 @@ class SendCallbackQuery(BaseCallbackQuery):
             update.callback_query.answer(f"Only the creator of this transaction can confirm it!")
             return
 
-        sender = util.get_event_loop().run_until_complete(SDK.get_user_by_app_alias(str(original_sender)))
-        receiver = util.get_event_loop().run_until_complete(SDK.get_user_by_id(receiver_id))
+        sender = await SDK.get_user_by_app_alias(str(original_sender))
+        receiver = await SDK.get_user_by_id(receiver_id)
 
         reason = None
         for entity in update.callback_query.message.parse_entities():
@@ -126,9 +124,7 @@ class SendCallbackQuery(BaseCallbackQuery):
             raise RuntimeError("Unknown reason while confirming a Transaction")
 
         try:
-            transaction = util.get_event_loop().run_until_complete(
-                SDK.make_new_transaction(sender, receiver, amount, reason)
-            )
+            transaction = await SDK.make_new_transaction(sender, receiver, amount, reason)
             update.callback_query.message.edit_text(
                 f"Okay, you sent {transaction.amount / 100 :.2f}€ to {SDK.get_username(receiver)}",
                 reply_markup=telegram.InlineKeyboardMarkup([])
@@ -139,7 +135,7 @@ class SendCallbackQuery(BaseCallbackQuery):
                 f"Your request couldn't be processed. No money has been transferred:\n{exc.message}"
             )
 
-    def abort(self, update: telegram.Update) -> None:
+    async def abort(self, update: telegram.Update) -> None:
         """
         Abort an transaction requests
 

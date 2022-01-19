@@ -25,7 +25,7 @@ class DataCommand(BaseCommand):
             "To view your transactions, use the command `/history` instead."
         )
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
@@ -38,31 +38,29 @@ class DataCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = util.get_event_loop().run_until_complete(
-            SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        )
+        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
 
         if user.external:
             relations = "Voucher user: None"
             if user.voucher_id is not None:
-                voucher = util.get_event_loop().run_until_complete(SDK.get_user_by_id(user.voucher_id))
+                voucher = await SDK.get_user_by_id(user.voucher_id)
                 relations = f"Voucher user: {SDK.get_username(voucher)}"
 
         else:
-            all_users = util.get_event_loop().run_until_complete(SDK.get_users())
+            all_users = await SDK.get_users()
             debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
             relations = f"Debtor user{'s' if len(debtors) != 1 else ''}: {', '.join(debtors) or 'None'}"
 
-        app = util.get_event_loop().run_until_complete(SDK.application)
-        apps = util.get_event_loop().run_until_complete(SDK.get_applications())
+        app = await SDK.application
+        apps = await SDK.get_applications()
         other_aliases = [
             f'{a.app_username}@{[c for c in apps if c.id == a.application_id][0].name}'
             for a in user.aliases if a.application_id != app.id
         ]
-        votes = util.get_event_loop().run_until_complete(SDK.get_votes())
+        votes = await SDK.get_votes()
         my_votes = [v for v in votes if v.user_id == user.id]
-        created_communisms = util.get_event_loop().run_until_complete(SDK.get_communisms_by_creator(user))
-        created_refunds = util.get_event_loop().run_until_complete(SDK.get_refunds_by_creator(user))
+        created_communisms = await SDK.get_communisms_by_creator(user)
+        created_refunds = await SDK.get_refunds_by_creator(user)
         open_created_communisms = [c for c in created_communisms if c.active]
         open_created_refunds = [r for r in created_refunds if r.active]
 

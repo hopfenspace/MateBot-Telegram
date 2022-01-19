@@ -5,7 +5,7 @@ import logging.config
 
 from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
 
-from matebot_telegram import config, registry, updater, util
+from matebot_telegram import client, config, registry, updater, util
 from matebot_telegram.commands.handler import FilteredChosenInlineResultHandler
 
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     logger = logging.getLogger("root")
 
     logger.info("Registering bot token with Updater...")
-    updater = updater.PatchedUpdater(config.config["token"])
+    updater = updater.PatchedUpdater(config.config["token"], workers=0)
 
     logger.debug("Adding error handler...")
     updater.dispatcher.add_error_handler(util.log_error)
@@ -68,6 +68,13 @@ if __name__ == "__main__":
 
     logger.info("Starting API callback server...")
     updater.start_api_callback_server(config.config["callback"])
+
+    logger.debug("Starting event thread...")
+    util.event_thread.start()
+    logger.debug("Started event thread.")
+    util.event_thread_started.wait()
+    logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
+    client.setup_sdk()
 
     logger.info("Starting bot...")
     updater.start_polling()

@@ -2,8 +2,10 @@
 MateBot command handling base library
 """
 
+import asyncio
+import inspect
 import logging
-from typing import Any, Callable, Dict, Optional
+from typing import Awaitable, Callable, Dict, Optional
 
 import telegram.ext
 from matebot_sdk.exceptions import APIException, APIConnectionException, UserException, UserAPIException
@@ -63,7 +65,7 @@ class BaseCommand:
         else:
             return self._usage
 
-    def run(self, args: Namespace, update: telegram.Update) -> None:
+    def run(self, args: Namespace, update: telegram.Update) -> Optional[Awaitable[None]]:
         """
         Perform command-specific actions
 
@@ -98,7 +100,21 @@ class BaseCommand:
 
             args = self.parser.parse(update.effective_message)
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
-            self.run(args, update)
+            result = self.run(args, update)
+            if result is not None:
+                if not inspect.isawaitable(result):
+                    raise TypeError(f"'run' should return Optional[Awaitable[None]], but got {type(result)}")
+
+                fut = asyncio.run_coroutine_threadsafe(result, loop=util.event_loop)
+                self.logger.debug(f"Enqueuing {result} in {util.event_loop} as {fut}...")
+                try:
+                    self.logger.debug(f"Future result: {fut.result()}; future exception: {fut.exception()}")
+                except Exception as exc:
+                    self.logger.warning(
+                        f"Unhandled exception from future of {result}: {type(exc).__name__}",
+                        exc_info=True
+                    )
+                    raise
 
         except err.ParsingError as exc:
             util.safe_call(
@@ -153,7 +169,7 @@ class BaseCallbackQuery:
 
     name: str
     pattern: str
-    targets: Dict[str, Callable[[telegram.Update], Any]]
+    targets: Dict[str, Callable[[telegram.Update], Optional[Awaitable[None]]]]
     data: Optional[str]
     logger: logging.Logger
 
@@ -161,7 +177,7 @@ class BaseCallbackQuery:
             self,
             name: str,
             pattern: str,
-            targets: Dict[str, Callable[[telegram.Update], Any]]
+            targets: Dict[str, Callable[[telegram.Update], Optional[Awaitable[None]]]]
     ):
         if not isinstance(targets, dict):
             raise TypeError("Expected dict or None")
@@ -198,21 +214,26 @@ class BaseCallbackQuery:
             self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
             if self.data in self.targets:
-                self.targets[self.data](update)
-                return
+                target = self.targets[self.data]
 
-            available = []
-            for k in self.targets:
-                if self.data.startswith(k):
-                    available.append(k)
+            else:
+                available = []
+                for k in self.targets:
+                    if self.data.startswith(k):
+                        available.append(k)
 
-            if len(available) == 0:
-                raise IndexError(f"No target callable found for: '{self.data}' ({type(self).__name__})")
+                if len(available) == 0:
+                    raise IndexError(f"No target callable found for: '{self.data}' ({type(self).__name__})")
+                if len(available) > 1:
+                    raise IndexError(f"No unambiguous callable found for: '{self.data}' ({type(self).__name__})")
+                target = self.targets[available[0]]
 
-            if len(available) > 1:
-                raise IndexError(f"No unambiguous callable found for: '{self.data}' ({type(self).__name__})")
-
-            self.targets[available[0]](update)
+            result = target(update)
+            if result is not None:
+                if not inspect.isawaitable(result):
+                    raise TypeError(f"{result} of {target} should be Optional[Awaitable[None]], but got {type(result)}")
+                self.logger.debug(f"Enqueuing {result} in {util.event_loop} ...")
+                asyncio.run_coroutine_threadsafe(result, loop=util.event_loop)
 
         except UserAPIException as exc:
             self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")

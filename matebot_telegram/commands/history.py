@@ -3,9 +3,11 @@ MateBot command executor classes for /history
 """
 
 import json
+import time
 import tempfile
 
 import telegram
+from matebot_sdk import schemas
 
 from .. import util
 from ..base import BaseCommand
@@ -134,8 +136,16 @@ class HistoryCommand(BaseCommand):
 
         user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
 
-        # TODO: improve the generation of log entries with a custom format
-        logs = [str(t) for t in await SDK.get_transactions_of_user(user)]
+        def format_transaction(transaction: schemas.Transaction):
+            timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(transaction.timestamp))
+            direction = ["<<", ">>"][transaction.sender.id == user.id]
+            partner = SDK.get_username([transaction.sender, transaction.receiver][transaction.sender.id == user.id])
+            amount = transaction.amount / 100
+            if transaction.sender.id == user.id:
+                amount = -amount
+            return f"{timestamp}: {amount:>+7.2f}: me {direction} {partner:<16} :: {transaction.reason}"
+
+        logs = [format_transaction(t) for t in await SDK.get_transactions_of_user(user)]
         name = SDK.get_username(user)
 
         # TODO: limit the output to the number of requested entries

@@ -39,8 +39,9 @@ async def _get_text(communism: schemas.Communism) -> str:
         markdown += "\n_The communism is currently active._"
     elif not communism.active:
         markdown += "\n_The communism has been closed._"
-        if communism.transactions:
-            markdown += f"\n{len(communism.transactions)} transactions have been processed. "
+        if communism.multi_transaction:
+            markdown += f"\n{len(communism.multi_transaction.transactions)} transactions have been processed "
+            markdown += f"for a total value of {communism.multi_transaction.total_amount / 100:.2f}€. "
             markdown += "Take a look at /history for more details."
         else:
             markdown += "\nThe communism was aborted. No transactions have been processed."

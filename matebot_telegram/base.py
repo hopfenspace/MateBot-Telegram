@@ -105,10 +105,8 @@ class BaseCommand:
                 if not inspect.isawaitable(result):
                     raise TypeError(f"'run' should return Optional[Awaitable[None]], but got {type(result)}")
 
-                fut = asyncio.run_coroutine_threadsafe(result, loop=util.event_loop)
-                self.logger.debug(f"Enqueuing {result} in {util.event_loop} as {fut}...")
                 try:
-                    self.logger.debug(f"Future result: {fut.result()}; future exception: {fut.exception()}")
+                    asyncio.run_coroutine_threadsafe(result, loop=util.event_loop).result()
                 except Exception as exc:
                     self.logger.warning(
                         f"Unhandled exception from future of {result}: {type(exc).__name__}",
@@ -232,8 +230,15 @@ class BaseCallbackQuery:
             if result is not None:
                 if not inspect.isawaitable(result):
                     raise TypeError(f"{result} of {target} should be Optional[Awaitable[None]], but got {type(result)}")
-                self.logger.debug(f"Enqueuing {result} in {util.event_loop} ...")
-                asyncio.run_coroutine_threadsafe(result, loop=util.event_loop)
+
+                try:
+                    asyncio.run_coroutine_threadsafe(result, loop=util.event_loop).result()
+                except Exception as exc:
+                    self.logger.warning(
+                        f"Unhandled exception from future of {result}: {type(exc).__name__}",
+                        exc_info=True
+                    )
+                    raise
 
         except UserAPIException as exc:
             self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")

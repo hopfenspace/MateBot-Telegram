@@ -145,10 +145,8 @@ class HistoryCommand(BaseCommand):
                 amount = -amount
             return f"{timestamp}: {amount:>+7.2f}: me {direction} {partner:<16} :: {transaction.reason}"
 
-        logs = [format_transaction(t) for t in await SDK.get_transactions_of_user(user)]
+        logs = [format_transaction(t) for t in await SDK.get_transactions_of_user(user)][-args.length:]
         name = SDK.get_username(user)
-
-        # TODO: limit the output to the number of requested entries
 
         if len(logs) == 0:
             update.effective_message.reply_text("You don't have any registered transactions yet.")

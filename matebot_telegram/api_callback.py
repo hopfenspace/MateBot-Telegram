@@ -2,6 +2,8 @@
 MateBot API callback handler implementation
 """
 
+import asyncio
+import inspect
 import logging
 import collections
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple
@@ -9,6 +11,8 @@ from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 import telegram
 import tornado.web
 from matebot_sdk.base import CallbackUpdate
+
+from . import util
 
 
 logger = logging.getLogger("api-callback")
@@ -27,7 +31,7 @@ class APICallbackDispatcher:
     def register(self, event: Tuple[CallbackUpdate, Optional[str]], func: CALLBACK_TYPE, *args, **kwargs):
         self._storage[event].append((func, args, kwargs))
 
-    async def dispatch(self, method: CallbackUpdate, model: str, model_id: int, bot: telegram.Bot):
+    def dispatch(self, method: CallbackUpdate, model: str, model_id: int, bot: telegram.Bot):
         for event in self._storage:
             if event[0] == method and (event[1] is None or event[1] == model):
                 for handler in self._storage.get(event):
@@ -35,7 +39,11 @@ class APICallbackDispatcher:
                     try:
                         result = func(method, model, model_id, bot, logger, *args, **kwargs)
                         if result is not None:
-                            await result
+                            if not inspect.isawaitable(result):
+                                raise TypeError(
+                                    f"{func} should return Optional[Awaitable[None]], but got {type(result)}"
+                                )
+                            asyncio.run_coroutine_threadsafe(result, loop=util.event_loop).result()
                     except Exception as exc:
                         logger.warning(f"{type(exc).__name__} in API callback handler for event {event}")
                         raise
@@ -72,4 +80,4 @@ class APICallbackHandler(tornado.web.RequestHandler):
             "update": CallbackUpdate.UPDATE,
             "delete": CallbackUpdate.DELETE
         }[action]
-        await dispatcher.dispatch(method, model, model_id, self.bot)
+        dispatcher.dispatch(method, model, model_id, self.bot)

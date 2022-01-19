@@ -56,7 +56,7 @@ if __name__ == "__main__":
     logger = logging.getLogger("root")
 
     logger.info("Registering bot token with Updater...")
-    updater = updater.PatchedUpdater(config.config["token"], workers=0)
+    updater = updater.PatchedUpdater(config.config["token"], workers=1)
 
     logger.debug("Adding error handler...")
     updater.dispatcher.add_error_handler(util.log_error)

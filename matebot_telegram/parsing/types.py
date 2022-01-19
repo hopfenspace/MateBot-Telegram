@@ -48,6 +48,8 @@ def amount(arg: str) -> int:
 
     if val == 0:
         raise ValueError("An amount can't be zero")
+    if val >= 2**31:
+        raise ValueError("Integer too large.")
 
     return val
 
@@ -66,6 +68,8 @@ def natural(arg: str) -> int:
     result = int(arg)
     if result <= 0:
         raise ValueError("Not a positive integer.")
+    if result >= 2**31:
+        raise ValueError("Integer too large.")
     return result
 
 

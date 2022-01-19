@@ -77,7 +77,7 @@ def send_auto_share_messages(
     receivers = [*map(int, config["auto-forward"][share_type])]
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
-        if receiver in excluded:
+        if receiver in [m.chat_id for m in shared_message_handler.get_messages_of(share_type, share_id)] + excluded:
             continue
         message = safe_call(
             lambda: bot.send_message(

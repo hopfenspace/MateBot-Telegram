@@ -2,8 +2,10 @@
 MateBot command executor classes for /vouch and its callback queries
 """
 
+from typing import Awaitable, Callable
+
 import telegram
-from matebot_sdk import messages
+from matebot_sdk import exceptions, messages, schemas
 from matebot_sdk.base import PermissionLevel
 
 from .. import util
@@ -115,11 +117,12 @@ class VouchCommand(BaseCommand):
                     lambda: update.effective_message.reply_text(msg)
                 )
 
-            elif args.user.voucher_id is not None:
-                update.effective_message.reply_text(
-                    "Someone else is already vouching for this user. "
-                    f"Therefore, you can't vouch for {SDK.get_username(args.user)}."
-                )
+            # TODO: ensure this case is blocked by the server after doing the request
+            # elif args.user.voucher_id is not None:
+            #     update.effective_message.reply_text(
+            #         "Someone else is already vouching for this user. "
+            #         f"Therefore, you can't vouch for {SDK.get_username(args.user)}."
+            #     )
 
             else:
                 reply(messages.START_VOUCHING_INFORMATION_MARKDOWN.format(debtor=SDK.get_username(args.user)))
@@ -131,11 +134,12 @@ class VouchCommand(BaseCommand):
                     f"can't remove {SDK.get_username(args.user)} from your list of debtors."
                 )
 
-            elif args.user.voucher_id != user.id:
-                update.effective_message.reply_text(
-                    "You don't vouch for this user, but someone else does. Therefore, you "
-                    f"can't remove {SDK.get_username(args.user)} from your list of debtors."
-                )
+            # TODO: ensure this case is blocked by the server after doing the request
+            # elif args.user.voucher_id != user.id:
+            #     update.effective_message.reply_text(
+            #         "You don't vouch for this user, but someone else does. Therefore, you "
+            #         f"can't remove {SDK.get_username(args.user)} from your list of debtors."
+            #     )
 
             else:
                 checkout = args.user.balance
@@ -161,13 +165,37 @@ class VouchCallbackQuery(BaseCallbackQuery):
             "remove": self.remove
         })
 
-    async def add(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
+    @staticmethod
+    async def _perform_add(update: telegram.Update, debtor: schemas.User, voucher: schemas.User):
+        try:
+            await SDK.set_voucher(debtor, voucher)
+        except exceptions.MateBotSDKException as exc:
+            update.callback_query.message.edit_text(exc.message, reply_markup=telegram.InlineKeyboardMarkup([]))
+            raise
+        update.callback_query.message.edit_text(
+            f"You now vouch for {SDK.get_username(debtor)}).",
+            reply_markup=telegram.InlineKeyboardMarkup([])
+        )
+        update.callback_query.answer(f"You now vouch for {SDK.get_username(debtor)}.", show_alert=True)
 
+    @staticmethod
+    async def _perform_remove(update: telegram.Update, debtor: schemas.User, _: schemas.User):
+        old_balance = debtor.balance
+        try:
+            debtor = await SDK.unset_voucher(debtor)
+        except exceptions.MateBotSDKException as exc:
+            update.callback_query.message.edit_text(exc.message, reply_markup=telegram.InlineKeyboardMarkup([]))
+            raise
+        ext = f"No transaction was required, since {SDK.get_username(debtor)} already has a balance of 0."
+        if old_balance != 0:
+            ext = f"A transaction about {abs(old_balance) / 100:.2f}€ has been made. Check your /history."
+        update.callback_query.message.edit_text(
+            f"You don't vouch for {SDK.get_username(debtor)} anymore. " + ext,
+            reply_markup=telegram.InlineKeyboardMarkup([])
+        )
+        update.callback_query.answer(f"You don't vouch for {SDK.get_username(debtor)} anymore.", show_alert=True)
+
+    async def _handle_vouching(self, update: telegram.Update, func: Callable[..., Awaitable[None]]) -> None:
         _, debtor_id, voucher_id, option = self.data.split(" ")
         debtor_id = int(debtor_id)
         voucher_id = int(voucher_id)
@@ -187,10 +215,20 @@ class VouchCallbackQuery(BaseCallbackQuery):
             )
 
         elif option == "accept":
-            update.callback_query.answer("Not implemented.")
+            self.logger.debug(f"Voucher change request accepted")
+            await func(update, debtor, voucher)
 
         else:
             raise ValueError(f"Invalid query data format: {self.data!r}")
+
+    async def add(self, update: telegram.Update) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :return: None
+        """
+
+        await self._handle_vouching(update, self._perform_add)
 
     async def remove(self, update: telegram.Update) -> None:
         """
@@ -199,7 +237,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        update.callback_query.answer("Not implemented.")
+        await self._handle_vouching(update, self._perform_remove)
 
     async def run(self, update: telegram.Update) -> None:
         """

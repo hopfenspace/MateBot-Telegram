@@ -173,7 +173,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
             update.callback_query.message.edit_text(exc.message, reply_markup=telegram.InlineKeyboardMarkup([]))
             raise
         update.callback_query.message.edit_text(
-            f"You now vouch for {SDK.get_username(debtor)}).",
+            f"You now vouch for {SDK.get_username(debtor)}.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
         update.callback_query.answer(f"You now vouch for {SDK.get_username(debtor)}.", show_alert=True)

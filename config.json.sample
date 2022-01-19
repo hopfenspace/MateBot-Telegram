@@ -60,12 +60,9 @@
 			}
 		},
 		"loggers": {
-			"collectives": {},
-			"commands": {},
-			"config": {},
-			"database": {},
-			"error": {},
-			"state": {}
+			"telegram.bot": {
+				"level": "INFO"
+			}
 		},
 		"root": {
 			"handlers": ["console", "file"],

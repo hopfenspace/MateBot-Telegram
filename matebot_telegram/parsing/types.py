@@ -4,16 +4,16 @@ See :class:`mate_bot.parsing.actions.Action`'s type parameter
 """
 
 import re
+import asyncio
 from typing import Union
 
 import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import registry
+from .. import registry, util
 from ..base import BaseCommand
 from ..client import SDK
-from ..util import get_event_loop
 
 
 __amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
@@ -84,7 +84,8 @@ def user_type(arg: EntityString) -> schemas.User:
         raise ValueError('No user mentioned. Try with "@".')
 
     elif arg.entity.type in (telegram.constants.MESSAGEENTITY_MENTION, telegram.constants.MESSAGEENTITY_TEXT_MENTION):
-        users = get_event_loop().run_until_complete(SDK.get_users_by_app_alias(str(arg)))
+        fut = asyncio.run_coroutine_threadsafe(SDK.get_users_by_app_alias(str(arg)), loop=util.event_loop)
+        users = fut.result()
         if len(users) == 0:
             raise ValueError(
                 "Ambiguous username. Make sure the username is correct and the "
@@ -128,7 +129,7 @@ def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
 
     if arg.strip() == "?":
         return "?"
-    for consumable in get_event_loop().run_until_complete(SDK.get_consumables()):
+    for consumable in asyncio.run_coroutine_threadsafe(SDK.get_consumables(), loop=util.event_loop).result():
         if consumable.name.lower() == arg.lower():
             return consumable
     raise ValueError(f"{arg} is no known consumable")

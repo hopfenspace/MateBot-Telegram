@@ -2,6 +2,7 @@ import sys
 import json
 import asyncio
 import logging
+import threading
 import traceback
 from typing import Any, Callable, List, Optional
 
@@ -10,6 +11,33 @@ import telegram.ext
 
 from .config import config
 from .shared_messages import shared_message_handler
+
+
+ASYNC_SLEEP_DURATION: float = 0.5
+
+event_loop: Optional[asyncio.AbstractEventLoop] = None
+event_thread_running: threading.Event = threading.Event()
+event_thread_started: threading.Event = threading.Event()
+
+_logger = logging.getLogger("util")
+
+
+async def async_thread():
+    global event_loop
+    global event_thread_running
+    global event_thread_started
+
+    event_loop = asyncio.get_event_loop()
+    _logger.debug(f"Event loop {event_loop} of {threading.current_thread()} has been announced globally")
+    event_thread_started.set()
+
+    _logger.debug(f"Sleeping until {event_thread_running} gets set...")
+    while not event_thread_running.is_set():
+        await asyncio.sleep(ASYNC_SLEEP_DURATION)
+    _logger.info(f"Closing async thread {threading.current_thread()}...")
+
+
+event_thread: threading.Thread = threading.Thread(target=lambda: asyncio.run(async_thread()), name="AsyncWorkerThread")
 
 
 def get_event_loop() -> asyncio.AbstractEventLoop:
@@ -35,7 +63,7 @@ def safe_call(
     except telegram.error.BadRequest as exc:
         if not str(exc).startswith("Can't parse entities"):
             raise
-        logger = logger or logging.getLogger(__name__)
+        logger = logger or _logger
         logger.exception(f"Calling sender function {default} failed due to entity parsing problems: {exc!s}")
         result = fallback()
         logger.debug(f"Calling fallback function {fallback} was successful instead.")
@@ -53,7 +81,7 @@ def send_auto_share_messages(
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
         disable_notification: bool = True
 ) -> bool:
-    logger = logger or logging.getLogger(__name__)
+    logger = logger or _logger
     excluded = excluded or []
     if share_type not in config["auto-forward"]:
         return False
@@ -92,7 +120,7 @@ def update_all_shared_messages(
         keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN
 ) -> bool:
-    logger = logger or logging.getLogger(__name__)
+    logger = logger or _logger
     shared_messages = shared_message_handler.get_messages_of(share_type, share_id)
     logger.debug(f"Found shared messages for {share_type} ({share_id}): {[s.to_dict() for s in shared_messages]}")
     success = True

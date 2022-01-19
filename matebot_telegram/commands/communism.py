@@ -210,6 +210,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         if pre_check[0]:
             update.callback_query.answer(text=pre_check[0], show_alert=pre_check[1])
             return
+
         result = util.get_event_loop().run_until_complete(get_sdk_func(communism, user))
         if isinstance(result, schemas.Communism) and result.id == communism.id:
             communism = result

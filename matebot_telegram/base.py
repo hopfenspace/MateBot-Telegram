@@ -116,8 +116,8 @@ class BaseCommand:
 
         except err.ParsingError as exc:
             util.safe_call(
-                lambda: update.effective_message.reply_markdown(str(exc)),
-                lambda: update.effective_message.reply_text(str(exc))
+                lambda: update.effective_message.reply_markdown(str(exc)),  # noqa: F821
+                lambda: update.effective_message.reply_text(str(exc))  # noqa: F821
             )
 
         except APIConnectionException as exc:

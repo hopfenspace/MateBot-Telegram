@@ -136,7 +136,7 @@ class HistoryCommand(BaseCommand):
 
         user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
 
-        def format_transaction(transaction: schemas.Transaction):
+        def format_transaction(transaction: schemas.Transaction) -> str:
             timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(transaction.timestamp))
             direction = ["<<", ">>"][transaction.sender.id == user.id]
             partner = SDK.get_username([transaction.sender, transaction.receiver][transaction.sender.id == user.id])

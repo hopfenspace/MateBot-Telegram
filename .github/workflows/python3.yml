@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9, 3.10.2]
 
     steps:
     - uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
     - name: Lint with PyLint
       run: |
-        python -c 'import subprocess; subprocess.run("pylint mate_bot/ -j 0".split(" "));'
+        pylint matebot_telegram/ -j 0 && echo "OK" || echo "FAIL"
     - name: Build docs using Sphinx
       run: |
         cd docs

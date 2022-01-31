@@ -84,59 +84,59 @@ class ForwardInlineQuery(BaseInlineQuery):
         :return: None
         """
 
-        if len(query.query) == 0:
-            return
-
-        split = query.query.split(" ")
-
-        try:
-            collective_id = int(split[0])
-            community = CommunityUser()
-            try:
-                BaseCollective.get_type(collective_id)
-            except IndexError:
-                query.answer([self.get_result(
-                    "Communism/payment ID not found!",
-                    "Forwarding the communism or payment request failed, because "
-                    "the communism or payment ID was not found. Always make sure "
-                    "that the unique number in the inline query was not altered."
-                )])
-                raise
-
-            users = []
-            for word in split[1:]:
-                if len(word) <= 1:
-                    continue
-                if word.startswith("@"):
-                    word = word[1:]
-
-                for target in finders.find_names_by_pattern(word):
-                    user = finders.find_user_by_name(target)
-                    if user is not None and user not in users:
-                        if user.uid != community.uid:
-                            users.append(user)
-
-                for target in finders.find_usernames_by_pattern(word):
-                    user = finders.find_user_by_username(target)
-                    if user is not None and user not in users:
-                        if user.uid != community.uid:
-                            users.append(user)
-
-            users.sort(key=lambda u: u.name.lower())
-
-            answers = []
-            for choice in users:
-                answers.append(self.get_result(
-                    str(choice),
-                    f"I am forwarding this collective to {choice.name}...",
-                    collective_id,
-                    choice.tid
-                ))
-
-            query.answer([self.get_help()] + answers)
-
-        except (IndexError, ValueError):
-            query.answer([self.get_help()])
+        # if len(query.query) == 0:
+        #     return
+        #
+        # split = query.query.split(" ")
+        #
+        # try:
+        #     collective_id = int(split[0])
+        #     community = CommunityUser()
+        #     try:
+        #         BaseCollective.get_type(collective_id)
+        #     except IndexError:
+        #         query.answer([self.get_result(
+        #             "Communism/payment ID not found!",
+        #             "Forwarding the communism or payment request failed, because "
+        #             "the communism or payment ID was not found. Always make sure "
+        #             "that the unique number in the inline query was not altered."
+        #         )])
+        #         raise
+        #
+        #     users = []
+        #     for word in split[1:]:
+        #         if len(word) <= 1:
+        #             continue
+        #         if word.startswith("@"):
+        #             word = word[1:]
+        #
+        #         for target in finders.find_names_by_pattern(word):
+        #             user = finders.find_user_by_name(target)
+        #             if user is not None and user not in users:
+        #                 if user.uid != community.uid:
+        #                     users.append(user)
+        #
+        #         for target in finders.find_usernames_by_pattern(word):
+        #             user = finders.find_user_by_username(target)
+        #             if user is not None and user not in users:
+        #                 if user.uid != community.uid:
+        #                     users.append(user)
+        #
+        #     users.sort(key=lambda u: u.name.lower())
+        #
+        #     answers = []
+        #     for choice in users:
+        #         answers.append(self.get_result(
+        #             str(choice),
+        #             f"I am forwarding this collective to {choice.name}...",
+        #             collective_id,
+        #             choice.tid
+        #         ))
+        #
+        #     query.answer([self.get_help()] + answers)
+        #
+        # except (IndexError, ValueError):
+        #     query.answer([self.get_help()])
 
 
 class ForwardInlineResult(BaseInlineResult):
@@ -168,12 +168,12 @@ class ForwardInlineResult(BaseInlineResult):
         if command_name != "forward":
             return
 
-        collective_id = int(collective_id)
-        receiver = MateBotUser(MateBotUser.get_uid_from_tid(int(receiver)))
-        sender = MateBotUser(result.from_user)
-
-        type_flag = bool(BaseCollective.get_type(collective_id))
-        if type_flag:
-            Communism(collective_id).forward(receiver, bot, sender)
-        else:
-            Payment(collective_id).forward(receiver, bot, sender)
+        # collective_id = int(collective_id)
+        # receiver = MateBotUser(MateBotUser.get_uid_from_tid(int(receiver)))
+        # sender = MateBotUser(result.from_user)
+        #
+        # type_flag = bool(BaseCollective.get_type(collective_id))
+        # if type_flag:
+        #     Communism(collective_id).forward(receiver, bot, sender)
+        # else:
+        #     Payment(collective_id).forward(receiver, bot, sender)

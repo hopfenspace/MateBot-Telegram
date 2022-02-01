@@ -9,10 +9,12 @@ import telegram
 from matebot_sdk import schemas
 from matebot_sdk.base import CallbackUpdate
 
+from .. import util
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery
 from ..client import SDK
 from ..config import config
+from ..shared_messages import shared_message_handler
 
 
 class AliasCallbackQuery(BaseCallbackQuery):
@@ -52,6 +54,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
         msg = f"You successfully confirmed the alias {alias.app_username} of the application {app.name}. " \
               f"Your accounts are now linked together and will use the same balance, permissions etc."
         update.callback_query.message.edit_text(msg, reply_markup=telegram.InlineKeyboardMarkup([]))
+        shared_message_handler.delete_messages("alias", alias.id)
 
     async def deny(self, update: telegram.Update) -> None:
         result = await self._get_alias_and_user(update)
@@ -64,6 +67,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
             "The alias has been deleted. It won't be possible to use it in the future.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
+        shared_message_handler.delete_messages("alias", alias.id)
 
     async def report(self, update: telegram.Update) -> None:
         result = await self._get_alias_and_user(update)
@@ -85,14 +89,16 @@ class AliasCallbackQuery(BaseCallbackQuery):
             "The alias has been deleted. It won't be possible to use it in the future.\nThanks for your report.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
+        shared_message_handler.delete_messages("alias", alias.id)
 
 
-async def _alias_callback_handler(method: CallbackUpdate, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
-    if method != method.CREATE:
-        return
-
+async def _handle_create_alias(_method: CallbackUpdate, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
     app = await SDK.application
     alias = await SDK.get_alias_by_id(id_)
+    if alias.confirmed:
+        logger.debug(f"Alias {alias} is already confirmed")
+        return
+
     other_app = await SDK.get_application_by_id(alias.application_id)
     user = await SDK.get_user_by_id(alias.user_id)
     app_aliases = [a for a in user.aliases if app.id == a.application_id and a.confirmed and a.unique]
@@ -112,7 +118,7 @@ async def _alias_callback_handler(method: CallbackUpdate, _: str, id_: int, bot:
     )
 
     username = app_aliases[0].app_username
-    bot.send_message(
+    message = bot.send_message(
         username if not username.isdigit() else int(username),
         msg,
         reply_markup=telegram.InlineKeyboardMarkup([
@@ -125,8 +131,21 @@ async def _alias_callback_handler(method: CallbackUpdate, _: str, id_: int, bot:
             ]
         ])
     )
+    shared_message_handler.add_message_by("alias", alias.id, message.chat_id, message.message_id)
 
 
-dispatcher.register((CallbackUpdate.CREATE, "alias"), _alias_callback_handler)
-dispatcher.register((CallbackUpdate.UPDATE, "alias"), _alias_callback_handler)
-dispatcher.register((CallbackUpdate.DELETE, "alias"), _alias_callback_handler)
+async def _handle_update_alias(_method: CallbackUpdate, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    alias = await SDK.get_alias_by_id(id_)
+    if alias.confirmed:
+        util.update_all_shared_messages(bot, "alias", id_, "The alias has been successfully enabled.", logger)
+        shared_message_handler.delete_messages("alias", id_)
+
+
+async def _handle_delete_alias(_method: CallbackUpdate, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    util.update_all_shared_messages(bot, "alias", id_, "The alias has been successfully enabled.", logger)
+    shared_message_handler.delete_messages("alias", id_)
+
+
+dispatcher.register((CallbackUpdate.CREATE, "alias"), _handle_create_alias)
+dispatcher.register((CallbackUpdate.UPDATE, "alias"), _handle_update_alias)
+dispatcher.register((CallbackUpdate.DELETE, "alias"), _handle_delete_alias)

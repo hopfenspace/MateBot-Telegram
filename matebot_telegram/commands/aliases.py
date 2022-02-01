@@ -51,7 +51,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
         app = await SDK.get_application_by_id(alias.application_id)
         msg = f"You successfully confirmed the alias {alias.app_username} of the application {app.name}. " \
               f"Your accounts are now linked together and will use the same balance, permissions etc."
-        update.message.edit_text(msg, reply_markup=telegram.InlineKeyboardMarkup([]))
+        update.callback_query.message.edit_text(msg, reply_markup=telegram.InlineKeyboardMarkup([]))
 
     async def deny(self, update: telegram.Update) -> None:
         result = await self._get_alias_and_user(update)
@@ -60,7 +60,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
         alias, user = result
 
         await SDK.drop_alias(alias)
-        update.message.edit_text(
+        update.callback_query.message.edit_text(
             "The alias has been deleted. It won't be possible to use it in the future.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
@@ -77,11 +77,11 @@ class AliasCallbackQuery(BaseCallbackQuery):
             f"Please determine the source of this newly created alias."
         )
         self.logger.warning(msg)
-        for receiver in config["chats"]["notifications"]:
+        for receiver in config["chats"]["notification"]:
             update.callback_query.bot.send_message(receiver, msg)
 
         await SDK.drop_alias(alias)
-        update.message.edit_text(
+        update.callback_query.message.edit_text(
             "The alias has been deleted. It won't be possible to use it in the future.\nThanks for your report.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )

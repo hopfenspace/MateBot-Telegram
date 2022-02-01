@@ -2,6 +2,7 @@
 MateBot collection of command executors
 """
 
+from .aliases import AliasCallbackQuery
 from .balance import BalanceCommand
 from .blame import BlameCommand
 from .communism import CommunismCommand, CommunismCallbackQuery
@@ -37,6 +38,7 @@ StartCommand()
 VouchCommand()
 ZwegatCommand()
 
+AliasCallbackQuery()
 CommunismCallbackQuery()
 RefundCallbackQuery()
 SendCallbackQuery()

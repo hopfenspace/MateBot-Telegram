@@ -2,13 +2,15 @@
 MateBot command executor classes for /communism and its callback queries
 """
 
+import logging
 from typing import Callable, Coroutine, Optional, Tuple
 
 import telegram.ext
 from matebot_sdk import schemas
-from matebot_sdk.base import PermissionLevel
+from matebot_sdk.base import PermissionLevel, CallbackUpdate
 
 from .. import util
+from ..api_callback import dispatcher
 from ..base import BaseCommand, BaseCallbackQuery
 from ..client import SDK
 from ..parsing.types import amount as amount_type
@@ -284,3 +286,30 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             lambda c, u: SDK.cancel_communism(c),
             lambda c, u: shared_message_handler.delete_messages("communism", c.id)
         )
+
+
+async def _handle_create_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    communism = await SDK.get_communism_by_id(id_)
+    util.send_auto_share_messages(
+        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    )
+
+
+async def _handle_update_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    communism = await SDK.get_communism_by_id(id_)
+    util.update_all_shared_messages(
+        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    )
+
+
+async def _handle_delete_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
+    communism = await SDK.get_communism_by_id(id_)
+    util.update_all_shared_messages(
+        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    )
+    shared_message_handler.delete_messages("communism", communism.id)
+
+
+dispatcher.register((CallbackUpdate.CREATE, "communism"), _handle_create_communism)
+dispatcher.register((CallbackUpdate.UPDATE, "communism"), _handle_update_communism)
+dispatcher.register((CallbackUpdate.DELETE, "communism"), _handle_delete_communism)

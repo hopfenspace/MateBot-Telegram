@@ -11,6 +11,7 @@ import telegram.ext
 from matebot_sdk.exceptions import APIException, APIConnectionException, UserException, UserAPIException
 
 from . import err, registry, util
+from .client import SDK
 from .parsing.parser import CommandParser
 from .parsing.util import Namespace
 
@@ -100,6 +101,7 @@ class BaseCommand:
 
             args = self.parser.parse(update.effective_message)
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
+            SDK.patch_user_db_from_update(update)
             result = self.run(args, update)
             if result is not None:
                 if not inspect.isawaitable(result):
@@ -209,6 +211,7 @@ class BaseCallbackQuery:
             raise RuntimeError("No pattern match found")
 
         try:
+            SDK.patch_user_db_from_update(update)
             self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
             if self.data in self.targets:
@@ -294,6 +297,7 @@ class BaseInlineQuery:
 
         query = update.inline_query
         self.logger.debug(f"{type(self).__name__} by {query.from_user.name} with '{query.query}'")
+        SDK.patch_user_db_from_update(update)
         self.run(query)
 
     def get_result_id(self, *args) -> str:
@@ -393,6 +397,7 @@ class BaseInlineResult:
 
         result = update.chosen_inline_result
         self.logger.debug(f"{type(self).__name__} by {result.from_user.name} with '{result.result_id}'")
+        SDK.patch_user_db_from_update(update)
         self.run(result, context.bot)
 
     def run(self, result: telegram.ChosenInlineResult, bot: telegram.Bot) -> None:

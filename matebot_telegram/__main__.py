@@ -77,7 +77,7 @@ if __name__ == "__main__":
     logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
 
     try:
-        client.setup_sdk()
+        client.setup_sdk(updater.bot, config.config["database-url"])
     except APIConnectionException as exc:
         logger.critical(
             f"Connecting to the API server failed! Please review your "

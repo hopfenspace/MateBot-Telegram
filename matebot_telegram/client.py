@@ -24,13 +24,11 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
     @staticmethod
     def patch_user_db_from_update(update: telegram.Update):
         user = update.effective_user
-        if user is None:
-            return
-        if user.is_bot:
+        if user is None or user.is_bot:
             return
         with persistence.get_new_session() as session:
             with session.begin():
-                users = [u for u in session.query(persistence.TelegramUser).filter_by(telegram_id=user.id).all()]
+                users = session.query(persistence.TelegramUser).filter_by(telegram_id=user.id).all()
                 if len(users) == 0:
                     session.add(persistence.TelegramUser(
                         telegram_id=user.id,
@@ -48,7 +46,33 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                 else:
                     raise RuntimeError(f"Multiple user results for telegram ID {user.id}! Please file a bug report.")
 
-    async def get_telegram_user(self, identifier: Union[int, str]) -> _User:
+    @staticmethod
+    def _lookup_telegram_identifier(identifier: str) -> int:
+        with persistence.get_new_session() as session:
+            with session.begin():
+                if identifier.startswith("@"):
+                    identifier = identifier[1:]
+                users_by_username = session.query(persistence.TelegramUser).filter_by(username=identifier).all()
+                users_by_first_name = session.query(persistence.TelegramUser).filter_by(first_name=identifier).all()
+                users_by_full_name = []
+                if identifier.count(" ") == 1:
+                    first, last = identifier.split(" ")
+                    users_by_full_name = session.query(persistence.TelegramUser).filter_by(
+                        first_name=first, last_name=last
+                    ).all()
+                users = set(users_by_username) | set(users_by_first_name) | set(users_by_full_name)
+                if len(users) == 1:
+                    return users.pop().telegram_id
+                if len(users) == 0:
+                    raise err.NoUserFound(
+                        f"No user found for the search term '{identifier}'. Please ensure "
+                        f"you spelled it correctly and the user has used the bot in the past."
+                    )
+        raise err.AmbiguousUserSpec(f"Multiple users found for '{identifier}'. Please ensure unambiguous specs.")
+
+    async def get_telegram_user(self, identifier: Union[int, str, telegram.User]) -> _User:
+        if isinstance(identifier, telegram.User):
+            identifier = identifier.id
         if isinstance(identifier, str):
             identifier = self._lookup_telegram_identifier(identifier)
         users = await self.get_users_by_alias(alias=str(identifier), confirmed=True, active=True)

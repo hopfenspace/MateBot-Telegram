@@ -1,21 +1,18 @@
 {
     "application": "<Name of your deployed application>",
     "password": "<Password of your deployed application>",
-    "ca-path": "<Optional path to a CA file for TLS connections>",
+    "database_url": "<Fully qualified database URL>",
     "server": "<Base URL to the MateBot backend server>",
+    "ca_path": "<Optional path to a CA file for TLS connections to the API server>",
     "token": "<Telegram bot token>",
-    "bot-storage": "bot_storage.json",
-    "adjust-stock": true,
-    "respect-stock": true,
     "callback": {
         "enabled": false,
-        "public-url": "<Public base URL of the callback server (reachable by the API server)>",
+        "public_url": "<Public base URL of the callback server (reachable by the API server)>",
         "address": "<Address the callback server should bind to, e.g. '0.0.0.0'>",
         "port": 8080,
-        "username": "<Optional username for HTTP Basic Auth to the callback server by the API server>",
-        "password": "<Optional password for HTTP Basic Auth to the callback server by the API server>"
+        "shared_secret": "<Optional shared secret for HTTP Bearer Auth to the callback server by the API server>"
     },
-    "auto-forward": {
+    "auto_forward": {
         "communism": [],
         "poll": [],
         "refund": []

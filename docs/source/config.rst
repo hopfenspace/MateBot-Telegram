@@ -112,6 +112,16 @@ with permissions to vote) that vouches for that external one.
 If no one vouches for an external, it is not allowed to perform
 certain operations like sending money or consuming goods.
 
+Currency settings
+-----------------
+
+The bot stores money values as integers only. In order to display
+different currencies with different values, the currency settings
+allow to configure them. The ``factor`` is a number which will be
+used to divide the raw money value. For example, if the currency
+was Euro, the ``symbol`` would be ``€`` and the factor would be
+``100`` in order to divide the raw value by 100 to get Cents.
+
 Database settings
 -----------------
 

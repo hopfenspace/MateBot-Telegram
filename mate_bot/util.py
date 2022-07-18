@@ -47,7 +47,10 @@ def safe_send(
 def format_currency(amount: int) -> str:
     """
     Format the given amount in the configured currency and factor
+
+    :param amount: raw amount of money, as it's stored in the database or given by users
+    :return: formatted amount of money, according to the configuration file
     """
 
-    value = amount / _config.config['currency']['factor']
+    value = amount / _config.config["currency"]["factor"]
     return f"{value : .2f}{_config.config['currency']['symbol']}"

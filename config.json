@@ -17,6 +17,10 @@
 		"payment-denial": 2,
 		"multiple-externals": true
 	},
+	"currency": {
+		"symbol": "€",
+		"factor": 100
+	},
 	"database": {
 		"host": "localhost",
 		"port": 3306,

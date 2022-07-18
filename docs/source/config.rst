@@ -121,6 +121,8 @@ allow to configure them. The ``factor`` is a number which will be
 used to divide the raw money value. For example, if the currency
 was Euro, the ``symbol`` would be ``€`` and the factor would be
 ``100`` in order to divide the raw value by 100 to get Cents.
+To properly display the calculated money amounts, the ``digits``
+setting can be used to configure the number of decimal places.
 
 Database settings
 -----------------

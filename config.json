@@ -19,6 +19,7 @@
 	},
 	"currency": {
 		"symbol": "€",
+		"digits": 2,
 		"factor": 100
 	},
 	"database": {

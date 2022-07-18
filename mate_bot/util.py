@@ -53,4 +53,5 @@ def format_currency(amount: int) -> str:
     """
 
     value = amount / _config.config["currency"]["factor"]
-    return f"{value : .2f}{_config.config['currency']['symbol']}"
+    digits = _config.config['currency']['digits']
+    return f"{value:.{digits}f}{_config.config['currency']['symbol']}"

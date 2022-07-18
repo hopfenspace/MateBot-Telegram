@@ -7,6 +7,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.collectives.base import BaseCollective, COLLECTIVE_ARGUMENTS
 from mate_bot.state.transactions import LoggedTransaction
 
@@ -68,7 +69,7 @@ class Communism(BaseCollective):
         return (
             f"*Communism by {self.creator.name}*\n\n"
             f"Reason: {self.description}\n"
-            f"Amount: {self.amount / 100 :.2f}€\n"
+            f"Amount: {util.format_currency(self.amount)}\n"
             f"Externals: {self.externals}\n"
             f"Joined users ({len(names)}): {usernames}\n"
         )
@@ -96,11 +97,11 @@ class Communism(BaseCollective):
                 markdown += "\n_The communism was closed. All transactions have been processed._"
                 if self._externals > 0:
                     markdown += (
-                        f"\n\n{self._price / 100:.2f}€ must be collected from each "
+                        f"\n\n{util.format_currency(self._price)} must be collected from each "
                         f"external user by {self.creator.name}."
                     )
                 else:
-                    markdown += f"\n\nEvery joined user paid {self._price / 100:.2f}€."
+                    markdown += f"\n\nEvery joined user paid {util.format_currency(self._price)}."
             else:
                 markdown += "\n_The communism was aborted. No transactions have been processed._"
 

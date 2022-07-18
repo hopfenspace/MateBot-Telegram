@@ -8,6 +8,7 @@ import typing as _typing
 
 import telegram
 
+from mate_bot import util
 from mate_bot.state.user import MateBotUser, CommunityUser
 from mate_bot.parsing.types import natural as natural_type
 from mate_bot.config import config
@@ -41,7 +42,7 @@ class ConsumeCommand(BaseCommand):
 
         super().__init__(name, description)
         if not self.description:
-            self.description = f"Consume {name}s for {price / 100 :.2f}€ each."
+            self.description = f"Consume {name}s for {util.format_currency(price)} each."
 
         self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
 

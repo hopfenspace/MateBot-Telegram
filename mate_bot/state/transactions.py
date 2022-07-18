@@ -296,7 +296,7 @@ class LoggedTransaction(Transaction):
                         "*Incoming transaction*\n\n"
                         f"Sender: {self.src}\n"
                         f"Receiver: {self.dst}\n"
-                        f"Amount: {self.amount / 100:.2f}€\n"
+                        f"Amount: {util.format_currency(self.amount)}\n"
                         f"Reason: `{self.reason}`"
                     )
                     util.safe_send(

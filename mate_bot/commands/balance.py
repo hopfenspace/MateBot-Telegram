@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.state.user import MateBotUser
 from mate_bot.commands.base import BaseCommand
 from mate_bot.parsing.types import user as user_type
@@ -43,8 +44,8 @@ class BalanceCommand(BaseCommand):
 
         if args.user:
             user = args.user
-            update.effective_message.reply_text(f"Balance of {user.name} is: {user.balance / 100 : .2f}€")
+            update.effective_message.reply_text(f"Balance of {user.name} is: {util.format_currency(user.balance)}")
 
         else:
             user = MateBotUser(update.effective_message.from_user)
-            update.effective_message.reply_text(f"Your balance is: {user.balance / 100 :.2f}€")
+            update.effective_message.reply_text(f"Your balance is: {util.format_currency(user.balance)}")

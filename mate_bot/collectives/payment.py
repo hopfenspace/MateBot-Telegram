@@ -7,6 +7,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.config import config
 from mate_bot.collectives.base import BaseCollective, COLLECTIVE_ARGUMENTS
 from mate_bot.state.transactions import LoggedTransaction
@@ -74,7 +75,7 @@ class Payment(BaseCollective):
 
         return (
             f"*Payment request by {self.creator.name}*\n"
-            f"\nAmount: {self.amount / 100:.2f}€\nReason: {self.description}\n"
+            f"\nAmount: {util.format_currency(self.amount)}\nReason: {self.description}\n"
             f"\nApproved ({len(approved)}): {pro}"
             f"\nDisapproved ({len(disapproved)}): {contra}\n"
         )

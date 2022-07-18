@@ -65,7 +65,8 @@ class SendCommand(BaseCommand):
         def e(variant: str) -> str:
             return f"send {variant} {args.amount} {sender.uid} {args.receiver.uid}"
 
-        msg = f"Do you want to send {args.amount / 100 :.2f}€ to {str(args.receiver)}?\nDescription: `{reason}`"
+        msg = f"Do you want to send {util.format_currency(args.amount)} to {str(args.receiver)}?" \
+              f"\nDescription: `{reason}`"
         keyboard = telegram.InlineKeyboardMarkup([
             [
                 telegram.InlineKeyboardButton("CONFIRM", callback_data=e("confirm")),
@@ -143,7 +144,7 @@ class SendCallbackQuery(BaseCallbackQuery):
                 ).commit()
 
                 update.callback_query.message.edit_text(
-                    f"Okay, you sent {amount / 100 :.2f}€ to {str(receiver)}",
+                    f"Okay, you sent {util.format_currency(amount)} to {str(receiver)}",
                     reply_markup=telegram.InlineKeyboardMarkup([])
                 )
 

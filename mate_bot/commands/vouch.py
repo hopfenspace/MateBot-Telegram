@@ -158,7 +158,7 @@ class VouchCommand(BaseCommand):
                     f"- {args.user.name} won't be able to perform commands that would change "
                     "the balance anymore (e.g. /send or consumption commands).\n"
                     f"- The balance of {args.user.name} will be set to `0`.\n"
-                    f"- You will {'pay' if checkout < 0 else 'get'} {checkout / 100:.2f}€ "
+                    f"- You will {'pay' if checkout < 0 else 'get'} {util.format_currency(checkout)} "
                     f"{'to' if checkout < 0 else 'from'} {args.user.name}."
                 )
 
@@ -202,10 +202,10 @@ class VouchCallbackQuery(BaseCallbackQuery):
                     reason = f"vouch: {creditor.name} stopped vouching for {debtor.name}"
                     text = f"_Success. {debtor.name} has no active creditor anymore._"
                     if debtor.balance > 0:
-                        text += f"\n_You received {debtor.balance / 100 :.2f}€ from {debtor.name}._"
+                        text += f"\n_You received {util.format_currency(debtor.balance)} from {debtor.name}._"
                         Transaction(debtor, creditor, debtor.balance, reason).commit()
                     elif debtor.balance < 0:
-                        text += f"\n_You sent {debtor.balance / 100 :.2f}€ to {debtor.name}._"
+                        text += f"\n_You sent {util.format_currency(debtor.balance)} to {debtor.name}._"
                         Transaction(creditor, debtor, debtor.balance, reason).commit()
                     debtor.creditor = None
 

@@ -6,6 +6,7 @@ import logging
 
 import telegram
 
+from mate_bot import util
 from mate_bot.state.user import CommunityUser, MateBotUser
 from mate_bot.commands.base import BaseCommand
 from mate_bot.parsing.util import Namespace
@@ -39,8 +40,11 @@ class ZwegatCommand(BaseCommand):
         if not self.ensure_permissions(user, 2, update.effective_message):
             return
 
-        total = CommunityUser().balance / 100
-        if total >= 0:
-            update.effective_message.reply_text(f"Peter errechnet ein massives Vermögen von {total:.2f}€")
+        if CommunityUser().balance >= 0:
+            update.effective_message.reply_text(
+                f"Peter errechnet ein massives Vermögen von {util.format_currency(CommunityUser().balance)}"
+            )
         else:
-            update.effective_message.reply_text(f"Peter errechnet Gesamtschulden von {-total:.2f}€")
+            update.effective_message.reply_text(
+                f"Peter errechnet Gesamtschulden von -{util.format_currency(CommunityUser().balance)}"
+            )

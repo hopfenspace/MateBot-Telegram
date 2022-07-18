@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional
 
 import telegram
 
+from . import config as _config
 
 _logger = _logging.getLogger("error")
 
@@ -41,3 +42,12 @@ def safe_send(
         fallback_obj = fallback()
         _logger.debug("The message has been sent without formatting enabled (raw text).")
         return fallback_obj if obj else False
+
+
+def format_currency(amount: int) -> str:
+    """
+    Format the given amount in the configured currency and factor
+    """
+
+    value = amount / _config.config['currency']['factor']
+    return f"{value : .2f}{_config.config['currency']['symbol']}"

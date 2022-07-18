@@ -71,7 +71,7 @@ class DataCommand(BaseCommand):
             f"Telegram ID: {user.tid}\n"
             f"Name: {user.name}\n"
             f"Username: {user.username}\n"
-            f"Balance: {user.balance / 100 :.2f}€\n"
+            f"Balance: {util.format_currency(user.balance)} ({user.balance})\n"
             f"Vote permissions: {user.permission}\n"
             f"External user: {user.external}\n"
             f"{relations}\n"

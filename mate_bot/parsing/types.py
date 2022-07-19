@@ -13,13 +13,18 @@ from mate_bot.config import config
 from mate_bot.parsing.util import EntityString
 
 
-__amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
+_digits = int(config["currency"]["digits"])
+if _digits == 0:
+    amount_pattern = re.compile(r"^(\d+)$")
+elif _digits > 0:
+    amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)" + r"(\d)?" * (_digits - 1) + r")?$")
+else:
+    raise ValueError("Negative number of digits is invalid")
 # Regex explanation:
-# It matches any non-zero number of digits with an optional , or . followed by exactly one or two digits
+# It matches any non-zero number of digits with an optional , or . followed by a configured max number of digits
 # If there is a , or . then the first decimal is required
-#
-# The match's groups:
-# 1st group: leading number, 2nd group: 1st decimal, 3rd group: 2nd decimal
+# The first group of a match is the leading digit before a dot or comma,
+# while every following group is a single digit after the dot or comma
 
 
 def amount(arg: str) -> int:
@@ -35,16 +40,11 @@ def amount(arg: str) -> int:
     :raises ValueError: when the arg seems to be no valid amount or is too big
     """
 
-    match = __amount_pattern.match(arg)
+    match = amount_pattern.match(arg)
     if match is None:
         raise ValueError("Doesn't match an amount's regex")
 
-    val = int(match.group(1)) * 100
-    if match.group(2):
-        val += int(match.group(2)) * 10
-    if match.group(3):
-        val += int(match.group(3))
-
+    val = sum(int(v or 0) * 10**i for i, v in list(enumerate(reversed(match.groups()))))
     if val == 0:
         raise ValueError("An amount can't be zero")
     elif val > config["general"]["max-amount"]:

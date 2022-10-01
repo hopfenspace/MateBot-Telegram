@@ -8,10 +8,10 @@ import logging
 from typing import Awaitable, Callable, Dict, Optional
 
 import telegram.ext
-from matebot_sdk.exceptions import APIException, APIConnectionException, UserException, UserAPIException
 
-from . import err, registry, util
-from .client import SDK
+from matebot_sdk.exceptions import APIException, APIConnectionException
+
+from . import client, config, err, registry, util, persistence
 from .parsing.parser import CommandParser
 from .parsing.util import Namespace
 
@@ -52,6 +52,8 @@ class BaseCommand:
         self.description = description
         self.parser = CommandParser(self.name)
         self.logger = logging.getLogger("command")
+        self.client = client.client
+        self.config = config.config
 
         registry.commands[self.name] = self
 
@@ -125,10 +127,6 @@ class BaseCommand:
         except APIConnectionException as exc:
             self.logger.exception(f"API connectivity problem @ {type(self).__name__} ({exc.exc})")
             update.effective_message.reply_text(f"I'm having networking problems. {exc.message}")
-
-        except UserAPIException as exc:
-            self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
-            update.effective_message.reply_text(exc.message)
 
         except APIException as exc:
             self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)

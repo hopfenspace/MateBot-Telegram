@@ -4,15 +4,14 @@ MateBot SDK client to be used across the project
 
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Union
 
 import telegram
 
 from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
-from . import err, persistence, util
-from .config import config
+from . import config, err, util, persistence
 
 
 logger = logging.getLogger("client")
@@ -20,6 +19,10 @@ logger = logging.getLogger("client")
 
 class AsyncMateBotSDKForTelegram(AsyncSDK):
     bot: telegram.Bot
+
+    def __init__(self, bot: telegram.Bot, *args, **kwargs):
+        super(AsyncMateBotSDKForTelegram, self).__init__(*args, **kwargs)
+        self.bot = bot
 
     @staticmethod
     def patch_user_db_from_update(update: telegram.Update):
@@ -70,7 +73,7 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                     )
         raise err.AmbiguousUserSpec(f"Multiple users found for '{identifier}'. Please ensure unambiguous specs.")
 
-    async def get_telegram_user(self, identifier: Union[int, str, telegram.User]) -> _User:
+    async def get_core_user(self, identifier: Union[int, str, telegram.User]) -> _User:
         if isinstance(identifier, telegram.User):
             identifier = identifier.id
         if isinstance(identifier, str):
@@ -86,24 +89,30 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         raise err.UniqueUserNotFound(f"Multiple user aliases were found for {identifier}. Please file a bug report.")
 
 
-SDK = AsyncMateBotSDKForTelegram(
-    base_url=config["server"],
-    app_name=config["application"],
-    password=config["password"],
-    callback=(config["callback"]["public-url"], config["callback"]["username"], config["callback"]["password"]),
-    logger=logging.getLogger("sdk.client")
-)
+client: AsyncMateBotSDKForTelegram  # must be available at runtime; use the setup function below at early program stage
 
 
-def setup_sdk(bot: telegram.Bot, database_url: str, database_echo: Optional[bool] = None) -> bool:
+def setup(bot: telegram.Bot, configuration: config.Configuration) -> AsyncMateBotSDKForTelegram:
     logger.debug("Setting up SDK client...")
-    if database_echo is None:
-        persistence.init(database_url)
-    else:
-        persistence.init(database_url, echo=database_echo)
-    SDK.bot = bot
+    persistence.init(configuration.database_url, echo=configuration.database_debug)
     if util.event_loop is None:
         logger.error("Event loop uninitialized! Refusing to setup SDK client!")
-        return False
-    asyncio.run_coroutine_threadsafe(SDK.setup(), loop=util.event_loop).result()
-    return True
+        raise RuntimeError("Uninitialized event loop")
+
+    callback = None
+    if configuration.callback.enabled:
+        callback = (configuration.callback.public_url, configuration.callback.shared_secret)
+    sdk = AsyncMateBotSDKForTelegram(
+        bot,
+        base_url=configuration.server,
+        app_name=configuration.application,
+        password=configuration.password,
+        callback=callback,
+        logger=logging.getLogger("sdk.client"),
+        verify=configuration.ssl_verify and (configuration.ca_path or True),
+        user_agent=configuration.user_agent or None
+    )
+
+    asyncio.run_coroutine_threadsafe(sdk.setup(), loop=util.event_loop).result()
+    logger.debug("Completed SDK setup")
+    return sdk

@@ -66,7 +66,6 @@ if __name__ == "__main__":
 
     logging.config.dictConfig(config.config.logging)
     logger = logging.getLogger("root")
-    logging.getLogger("telegram.bot").critical("FOO")  # TODO
 
     logger.info("Registering bot token with Updater...")
     updater = updater.PatchedUpdater(config.config.token, workers=1)
@@ -78,13 +77,13 @@ if __name__ == "__main__":
     logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
 
     try:
-        client.setup(updater.bot, config.config)
+        client.client = client.setup(updater.bot, config.config)
     except APIConnectionException as exc:
         logger.critical(
             f"Connecting to the API server failed! Please review your "
             f"config and ensure {config.config.server} is reachable."
         )
-        updater.callback_server.stop()
+        updater.callback_server and updater.callback_server.stop()
         util.event_thread_running.set()
         raise
 

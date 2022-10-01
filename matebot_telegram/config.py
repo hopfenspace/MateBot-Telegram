@@ -35,8 +35,11 @@ class Configuration(_pydantic.BaseModel):
     application: _pydantic.constr(max_length=255)
     password: _pydantic.constr(max_length=255)
     database_url: str
+    database_debug: bool
     server: _pydantic.AnyHttpUrl
+    ssl_verify: bool
     ca_path: Optional[str]
+    user_agent: Optional[str]
     token: str
     callback: CallbackConfiguration
     auto_forward: AutoForwardConfiguration
@@ -44,12 +47,17 @@ class Configuration(_pydantic.BaseModel):
     logging: dict
 
 
-config: Configuration
+def setup_configuration(*paths: str) -> bool:
+    global config
+    for path in paths:
+        if _os.path.exists(path):
+            with open(path) as f:
+                config = Configuration(**_json.load(f))
+            return True
+    return False
 
-for path in ["config.json", _os.path.join("..", "config.json")]:
-    if _os.path.exists(path):
-        with open(path) as f:
-            config = Configuration(**_json.load(f))
-        break
-else:
-    raise ImportError("No configuration file found")
+
+config: Configuration  # must be available at runtime, the setup below is just a default
+
+if not setup_configuration("config.json"):
+    setup_configuration(_os.path.join("..", "config.json"))

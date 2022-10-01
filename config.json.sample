@@ -2,8 +2,11 @@
     "application": "<Name of your deployed application>",
     "password": "<Password of your deployed application>",
     "database_url": "<Fully qualified database URL>",
+    "database_debug": false,
     "server": "<Base URL to the MateBot backend server>",
-    "ca_path": "<Optional path to a CA file for TLS connections to the API server>",
+    "ssl_verify": true,
+    "ca_path": "<Optional path to a CA file for TLS connections to the API server; empty string for system CA>",
+    "user_agent": "<Optional specific user agent string used to query the API server; empty string for default>",
     "token": "<Telegram bot token>",
     "callback": {
         "enabled": false,

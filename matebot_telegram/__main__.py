@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import typing
+import argparse
 import logging.config
 
 from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
@@ -52,12 +53,40 @@ class NoDebugFilter(logging.Filter):
         return True
 
 
+def get_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", help="path to the configuration file")
+    return parser
+
+
 if __name__ == "__main__":
-    logging.config.dictConfig(config.config["logging"])
+    args = get_parser().parse_args()
+    if args.config:
+        config.setup_configuration(args.config)
+
+    logging.config.dictConfig(config.config.logging)
     logger = logging.getLogger("root")
+    logging.getLogger("telegram.bot").critical("FOO")  # TODO
 
     logger.info("Registering bot token with Updater...")
-    updater = updater.PatchedUpdater(config.config["token"], workers=1)
+    updater = updater.PatchedUpdater(config.config.token, workers=1)
+
+    logger.debug("Starting event thread...")
+    util.event_thread.start()
+    logger.debug("Started event thread.")
+    util.event_thread_started.wait()
+    logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
+
+    try:
+        client.setup(updater.bot, config.config)
+    except APIConnectionException as exc:
+        logger.critical(
+            f"Connecting to the API server failed! Please review your "
+            f"config and ensure {config.config.server} is reachable."
+        )
+        updater.callback_server.stop()
+        util.event_thread_running.set()
+        raise
 
     logger.debug("Adding error handler...")
     updater.dispatcher.add_error_handler(util.log_error)
@@ -68,24 +97,7 @@ if __name__ == "__main__":
     _add(updater.dispatcher, FilteredChosenInlineResultHandler, registry.inline_results, True)
 
     logger.info("Starting API callback server...")
-    updater.start_api_callback_server(config.config["callback"])
-
-    logger.debug("Starting event thread...")
-    util.event_thread.start()
-    logger.debug("Started event thread.")
-    util.event_thread_started.wait()
-    logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
-
-    try:
-        client.setup_sdk(updater.bot, config.config["database-url"])
-    except APIConnectionException as exc:
-        logger.critical(
-            f"Connecting to the API server failed! Please review your "
-            f"config and ensure {config.config['server']} is reachable."
-        )
-        updater.callback_server.stop()
-        util.event_thread_running.set()
-        raise
+    updater.start_api_callback_server()
 
     logger.info("Starting bot...")
     updater.start_polling()

@@ -11,7 +11,7 @@ import telegram
 from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
-from . import config, err, util, persistence
+from . import config, err, util, persistence, shared_messages
 
 
 logger = logging.getLogger("client")
@@ -23,6 +23,7 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
     def __init__(self, bot: telegram.Bot, *args, **kwargs):
         super(AsyncMateBotSDKForTelegram, self).__init__(*args, **kwargs)
         self.bot = bot
+        self.shared_messages = shared_messages.SharedMessageHandler()
 
     @staticmethod
     def patch_user_db_from_update(update: telegram.Update):

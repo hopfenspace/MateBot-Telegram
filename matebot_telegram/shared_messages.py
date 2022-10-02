@@ -35,6 +35,10 @@ class SharedMessage(pydantic.BaseModel):
 
 
 class SharedMessageHandler:
+    """
+    Handler for shared messages across multiple unique telegram chats
+    """
+
     def __init__(self):
         self._lock = threading.Lock()
 

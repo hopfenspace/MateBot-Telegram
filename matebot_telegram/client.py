@@ -28,6 +28,13 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
     get_new_session = staticmethod(persistence.get_new_session)
 
     @staticmethod
+    def format_balance(balance_or_user: Union[int, float, _User]):
+        if isinstance(balance_or_user, _User):
+            balance_or_user = balance_or_user.balance
+        v = balance_or_user / config.config.currency.factor
+        return f"{v:.{config.config.currency.digits}f}{config.config.currency.symbol}"
+
+    @staticmethod
     def patch_user_db_from_update(update: telegram.Update):
         user = update.effective_user
         if user is None or user.is_bot:

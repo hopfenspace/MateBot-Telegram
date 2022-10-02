@@ -9,6 +9,11 @@
     "user_agent": "<Optional specific user agent string used to query the API server; empty string for default>",
     "token": "<Telegram bot token>",
     "workers": 1,
+    "currency": {
+        "digits": 2,
+        "factor": 100,
+        "symbol": "€"
+    },
     "callback": {
         "enabled": false,
         "public_url": "<Public base URL of the callback server (reachable by the API server)>",

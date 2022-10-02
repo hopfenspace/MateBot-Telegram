@@ -14,11 +14,16 @@ except ImportError:
 
 
 class Configuration(_pydantic.BaseModel):
+    class CurrencyConfiguration(_pydantic.BaseModel):
+        digits: _pydantic.PositiveInt
+        factor: _pydantic.PositiveInt
+        symbol: _pydantic.constr(min_length=1, max_length=4)
+
     class CallbackConfiguration(_pydantic.BaseModel):
         enabled: bool
         public_url: _pydantic.AnyHttpUrl
         address: str
-        port: int
+        port: _pydantic.conint(gt=1, lt=65536)
         shared_secret: Optional[_pydantic.constr(max_length=2047)]
 
     class AutoForwardConfiguration(_pydantic.BaseModel):
@@ -41,7 +46,8 @@ class Configuration(_pydantic.BaseModel):
     ca_path: Optional[str]
     user_agent: Optional[str]
     token: str
-    workers: int
+    workers: _pydantic.PositiveInt
+    currency: CurrencyConfiguration
     callback: CallbackConfiguration
     auto_forward: AutoForwardConfiguration
     chats: ChatConfiguration

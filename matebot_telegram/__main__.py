@@ -7,7 +7,7 @@ import logging.config
 from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
 from matebot_sdk.exceptions import APIConnectionException
 
-from matebot_telegram import api_callback, client, config, registry, updater, util
+from matebot_telegram import api_callback, client, commands, config, registry, updater, util
 from matebot_telegram.commands.handler import FilteredChosenInlineResultHandler
 
 
@@ -87,6 +87,9 @@ if __name__ == "__main__":
         updater.callback_server and updater.callback_server.stop()
         util.event_thread_running.set()
         raise
+
+    logger.debug("Setting up commands...")
+    commands.setup()
 
     logger.debug("Adding error handler...")
     updater.dispatcher.add_error_handler(util.log_error)

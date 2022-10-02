@@ -11,7 +11,7 @@ import telegram.ext
 
 from matebot_sdk.exceptions import APIException, APIConnectionException
 
-from . import client, config, err, registry, util, persistence
+from . import client, config, err, registry, util
 from .parsing.parser import CommandParser
 from .parsing.util import Namespace
 
@@ -103,7 +103,8 @@ class BaseCommand:
 
             args = self.parser.parse(update.effective_message)
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
-            SDK.patch_user_db_from_update(update)
+            self.client.patch_user_db_from_update(update)
+
             result = self.run(args, update)
             if result is not None:
                 if not inspect.isawaitable(result):
@@ -120,8 +121,8 @@ class BaseCommand:
 
         except err.ParsingError as exc:
             util.safe_call(
-                lambda: update.effective_message.reply_markdown(str(exc)),  # noqa: F821
-                lambda: update.effective_message.reply_text(str(exc))  # noqa: F821
+                lambda: update.effective_message.reply_markdown(str(exc)),
+                lambda: update.effective_message.reply_text(str(exc))
             )
 
         except APIConnectionException as exc:
@@ -185,6 +186,8 @@ class BaseCallbackQuery:
         self.data = None
         self.targets = targets
         self.logger = logging.getLogger("callback")
+        self.client = client.client
+        self.config = config.config
 
         registry.callback_queries[self.pattern] = self
 
@@ -209,7 +212,7 @@ class BaseCallbackQuery:
             raise RuntimeError("No pattern match found")
 
         try:
-            SDK.patch_user_db_from_update(update)
+            self.client.patch_user_db_from_update(update)
             self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
             if self.data in self.targets:
@@ -241,10 +244,6 @@ class BaseCallbackQuery:
                     )
                     raise
 
-        except UserAPIException as exc:
-            self.logger.debug(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
-            update.callback_query.answer(text=exc.message)
-
         except APIException as exc:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
             update.callback_query.answer(text=exc.message, show_alert=True)
@@ -253,10 +252,6 @@ class BaseCallbackQuery:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
             update.callback_query.answer(text=exc.message, show_alert=True)
             raise
-
-        except UserException as exc:
-            self.logger.debug(f"{type(exc).__name__}: {exc.message} (UserException)")
-            update.callback_query.answer(text=exc.message)
 
         except (IndexError, ValueError, TypeError, RuntimeError):
             update.callback_query.answer(
@@ -277,6 +272,8 @@ class BaseInlineQuery:
     def __init__(self, pattern: str):
         self.pattern = pattern
         self.logger = logging.getLogger("inline")
+        self.client = client.client
+        self.config = config.config
 
         registry.inline_queries[self.pattern] = self
 
@@ -295,7 +292,7 @@ class BaseInlineQuery:
 
         query = update.inline_query
         self.logger.debug(f"{type(self).__name__} by {query.from_user.name} with '{query.query}'")
-        SDK.patch_user_db_from_update(update)
+        self.client.patch_user_db_from_update(update)
         self.run(query)
 
     def get_result_id(self, *args) -> str:
@@ -377,6 +374,8 @@ class BaseInlineResult:
     def __init__(self, pattern: str):
         self.pattern = pattern
         self.logger = logging.getLogger("inline-result")
+        self.client = client.client
+        self.config = config.config
 
         registry.inline_results[self.pattern] = self
 
@@ -395,7 +394,7 @@ class BaseInlineResult:
 
         result = update.chosen_inline_result
         self.logger.debug(f"{type(self).__name__} by {result.from_user.name} with '{result.result_id}'")
-        SDK.patch_user_db_from_update(update)
+        self.client.patch_user_db_from_update(update)
         self.run(result, context.bot)
 
     def run(self, result: telegram.ChosenInlineResult, bot: telegram.Bot) -> None:

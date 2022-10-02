@@ -19,33 +19,34 @@ from .vouch import VouchCommand, VouchCallbackQuery
 from .zwegat import ZwegatCommand
 
 
-# In order to register all executors in the registry, we just
-# have to create an object of their corresponding class. The
-# constructors of the base classes care about adding the
-# specific executor object to the correct registry pool.
+def setup():
+    # In order to register all executors in the registry, we just
+    # have to create an object of their corresponding class. The
+    # constructors of the base classes care about adding the
+    # specific executor object to the correct registry pool.
 
-BalanceCommand()
-BlameCommand()
-ConsumeCommand()
-CommunismCommand()
-DataCommand()
-HelpCommand()
-HistoryCommand()
-PayCommand()
-RefundCommand()
-SendCommand()
-StartCommand()
-VouchCommand()
-ZwegatCommand()
+    BalanceCommand()
+    BlameCommand()
+    ConsumeCommand()
+    CommunismCommand()
+    DataCommand()
+    HelpCommand()
+    HistoryCommand()
+    PayCommand()
+    RefundCommand()
+    SendCommand()
+    StartCommand()
+    VouchCommand()
+    ZwegatCommand()
 
-AliasCallbackQuery()
-CommunismCallbackQuery()
-RefundCallbackQuery()
-SendCallbackQuery()
-StartCallbackQuery()
-VouchCallbackQuery()
+    AliasCallbackQuery()
+    CommunismCallbackQuery()
+    RefundCallbackQuery()
+    SendCallbackQuery()
+    StartCallbackQuery()
+    VouchCallbackQuery()
 
-ForwardInlineQuery(r"^\d+(\s?\S?)*")
-HelpInlineQuery(r"")
+    ForwardInlineQuery(r"^\d+(\s?\S?)*")
+    HelpInlineQuery(r"")
 
-ForwardInlineResult(r"^forward-\d+-\d+-\d+")
+    ForwardInlineResult(r"^forward-\d+-\d+-\d+")

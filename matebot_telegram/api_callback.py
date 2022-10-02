@@ -11,11 +11,10 @@ from typing import Awaitable, Callable, Optional
 import telegram
 import tornado.web
 
-import config
 from matebot_sdk import schemas
 from matebot_sdk.base import BaseCallbackDispatcher
 
-from . import util
+from . import config, util
 
 
 dispatcher: Optional["APICallbackDispatcher"] = None  # will be available at runtime
@@ -30,7 +29,13 @@ class APICallbackDispatcher(BaseCallbackDispatcher):
         global dispatcher
         dispatcher = self
 
+        self.register(
+            schemas.EventType.SERVER_STARTED,
+            lambda *_: self.logger.info("Core API server seems to be started now")
+        )
+
     def run_callback(self, func: CALLBACK_TYPE, event: schemas.Event, *args, **kwargs):
+        self.logger.debug(f"Handling callback for {event.event}: {func}")
         result = func(event, self.bot, self.logger, *args, **kwargs)
         if result is not None:
             if not inspect.isawaitable(result):

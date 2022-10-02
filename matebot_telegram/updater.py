@@ -29,7 +29,7 @@ class PatchedUpdater(telegram.ext.Updater):
         if not config.config.callback.enabled:
             self.logger.info("Callbacks have been disabled in the configuration file.")
             return
-        app = APICallbackApp(self.bot)
+        app = APICallbackApp()
         self.callback_server = app.listen(address=config.config.callback.address, port=config.config.callback.port)
         self.callback_server_thread = threading.Thread(
             target=tornado.ioloop.IOLoop.current().start,

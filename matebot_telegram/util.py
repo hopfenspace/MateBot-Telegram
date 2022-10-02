@@ -9,8 +9,8 @@ from typing import Any, Callable, List, Optional
 import requests
 import telegram.ext
 
+from . import client, shared_messages
 from .config import config
-from .shared_messages import shared_message_handler
 
 
 ASYNC_SLEEP_DURATION: float = 0.5
@@ -61,7 +61,7 @@ def safe_call(
 
 def send_auto_share_messages(
         bot: telegram.Bot,
-        share_type: str,
+        share_type: shared_messages.ShareType,
         share_id: int,
         text: str,
         logger: Optional[logging.Logger] = None,
@@ -72,12 +72,12 @@ def send_auto_share_messages(
 ) -> bool:
     logger = logger or _logger
     excluded = excluded or []
-    if share_type not in config["auto-forward"]:
+    if share_type.value not in config.auto_forward:
         return False
-    receivers = [*map(int, config["auto-forward"][share_type])]
+    receivers = [*map(int, config.auto_forward[share_type.value])]
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
-        if receiver in [m.chat_id for m in shared_message_handler.get_messages_of(share_type, share_id)] + excluded:
+        if receiver in [m.chat_id for m in client.client.shared_messages.get_messages(share_type, share_id)] + excluded:
             continue
         message = safe_call(
             lambda: bot.send_message(
@@ -95,14 +95,14 @@ def send_auto_share_messages(
             ),
             use_result=True
         )
-        shared_message_handler.add_message_by(share_type, share_id, message.chat_id, message.message_id)
+        client.client.shared_messages.add_message_by(share_type, share_id, message.chat_id, message.message_id)
         logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
     return True
 
 
 def update_all_shared_messages(
         bot: telegram.Bot,
-        share_type: str,
+        share_type: shared_messages.ShareType,
         share_id: int,
         text: str,
         logger: Optional[logging.Logger] = None,
@@ -110,10 +110,10 @@ def update_all_shared_messages(
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN
 ) -> bool:
     logger = logger or _logger
-    shared_messages = shared_message_handler.get_messages_of(share_type, share_id)
-    logger.debug(f"Found shared messages for {share_type} ({share_id}): {[s.to_dict() for s in shared_messages]}")
+    msgs = client.client.shared_messages.get_messages(share_type, share_id)
+    logger.debug(f"Found {len(msgs)} shared messages for {share_type} ({share_id})")
     success = True
-    for msg in shared_messages:
+    for msg in msgs:
         success = success and safe_call(
             lambda: bot.edit_message_text(
                 text=text,
@@ -147,7 +147,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
     logger = logging.getLogger("error")
     if update is None:
         logger.warning("Error handler called without Update object. Check for network/connection errors!")
-        token = config["token"]
+        token = config.token
         response = requests.get(f"https://api.telegram.org/bot{token}/getme")
         if response.status_code != 200:
             logger.error("Network check failed. Telegram API seems to be unreachable.")
@@ -175,7 +175,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
                 raise
             logger.info("A shortened error message has been emitted successfully.")
 
-    for receiver in config["chats"]["notification"]:
+    for receiver in config.chats.notification:
         send_to(
             context,
             receiver,
@@ -183,7 +183,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             None
         )
 
-    for receiver in config["chats"]["stacktrace"]:
+    for receiver in config.chats.stacktrace:
         send_to(
             context,
             receiver,
@@ -191,7 +191,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             "MarkdownV2"
         )
 
-    for receiver in config["chats"]["debugging"]:
+    for receiver in config.chats.debugging:
         extra = "No Update object found."
         if update is not None:
             extra = json.dumps(update.to_dict(), indent=2, sort_keys=True)

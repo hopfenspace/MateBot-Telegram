@@ -7,7 +7,7 @@ import logging.config
 from telegram.ext import Dispatcher, CommandHandler, CallbackQueryHandler, InlineQueryHandler
 from matebot_sdk.exceptions import APIConnectionException
 
-from matebot_telegram import client, config, registry, updater, util
+from matebot_telegram import api_callback, client, config, registry, updater, util
 from matebot_telegram.commands.handler import FilteredChosenInlineResultHandler
 
 
@@ -77,6 +77,7 @@ if __name__ == "__main__":
     logger.debug(f"Started event {util.event_thread_started}: {util.event_thread_started.is_set()}")
 
     try:
+        api_callback.APICallbackDispatcher(updater.bot)
         client.client = client.setup(updater.bot, config.config)
     except APIConnectionException as exc:
         logger.critical(

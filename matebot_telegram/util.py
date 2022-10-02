@@ -154,12 +154,18 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         else:
             logger.debug("Network check succeeded. Telegram API seems to be reachable.")
 
-    if not any(sys.exc_info()):
+    if not any(sys.exc_info()) and getattr(context, "error", None) is None:
         logger.error("Error handler called without an exception. Stack trace following as debug message...")
         logger.debug("".join(traceback.format_stack()))
         return
 
-    logger.exception("Something raised an unhandled exception, it will be sent to the developers")
+    cls, exc, tb = sys.exc_info() or (type(context.error), context.error, getattr(context.error, "__traceback__", None))
+    logger.exception(
+        f"Something raised an unhandled {cls} exception, it will be sent to the developers",
+        exc_info=context.error or True
+    )
+    if tb is None:
+        logger.error("Traceback information is missing")
 
     def send_to(env, rcv, text, parse_mode, extra_text=None) -> None:
         try:
@@ -179,7 +185,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         send_to(
             context,
             receiver,
-            f"Unhandled exception: {sys.exc_info()[1]}",
+            f"Unhandled exception: {exc}",
             None
         )
 
@@ -187,7 +193,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         send_to(
             context,
             receiver,
-            f"```\n{traceback.format_exc()}```",
+            f"```\n{traceback.format_exception(cls, exc, tb)}```",
             "MarkdownV2"
         )
 

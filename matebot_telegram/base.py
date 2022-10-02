@@ -5,7 +5,8 @@ MateBot command handling base library
 import asyncio
 import inspect
 import logging
-from typing import Awaitable, Callable, Dict, Optional
+import threading
+from typing import Awaitable, Callable, Dict, Optional, Tuple
 
 import telegram.ext
 
@@ -84,9 +85,22 @@ class BaseCommand:
 
         raise NotImplementedError("Overwrite the BaseCommand.run() method in a subclass")
 
+    def _run(self, values: Tuple[Namespace, telegram.Update, telegram.ext.CallbackContext]):
+        args, update, context = values
+        try:
+            util.execute_func(lambda: self.run(args, update), self.logger)
+
+        except APIConnectionException as exc:
+            self.logger.exception(f"API connectivity problem @ {type(self).__name__} ({exc.exc})")
+            update.effective_message.reply_text(f"I'm having networking problems. {exc.message}")
+
+        except APIException as exc:
+            self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)
+            update.effective_message.reply_text(f"The command couldn't be executed.\n{exc.message}")
+
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
-        Parse arguments of the incoming update and execute the .run() method
+        Parse arguments of the incoming update and execute the .run() method in a separate thread
 
         This method is the callback method used by telegram.CommandHandler.
         Note that this method also catches and handles ParsingErrors.
@@ -105,33 +119,14 @@ class BaseCommand:
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
             self.client.patch_user_db_from_update(update)
 
-            result = self.run(args, update)
-            if result is not None:
-                if not inspect.isawaitable(result):
-                    raise TypeError(f"'run' should return Optional[Awaitable[None]], but got {type(result)}")
-
-                try:
-                    asyncio.run_coroutine_threadsafe(result, loop=util.event_loop).result()
-                except Exception as exc:
-                    self.logger.warning(
-                        f"Unhandled exception from future of {result}: {type(exc).__name__}",
-                        exc_info=True
-                    )
-                    raise
-
         except err.ParsingError as exc:
             util.safe_call(
                 lambda: update.effective_message.reply_markdown(str(exc)),
                 lambda: update.effective_message.reply_text(str(exc))
             )
 
-        except APIConnectionException as exc:
-            self.logger.exception(f"API connectivity problem @ {type(self).__name__} ({exc.exc})")
-            update.effective_message.reply_text(f"I'm having networking problems. {exc.message}")
-
-        except APIException as exc:
-            self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)
-            update.effective_message.reply_text(f"The command couldn't be executed.\n{exc.message}")
+        else:
+            context.dispatcher.run_async(self._run, (args, update, context), update=update)
 
 
 class BaseCallbackQuery:
@@ -191,6 +186,20 @@ class BaseCallbackQuery:
 
         registry.callback_queries[self.pattern] = self
 
+    def _run(self, args: Tuple[Callable[[telegram.Update], Optional[Awaitable[None]]], telegram.Update]):
+        target, update = args
+        try:
+            util.execute_func(lambda: target(update), self.logger)
+
+        except APIException as exc:
+            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            update.callback_query.answer(text=exc.message, show_alert=True)
+
+        except APIConnectionException as exc:
+            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
+            update.callback_query.answer(text=exc.message, show_alert=True)
+            raise
+
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
         :param update: incoming Telegram update
@@ -230,35 +239,14 @@ class BaseCallbackQuery:
                     raise IndexError(f"No unambiguous callable found for: '{self.data}' ({type(self).__name__})")
                 target = self.targets[available[0]]
 
-            result = target(update)
-            if result is not None:
-                if not inspect.isawaitable(result):
-                    raise TypeError(f"{result} of {target} should be Optional[Awaitable[None]], but got {type(result)}")
-
-                try:
-                    asyncio.run_coroutine_threadsafe(result, loop=util.event_loop).result()
-                except Exception as exc:
-                    self.logger.warning(
-                        f"Unhandled exception from future of {result}: {type(exc).__name__}",
-                        exc_info=True
-                    )
-                    raise
-
-        except APIException as exc:
-            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
-            update.callback_query.answer(text=exc.message, show_alert=True)
-
-        except APIConnectionException as exc:
-            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
-            update.callback_query.answer(text=exc.message, show_alert=True)
-            raise
-
         except (IndexError, ValueError, TypeError, RuntimeError):
             update.callback_query.answer(
                 text="There was an error processing your request. You may file a bug report.",
                 show_alert=True
             )
             raise
+
+        context.dispatcher.run_async(self._run, (target, update), update=update)
 
 
 class BaseInlineQuery:

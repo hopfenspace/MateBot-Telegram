@@ -1,10 +1,15 @@
+"""
+MateBot telegram utility library
+"""
+
 import sys
 import json
 import asyncio
+import inspect
 import logging
 import threading
 import traceback
-from typing import Any, Callable, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 
 import requests
 import telegram.ext
@@ -176,8 +181,8 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             logger.exception(f"Error while sending logs to {rcv}!")
             try:
                 env.bot.send_message(rcv, "*An error has occurred, but it crashed the error handler!*")
-            except Exception as exc:
-                logger.critical(f"{type(exc).__name__} in the additional fallback error handler!", exc_info=True)
+            except Exception as e:
+                logger.critical(f"{type(e).__name__} in the additional fallback error handler!", exc_info=True)
                 raise
             logger.info("A shortened error message has been emitted successfully.")
 
@@ -193,7 +198,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         send_to(
             context,
             receiver,
-            f"```\n{traceback.format_exception(cls, exc, tb)}```",
+            f"```\n{traceback.format_exception(cls, exc, tb)}```" if tb else "Missing traceback information. See logs.",
             "MarkdownV2"
         )
 
@@ -204,7 +209,27 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         send_to(
             context,
             receiver,
-            f"```\n{traceback.format_exc()}```",
+            f"```\n{traceback.format_exception(cls, exc, tb)}```" if tb else "Missing traceback information. See logs.",
             "MarkdownV2",
             f"Extended debug information:\n```\n{extra}```"
         )
+
+
+def execute_func(func: Callable[[], Optional[Awaitable]], logger: logging.Logger):
+    """
+    Execute the given function or coroutine (on the target event loop in the later case) and await it
+    """
+
+    result = func()
+    if result is not None:
+        if not inspect.isawaitable(result):
+            raise TypeError(f"'run' should return Optional[Awaitable[None]], but got {type(result)}")
+
+        try:
+            asyncio.run_coroutine_threadsafe(result, loop=event_loop).result()
+        except Exception as exc:
+            logger.warning(
+                f"Unhandled exception from future of {result}: {type(exc).__name__}",
+                exc_info=True
+            )
+            raise

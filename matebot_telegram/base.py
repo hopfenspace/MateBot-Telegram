@@ -53,8 +53,6 @@ class BaseCommand:
         self.client = client.client
         self.config = config.config
 
-        # registry.commands[self.name] = self
-
     @property
     def usage(self) -> str:
         """
@@ -181,8 +179,6 @@ class BaseCallbackQuery:
         self.client = client.client
         self.config = config.config
 
-        # registry.callback_queries[self.pattern] = self
-
     def _run(self, args: Tuple[Callable[[telegram.Update], Optional[Awaitable[None]]], telegram.Update]):
         target, update = args
         try:
@@ -259,8 +255,6 @@ class BaseInlineQuery:
         self.logger = logging.getLogger("inline")
         self.client = client.client
         self.config = config.config
-
-        # registry.inline_queries[self.pattern] = self
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
@@ -362,8 +356,6 @@ class BaseInlineResult:
         self.client = client.client
         self.config = config.config
 
-        # registry.inline_results[self.pattern] = self
-
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
         :param update: incoming Telegram update
@@ -395,3 +387,30 @@ class BaseInlineResult:
         """
 
         raise NotImplementedError("Overwrite the BaseInlineQuery.run() method in a subclass")
+
+
+class BaseMessage:
+    """
+    Base class for all MateBot message handlers
+
+    :param prefix: unique name of the associated command or feature
+    :type prefix: str
+    """
+
+    def __init__(self, prefix: str):
+        self.prefix = prefix
+        self.logger = logging.getLogger("message")
+        self.client = client.client
+        self.config = config.config
+
+    def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
+        """
+        :param update: incoming Telegram update
+        :type update: telegram.Update
+        :param context: Telegram callback context
+        :type context: telegram.ext.CallbackContext
+        :return: None
+        :raises TypeError: when no inline result is attached to the Update object
+        """
+
+        raise NotImplementedError

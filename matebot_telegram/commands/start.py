@@ -4,10 +4,10 @@ MateBot command executor classes for /start
 
 import base64
 
-import telegram
+import telegram.ext
 
-from ..base import BaseCommand, BaseCallbackQuery
 from ..client import SDK
+from ..base import BaseCommand, BaseCallbackQuery, BaseMessage
 from ..parsing.util import Namespace
 
 
@@ -153,6 +153,7 @@ class StartCallbackQuery(BaseCallbackQuery):
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        selected_username = base64.b64decode(encoded_name.encode("ASCII")).decode("UTF-8")
-        await SDK.create_new_user(str(sender), selected_username)
-        update.callback_query.message.edit_text("Your account has been created. Use /help to show available commands.")
+
+class StartMessage(BaseMessage):
+    def __init__(self):
+        super().__init__("start")

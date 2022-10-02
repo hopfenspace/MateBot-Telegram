@@ -83,15 +83,15 @@ class BaseCommand:
     def _run(self, values: Tuple[Namespace, telegram.Update, telegram.ext.CallbackContext]):
         args, update, context = values
         try:
-            util.execute_func(lambda: self.run(args, update), self.logger)
+            util.execute_func(self.run, self.logger, args, update)
 
         except APIConnectionException as exc:
             self.logger.exception(f"API connectivity problem @ {type(self).__name__} ({exc.exc})")
-            update.effective_message.reply_text(f"I'm having networking problems. {exc.message}")
+            update.effective_message.reply_text("There are temporary networking problems. Please try again later.")
 
         except APIException as exc:
             self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)
-            update.effective_message.reply_text(f"The command couldn't be executed.\n{exc.message}")
+            update.effective_message.reply_text(exc.message)
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
@@ -114,14 +114,11 @@ class BaseCommand:
             self.logger.debug(f"Parsed {self.name}'s arguments: {args}")
             self.client.patch_user_db_from_update(update)
 
-        except err.ParsingError as exc:
-            util.safe_call(
-                lambda: update.effective_message.reply_markdown(str(exc)),
-                lambda: update.effective_message.reply_text(str(exc))
-            )
+        except err.MateBotException as exc:
+            update.effective_message.reply_text(str(exc))
 
         else:
-            context.dispatcher.run_async(self._run, (args, update, context), update=update)
+            self._run((args, update, context))
 
 
 class BaseCallbackQuery:
@@ -182,7 +179,7 @@ class BaseCallbackQuery:
     def _run(self, args: Tuple[Callable[[telegram.Update], Optional[Awaitable[None]]], telegram.Update]):
         target, update = args
         try:
-            util.execute_func(lambda: target(update), self.logger)
+            util.execute_func(target, self.logger, update)
 
         except APIException as exc:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
@@ -190,7 +187,18 @@ class BaseCallbackQuery:
 
         except APIConnectionException as exc:
             self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.exc}: {exc.exc.args}, {exc.details})")
-            update.callback_query.answer(text=exc.message, show_alert=True)
+            update.callback_query.answer(
+                text="There are temporary networking problems. Please try again later.",
+                show_alert=True
+            )
+            raise
+
+        except Exception as exc:
+            self.logger.warning(f"{type(exc).__name__}: {exc!s}")
+            update.callback_query.answer(
+                text="There was an error processing your request. You may file a bug report.",
+                show_alert=True
+            )
             raise
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
@@ -239,7 +247,7 @@ class BaseCallbackQuery:
             )
             raise
 
-        context.dispatcher.run_async(self._run, (target, update), update=update)
+        self._run((target, update))
 
 
 class BaseInlineQuery:

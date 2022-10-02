@@ -25,6 +25,8 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         self.bot = bot
         self.shared_messages = shared_messages.SharedMessageHandler()
 
+    get_new_session = staticmethod(persistence.get_new_session)
+
     @staticmethod
     def patch_user_db_from_update(update: telegram.Update):
         user = update.effective_user
@@ -72,22 +74,44 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                         f"No user found for the search term '{identifier}'. Please ensure "
                         f"you spelled it correctly and the user has used the bot in the past."
                     )
-        raise err.AmbiguousUserSpec(f"Multiple users found for '{identifier}'. Please ensure unambiguous specs.")
+        raise err.AmbiguousUserSpec(f"Multiple users found for '{identifier}'. Please ensure unambiguous usernames.")
+
+    async def sign_up_new_user(self, telegram_user: telegram.User, username: str) -> _User:
+        user = await super().create_app_user(username, str(telegram_user.id), True)
+        with self.get_new_session() as session:
+            session.add(persistence.TelegramUser(
+                telegram_id=telegram_user.id,
+                first_name=telegram_user.first_name,
+                last_name=telegram_user.last_name,
+                username=telegram_user.username,
+                user_id=user.id,
+            ))
+            session.commit()
+        return user
 
     async def get_core_user(self, identifier: Union[int, str, telegram.User]) -> _User:
+        pretty = None
         if isinstance(identifier, telegram.User):
+            pretty = identifier.username or identifier.first_name
             identifier = identifier.id
         if isinstance(identifier, str):
+            pretty = identifier
             identifier = self._lookup_telegram_identifier(identifier)
         users = await self.get_users_by_alias(alias=str(identifier), confirmed=True, active=True)
         if len(users) == 1:
             return users[0]
         users = await self.get_users_by_alias(alias=str(identifier), confirmed=False, active=True)
         if len(users) == 1:
-            raise err.UniqueUserNotFound(f"The user alias of {identifier} for {users[0].name} is not confirmed yet.")
+            raise err.UniqueUserNotFound(
+                f"The user alias for {users[0].name} is not confirmed yet. It can't be "
+                "used while the connection to the other MateBot apps wasn't verified."
+            )
         if len(users) == 0:
-            raise err.UniqueUserNotFound(f"No user alias was found for {identifier}. Please create a new alias first.")
-        raise err.UniqueUserNotFound(f"Multiple user aliases were found for {identifier}. Please file a bug report.")
+            raise err.UniqueUserNotFound(
+                f"No user was found as {pretty or identifier}. Make sure the username is correct "
+                "and the user recently used the bot. Try sending /start to the bot privately."
+            )
+        raise err.UniqueUserNotFound(f"Multiple users were found for {pretty or identifier}. Please file a bug report.")
 
 
 client: AsyncMateBotSDKForTelegram  # must be available at runtime; use the setup function below at early program stage

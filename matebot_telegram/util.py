@@ -215,18 +215,18 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
         )
 
 
-def execute_func(func: Callable[[], Optional[Awaitable]], logger: logging.Logger):
+def execute_func(func: Callable[..., Optional[Awaitable]], logger: logging.Logger, *args, **kwargs):
     """
     Execute the given function or coroutine (on the target event loop in the later case) and await it
     """
 
-    result = func()
+    result = func(*args, **kwargs)
     if result is not None:
         if not inspect.isawaitable(result):
             raise TypeError(f"'run' should return Optional[Awaitable[None]], but got {type(result)}")
 
         try:
-            asyncio.run_coroutine_threadsafe(result, loop=event_loop).result()
+            return asyncio.run_coroutine_threadsafe(result, loop=event_loop).result()
         except Exception as exc:
             logger.warning(
                 f"Unhandled exception from future of {result}: {type(exc).__name__}",

@@ -11,9 +11,8 @@ import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import registry, util
+from .. import client, err, registry, util
 from ..base import BaseCommand
-from ..client import SDK
 
 
 __amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
@@ -85,21 +84,13 @@ def user_type(arg: EntityString) -> schemas.User:
     """
 
     if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
-        name = str(arg.entity.user.id)
+        coroutine = client.client.get_core_user(arg.entity.user)
     elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
-        name = str(arg)
+        coroutine = client.client.get_core_user(str(arg))
     else:
-        raise ValueError('No user mentioned. Try with "@".')
+        raise err.ParsingError('No user mentioned. Try with "@".')
 
-    users = asyncio.run_coroutine_threadsafe(SDK.get_users_by_app_alias(name), loop=util.event_loop).result()
-    if len(users) == 0:
-        raise ValueError(
-            "Ambiguous username. Make sure the username is correct and the "
-            "user recently used the bot. Try sending /start to the bot privately."
-        )
-    if len(users) > 2:
-        raise ValueError("Ambiguous username. Please ensure the users talked to the bot recently.")
-    return users[0]
+    return asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()
 
 
 def command(arg: str) -> BaseCommand:
@@ -132,7 +123,7 @@ def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
 
     if arg.strip() == "?":
         return "?"
-    for consumable in asyncio.run_coroutine_threadsafe(SDK.get_consumables(), loop=util.event_loop).result():
+    for consumable in asyncio.run_coroutine_threadsafe(client.client.get_consumables(), loop=util.event_loop).result():
         if consumable.name.lower() == arg.lower():
             return consumable
     raise ValueError(f"{arg} is no known consumable")

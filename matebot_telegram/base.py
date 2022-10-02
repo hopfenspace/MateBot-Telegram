@@ -2,17 +2,14 @@
 MateBot command handling base library
 """
 
-import asyncio
-import inspect
 import logging
-import threading
 from typing import Awaitable, Callable, Dict, Optional, Tuple
 
 import telegram.ext
 
 from matebot_sdk.exceptions import APIException, APIConnectionException
 
-from . import client, config, err, registry, util
+from . import client, config, err, util
 from .parsing.parser import CommandParser
 from .parsing.util import Namespace
 
@@ -56,7 +53,7 @@ class BaseCommand:
         self.client = client.client
         self.config = config.config
 
-        registry.commands[self.name] = self
+        # registry.commands[self.name] = self
 
     @property
     def usage(self) -> str:
@@ -184,7 +181,7 @@ class BaseCallbackQuery:
         self.client = client.client
         self.config = config.config
 
-        registry.callback_queries[self.pattern] = self
+        # registry.callback_queries[self.pattern] = self
 
     def _run(self, args: Tuple[Callable[[telegram.Update], Optional[Awaitable[None]]], telegram.Update]):
         target, update = args
@@ -263,7 +260,7 @@ class BaseInlineQuery:
         self.client = client.client
         self.config = config.config
 
-        registry.inline_queries[self.pattern] = self
+        # registry.inline_queries[self.pattern] = self
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
@@ -365,7 +362,7 @@ class BaseInlineResult:
         self.client = client.client
         self.config = config.config
 
-        registry.inline_results[self.pattern] = self
+        # registry.inline_results[self.pattern] = self
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """

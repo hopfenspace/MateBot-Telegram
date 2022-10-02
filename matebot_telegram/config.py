@@ -41,6 +41,7 @@ class Configuration(_pydantic.BaseModel):
     ca_path: Optional[str]
     user_agent: Optional[str]
     token: str
+    workers: int
     callback: CallbackConfiguration
     auto_forward: AutoForwardConfiguration
     chats: ChatConfiguration

@@ -68,7 +68,7 @@ if __name__ == "__main__":
     logger = logging.getLogger("root")
 
     logger.info("Registering bot token with Updater...")
-    updater = updater.PatchedUpdater(config.config.token, workers=1)
+    updater = updater.PatchedUpdater(config.config.token, workers=config.config.workers)
 
     logger.debug("Starting event thread...")
     util.event_thread.start()

@@ -8,6 +8,7 @@
     "ca_path": "<Optional path to a CA file for TLS connections to the API server; empty string for system CA>",
     "user_agent": "<Optional specific user agent string used to query the API server; empty string for default>",
     "token": "<Telegram bot token>",
+    "workers": 1,
     "callback": {
         "enabled": false,
         "public_url": "<Public base URL of the callback server (reachable by the API server)>",
@@ -62,6 +63,12 @@
         "loggers": {
             "telegram.bot": {
                 "level": "INFO"
+            },
+            "urllib3": {
+                "level": "INFO"
+            },
+            "sqlalchemy.engine.Engine": {
+                "level": "WARNING"
             }
         },
         "root": {

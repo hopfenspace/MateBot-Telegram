@@ -6,9 +6,8 @@ import time
 
 import telegram
 
-from .. import util
+from .. import err, util
 from ..base import BaseCommand
-from ..client import SDK
 from ..parsing.util import Namespace
 
 
@@ -38,50 +37,62 @@ class DataCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        try:
+            user = await self.client.get_core_user(update.effective_message.from_user)
+        except err.MateBotException as exc:
+            update.message.reply_text(str(exc))
+            return
 
         if user.external:
             relations = "Voucher user: None"
             if user.voucher_id is not None:
-                voucher = await SDK.get_user_by_id(user.voucher_id)
-                relations = f"Voucher user: {SDK.get_username(voucher)}"
+                voucher = await self.client.get_user(user.voucher_id)
+                relations = f"Voucher user: {voucher.name}"
 
         else:
-            all_users = await SDK.get_users()
-            debtors = [SDK.get_username(u) for u in all_users if u.voucher_id == user.id]
+            debtors = list(map(lambda u: u.name, await self.client.get_users(voucher_id=user.id, active=True)))
             relations = f"Debtor user{'s' if len(debtors) != 1 else ''}: {', '.join(debtors) or 'None'}"
 
-        app = await SDK.application
-        apps = await SDK.get_applications()
-        other_aliases = [
-            f'{a.app_username}@{[c for c in apps if c.id == a.application_id][0].name}'
-            for a in user.aliases if a.application_id != app.id
+        app = await self.client.application
+        apps = await self.client.get_applications()
+        confirmed_aliases = [
+            f'{a.username}@{[c for c in apps if c.id == a.application_id][0].name}'
+            for a in user.aliases if a.application_id != app.id and a.confirmed
         ]
-        votes = await SDK.get_votes()
-        my_votes = [v for v in votes if v.user_id == user.id]
-        created_communisms = await SDK.get_communisms_by_creator(user)
-        created_refunds = await SDK.get_refunds_by_creator(user)
+        unconfirmed_aliases = [
+            f'{a.username}@{[c for c in apps if c.id == a.application_id][0].name}'
+            for a in user.aliases if a.application_id != app.id and not a.confirmed
+        ]
+        votes = await self.client.get_votes(user_id=user.id)
+        created_communisms = await self.client.get_communisms(creator_id=user.id)
+        created_refunds = await self.client.get_refunds(creator_id=user.id)
+        relevant_polls = await self.client.get_polls(user_id=user.id)
         open_created_communisms = [c for c in created_communisms if c.active]
         open_created_refunds = [r for r in created_refunds if r.active]
+        open_relevant_polls = [p for p in relevant_polls if p.active]
+        transactions = list(sorted(await self.client.get_transactions(member_id=user.id), key=lambda t: t.timestamp))
+        last_transaction = (transactions and time.asctime(time.localtime(transactions[0].timestamp))) or None
 
         result = (
             f"Overview over currently stored data for {user.name}:\n"
             f"\n```\n"
             f"User ID: {user.id}\n"
             f"Telegram ID: {update.effective_message.from_user.id}\n"
-            f"Username: {user.name}\n"
+            f"Global username: {user.name}\n"
             f"App name: {update.effective_message.from_user.username}\n"
-            f"Balance: {user.balance / 100 :.2f}€\n"
-            f"Permissions: {user.permission}\n"
+            f"App alias: {update.effective_message.from_user.id}\n"
+            f"Confirmed aliases: {', '.join(confirmed_aliases) or 'None'}\n"
+            f"Unconfirmed (disabled) aliases: {', '.join(unconfirmed_aliases) or 'None'}\n\n"
+            f"Balance: {self.client.format_balance(user)}\n"
+            f"Extended permissions: {user.permission}\n"
             f"External user: {user.external}\n"
             f"{relations}\n"
             f"Created communisms: {len(created_communisms)} ({len(open_created_communisms)} open)\n"
             f"Created refunds: {len(created_refunds)} ({len(open_created_refunds)} open)\n"
-            f"Votes in polls: {len(my_votes)}\n"
+            f"Relevant polls: {len(relevant_polls)} ({len(open_relevant_polls)} open)\n"
+            f"Total votes in refunds and polls: {len(votes)}\n"
             f"Account created: {time.asctime(time.localtime(user.created))}\n"
-            f"Last transaction: {time.asctime(time.localtime(user.accessed))}\n"
-            f"App aliases: {', '.join([f'{a.app_username}' for a in user.aliases if a.application_id == app.id])}\n"
-            f"Other aliases: {', '.join(other_aliases) or 'None'}"
+            f"Last transaction: {last_transaction}\n"
             f"```\n\n"
             f"Use the /history command to see your transaction log."
         )

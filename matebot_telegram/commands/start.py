@@ -47,6 +47,9 @@ class StartCommand(BaseCommand):
             return
         except err.UniqueUserNotFound:
             pass
+        except err.MateBotException as exc:
+            update.message.reply_text(str(exc))
+            return
 
         update.message.reply_text(
             "It looks like you are a new user. Did you already use the MateBot in some other application?",
@@ -135,7 +138,7 @@ class StartCallbackQuery(BaseCallbackQuery):
             return await self.set_name(update)
 
         user = await self.client.sign_up_new_user(update.callback_query.from_user, username)
-        self.logger.info(f"Added new app user: {user} (telegram ID {sender})")
+        self.logger.info(f"Added new app user: {user.name} / {user.id} (telegram ID {sender})")
         update.callback_query.message.edit_text("Your account has been created. Use /help to show available commands.")
 
     async def abort(self, update: telegram.Update):

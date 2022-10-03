@@ -14,7 +14,16 @@ from .parsing.parser import CommandParser
 from .parsing.util import Namespace
 
 
-class BaseCommand:
+class _CommonBase:
+    client: client.AsyncMateBotSDKForTelegram
+    config: config.Configuration
+
+    def __init__(self):
+        self.client: client.AsyncMateBotSDKForTelegram = client.client
+        self.config: config.Configuration = config.config
+
+
+class BaseCommand(_CommonBase):
     """
     Base class for all MateBot commands executed by the CommandHandler
 
@@ -48,13 +57,12 @@ class BaseCommand:
     AVAILABLE_COMMANDS: ClassVar[Dict[str, "BaseCommand"]] = {}
 
     def __init__(self, name: str, description: str, usage: Optional[str] = None):
+        super().__init__()
         self.name = name
         self._usage = usage
         self.description = description
         self.parser = CommandParser(self.name)
         self.logger = logging.getLogger("command")
-        self.client = client.client
-        self.config = config.config
 
         if type(self).ENABLE_HELP:
             BaseCommand.AVAILABLE_COMMANDS[self.name] = self
@@ -127,7 +135,7 @@ class BaseCommand:
             self._run((args, update, context))
 
 
-class BaseCallbackQuery:
+class BaseCallbackQuery(_CommonBase):
     """
     Base class for all MateBot callback queries executed by the CallbackQueryHandler
 
@@ -171,6 +179,7 @@ class BaseCallbackQuery:
             pattern: str,
             targets: Dict[str, Callable[[telegram.Update], Optional[Awaitable[None]]]]
     ):
+        super().__init__()
         if not isinstance(targets, dict):
             raise TypeError("Expected dict or None")
 
@@ -179,7 +188,7 @@ class BaseCallbackQuery:
         self.data = None
         self.targets = targets
         self.logger = logging.getLogger("callback")
-        self.client = client.client
+        self.client: client.AsyncMateBotSDKForTelegram = client.client
         self.config = config.config
 
     def _run(self, args: Tuple[Callable[[telegram.Update], Optional[Awaitable[None]]], telegram.Update]):
@@ -256,7 +265,7 @@ class BaseCallbackQuery:
         self._run((target, update))
 
 
-class BaseInlineQuery:
+class BaseInlineQuery(_CommonBase):
     """
     Base class for all MateBot inline queries executed by the InlineQueryHandler
 
@@ -265,9 +274,10 @@ class BaseInlineQuery:
     """
 
     def __init__(self, pattern: str):
+        super().__init__()
         self.pattern = pattern
         self.logger = logging.getLogger("inline")
-        self.client = client.client
+        self.client: client.AsyncMateBotSDKForTelegram = client.client
         self.config = config.config
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
@@ -356,7 +366,7 @@ class BaseInlineQuery:
         raise NotImplementedError("Overwrite the BaseInlineQuery.run() method in a subclass")
 
 
-class BaseInlineResult:
+class BaseInlineResult(_CommonBase):
     """
     Base class for all MateBot inline query results executed by the ChosenInlineResultHandler
 
@@ -365,9 +375,10 @@ class BaseInlineResult:
     """
 
     def __init__(self, pattern: str):
+        super().__init__()
         self.pattern = pattern
         self.logger = logging.getLogger("inline-result")
-        self.client = client.client
+        self.client: client.AsyncMateBotSDKForTelegram = client.client
         self.config = config.config
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
@@ -403,7 +414,7 @@ class BaseInlineResult:
         raise NotImplementedError("Overwrite the BaseInlineQuery.run() method in a subclass")
 
 
-class BaseMessage:
+class BaseMessage(_CommonBase):
     """
     Base class for all MateBot message handlers
 
@@ -412,9 +423,10 @@ class BaseMessage:
     """
 
     def __init__(self, prefix: Optional[str]):
+        super().__init__()
         self.prefix = prefix
         self.logger = logging.getLogger("message")
-        self.client = client.client
+        self.client: client.AsyncMateBotSDKForTelegram = client.client
         self.config = config.config
 
     def run(self, message: telegram.Message, context: telegram.ext.CallbackContext) -> Optional[Awaitable[None]]:

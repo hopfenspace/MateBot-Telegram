@@ -27,6 +27,12 @@ class UniqueUserNotFound(MateBotException):
     """
 
 
+class UserNotVerified(MateBotException):
+    """
+    Exception raised when a used user alias is not yet verified
+    """
+
+
 class NoUserFound(MateBotException):
     """
     Exception raised when no user is found for a given spec, like a username or mention

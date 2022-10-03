@@ -3,10 +3,9 @@ MateBot command executor classes for /blame
 """
 
 import telegram
-from matebot_sdk.base import PermissionLevel
 
 from ..base import BaseCommand
-from ..client import SDK
+from ..parsing.types import natural as natural_type
 from ..parsing.util import Namespace
 
 
@@ -23,6 +22,7 @@ class BlameCommand(BaseCommand):
             "settle their debts, e.g. by buying stuff like new bottle crates. "
             "This command can only be executed by internal users."
         )
+        self.parser.add_argument("count", default=1, type=natural_type, nargs="?")
 
     async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
@@ -33,19 +33,13 @@ class BlameCommand(BaseCommand):
         :return: None
         """
 
-        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_INTERNAL, "blame")
-        if not permission_check[0]:
-            update.effective_message.reply_text(permission_check[1])
-            return
+        user = await self.client.get_core_user(update.effective_message.from_user)
+        debtors = self.client.find_sponsors(user, args.count)
 
-        users = await SDK.get_users()
-        min_balance = min(users, key=lambda u: u.balance).balance
-        debtors = [user for user in users if user.balance <= min_balance and user.balance < 0]
         if len(debtors) == 0:
             msg = "Good news! No one has to be blamed, all users have positive balances!"
         elif len(debtors) == 1:
-            msg = f"The user with the highest debt is:\n{SDK.get_username(debtors[0])}"
+            msg = f"The user with the highest debt is:\n{debtors[0].name}"
         else:
-            msg = f"The users with the highest debts are:\n{', '.join(map(SDK.get_username, debtors))}"
+            msg = f"The users with the highest debts are:\n{', '.join(map(lambda u: u.name, debtors))}"
         update.effective_message.reply_text(msg)

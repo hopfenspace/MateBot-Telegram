@@ -8,9 +8,8 @@ from typing import Optional
 import telegram
 from matebot_sdk import exceptions, schemas
 
-from .. import registry, util
+from .. import err, util
 from ..base import BaseCommand, BaseInlineQuery
-from ..client import SDK
 from ..parsing.types import command as command_type
 from ..parsing.util import Namespace
 
@@ -25,7 +24,8 @@ class HelpCommand(BaseCommand):
             "help",
             "The `/help` command prints the help page for any "
             "command. If no argument is passed, it will print its "
-            "usage and a list of all available commands."
+            "usage and a list of all available commands.",
+            "/help [command]"
         )
 
         self.parser.add_argument("command", type=command_type, nargs="?")
@@ -43,15 +43,15 @@ class HelpCommand(BaseCommand):
             msg = self.get_help_for_command(args.command)
         else:
             try:
-                user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-            except exceptions.APIConnectionException:
-                msg = self.get_help_usage(registry.commands, self.usage, None)
+                user = await self.client.get_core_user(update.effective_message.from_user)
+            except (err.MateBotException, exceptions.APIConnectionException):
+                msg = self.get_help_usage(self.usage, None)
                 util.safe_call(
                     lambda: update.effective_message.reply_markdown(msg),
                     lambda: update.effective_message.reply_text(msg)
                 )
                 raise
-            msg = self.get_help_usage(registry.commands, self.usage, user)
+            msg = self.get_help_usage(self.usage, user)
 
         util.safe_call(
             lambda: update.effective_message.reply_markdown(msg),
@@ -59,16 +59,10 @@ class HelpCommand(BaseCommand):
         )
 
     @staticmethod
-    def get_help_usage(
-            commands: dict,
-            usage: str,
-            user: Optional[schemas.User] = None
-    ) -> str:
+    def get_help_usage(usage: str, user: Optional[schemas.User] = None) -> str:
         """
         Retrieve the help message from the help command without arguments
 
-        :param commands: dictionary of registered commands, see :mod:`matebot_telegram.registry`
-        :type commands: dict
         :param usage: usage string of the help command
         :type usage: str
         :param user: optional User who issued the help command
@@ -77,8 +71,8 @@ class HelpCommand(BaseCommand):
         :rtype: str
         """
 
-        command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(commands.keys())))
-        msg = f"{usage}\n\nList of commands:\n\n{command_list}"
+        command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(BaseCommand.AVAILABLE_COMMANDS.keys())))
+        msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n\n{command_list}"
 
         if user and not user.active:
             msg += "\n\nYour user account has been disabled. You're not allowed to interact with the bot."
@@ -94,6 +88,9 @@ class HelpCommand(BaseCommand):
                     "do this, the internal user needs to execute `/vouch "
                     "<your username>`. Afterwards, you may use this bot."
                 )
+
+        elif user and user.privilege >= user.privilege.PERMITTED:
+            msg += "\n\nYou have been granted extended voting permissions. With great power comes great responsibility."
 
         return msg
 
@@ -138,10 +135,10 @@ class HelpInlineQuery(BaseInlineQuery):
         :rtype: typing.Optional[telegram.InlineQueryResult]
         """
 
-        if command not in registry.commands:
+        if command not in BaseCommand.AVAILABLE_COMMANDS:
             return
 
-        text = HelpCommand.get_help_for_command(registry.commands[command])
+        text = HelpCommand.get_help_for_command(BaseCommand.AVAILABLE_COMMANDS[command])
         return self.get_result(f"Help on /{command}", text, parse_mode=telegram.ParseMode.MARKDOWN)
 
     def get_help(self) -> telegram.InlineQueryResult:
@@ -174,7 +171,7 @@ class HelpInlineQuery(BaseInlineQuery):
         """
 
         first_word = query.query.split(" ")[0]
-        if first_word.lower() in registry.commands:
+        if first_word.lower() in BaseCommand.AVAILABLE_COMMANDS:
             query.answer([self.get_command_help(first_word.lower())])
         else:
             query.answer([self.get_help()])

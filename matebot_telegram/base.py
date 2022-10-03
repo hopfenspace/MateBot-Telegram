@@ -3,7 +3,7 @@ MateBot command handling base library
 """
 
 import logging
-from typing import Awaitable, Callable, Dict, Optional, Tuple
+from typing import Awaitable, Callable, ClassVar, Dict, Optional, Tuple
 
 import telegram.ext
 
@@ -44,6 +44,9 @@ class BaseCommand:
     :type usage: Optional[str]
     """
 
+    ENABLE_HELP: ClassVar[bool] = True
+    AVAILABLE_COMMANDS: ClassVar[Dict[str, "BaseCommand"]] = {}
+
     def __init__(self, name: str, description: str, usage: Optional[str] = None):
         self.name = name
         self._usage = usage
@@ -52,6 +55,9 @@ class BaseCommand:
         self.logger = logging.getLogger("command")
         self.client = client.client
         self.config = config.config
+
+        if type(self).ENABLE_HELP:
+            BaseCommand.AVAILABLE_COMMANDS[self.name] = self
 
     @property
     def usage(self) -> str:
@@ -405,11 +411,27 @@ class BaseMessage:
     :type prefix: str
     """
 
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: Optional[str]):
         self.prefix = prefix
         self.logger = logging.getLogger("message")
         self.client = client.client
         self.config = config.config
+
+    def run(self, message: telegram.Message, context: telegram.ext.CallbackContext) -> Optional[Awaitable[None]]:
+        """
+        Perform handler-specific actions
+
+        This method should be overwritten in actual handlers to perform the desired action.
+
+        :param message: incoming effective Telegram message which was filtered to contain a reply to a bot message
+        :type message: telegram.Message
+        :param context: Telegram callback context
+        :type context: telegram.ext.CallbackContext
+        :return: Optional[Awaitable[None]]
+        :raises NotImplementedError: because this method should be overwritten by subclasses
+        """
+
+        raise NotImplementedError("Overwrite the BaseMessage.run() method in a subclass")
 
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
@@ -421,4 +443,6 @@ class BaseMessage:
         :raises TypeError: when no inline result is attached to the Update object
         """
 
-        raise NotImplementedError
+        msg = update.effective_message
+        self.logger.debug(f"{type(self).__name__} by {msg.from_user.name}: '{msg.text}'")
+        util.execute_func(self.run, self.logger, msg, context)

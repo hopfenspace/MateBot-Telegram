@@ -116,3 +116,16 @@ class SharedMessage(Base):
 
     def __repr__(self) -> str:
         return f"SharedMessage(id={self.id}, share_type={self.share_type}, share_id={self.share_id})"
+
+
+class RegistrationProcess(Base):
+    """
+    Model representing the sign-up & registration process of the bot
+    """
+
+    __tablename__ = "registration_processes"
+
+    telegram_id: int = Column(Integer, nullable=False, primary_key=True, unique=True)
+    application_id: int = Column(Integer, nullable=False)
+    selected_username: str = Column(String(255), nullable=True)
+    core_user_id: int = Column(Integer, nullable=True)

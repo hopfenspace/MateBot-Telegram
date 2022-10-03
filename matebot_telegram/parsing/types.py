@@ -11,7 +11,7 @@ import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import client, err, registry, util
+from .. import client, err, util
 from ..base import BaseCommand
 
 
@@ -105,7 +105,7 @@ def command(arg: str) -> BaseCommand:
     """
 
     try:
-        return registry.commands[arg.lower()]
+        return BaseCommand.AVAILABLE_COMMANDS[arg.lower()]
     except KeyError:
         raise ValueError(f"{arg} is an unknown command")
 

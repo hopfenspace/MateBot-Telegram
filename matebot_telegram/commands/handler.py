@@ -23,8 +23,8 @@ class FilteredChosenInlineResultHandler(telegram.ext.InlineQueryHandler):
     :type pattern: typing.Union[str, re.Pattern]
     """
 
-    def __init__(self, callback: typing.Callable, pattern: typing.Union[str, re.Pattern] = None):
-        super().__init__(callback, pattern=pattern)
+    def __init__(self, callback: typing.Callable, pattern: typing.Union[str, re.Pattern] = None, **kwargs):
+        super().__init__(callback, pattern=pattern, **kwargs)
 
     def check_update(self, update: telegram.Update) -> typing.Union[bool, re.Match]:
         """

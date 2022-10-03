@@ -25,7 +25,9 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         self.bot = bot
         self.shared_messages = shared_messages.SharedMessageHandler()
 
-    get_new_session = staticmethod(persistence.get_new_session)
+    @staticmethod
+    def get_new_session() -> persistence.Session:
+        return persistence.get_new_session()
 
     @staticmethod
     def format_balance(balance_or_user: Union[int, float, _User]):
@@ -93,6 +95,9 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                 username=telegram_user.username,
                 user_id=user.id,
             ))
+            record = session.query(persistence.RegistrationProcess).get(telegram_user.id)
+            if record is not None:
+                session.delete(record)
             session.commit()
         return user
 

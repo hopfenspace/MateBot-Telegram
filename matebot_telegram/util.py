@@ -199,7 +199,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             context,
             receiver,
             f"```\n{traceback.format_exception(cls, exc, tb)}```" if tb else "Missing traceback information. See logs.",
-            "MarkdownV2"
+            "Markdown"
         )
 
     for receiver in config.chats.debugging:
@@ -210,7 +210,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             context,
             receiver,
             f"```\n{traceback.format_exception(cls, exc, tb)}```" if tb else "Missing traceback information. See logs.",
-            "MarkdownV2",
+            "Markdown",
             f"Extended debug information:\n```\n{extra}```"
         )
 

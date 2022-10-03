@@ -2,12 +2,10 @@
 MateBot command executor classes for /start
 """
 
-import base64
-
 import telegram.ext
 
-from ..client import SDK
-from ..base import BaseCommand, BaseCallbackQuery, BaseMessage
+from .. import err, persistence
+from ..base import BaseCommand, BaseCallbackQuery
 from ..parsing.util import Namespace
 
 
@@ -43,10 +41,12 @@ class StartCommand(BaseCommand):
             update.message.reply_text("This command should be executed in private chat.")
             return
 
-        users = await SDK.get_users_by_app_alias(str(sender.id))
-        if len(users) > 0:
+        try:
+            await self.client.get_core_user(sender)
             update.message.reply_text("You are already registered. Using this command twice has no means.")
             return
+        except err.UniqueUserNotFound:
+            pass
 
         update.message.reply_text(
             "It looks like you are a new user. Did you already use the MateBot in some other application?",
@@ -65,8 +65,10 @@ class StartCallbackQuery(BaseCallbackQuery):
     def __init__(self):
         super().__init__("start", "^start", {
             "init": self.init,
-            "use-username": self.use_username,
-            "select-username": self.select_username,
+            "register": self.register,
+            "abort": self.abort,
+            "connect": self.connect,
+            "set-name": self.set_name,
             "select-app": self.select_app
         })
 
@@ -76,16 +78,31 @@ class StartCallbackQuery(BaseCallbackQuery):
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        other_apps = [app for app in await SDK.get_applications() if app.id != (await SDK.application).id]
+        other_apps = [app for app in await self.client.get_applications() if app.name != self.client.app_name]
 
         if selection == "new" or len(other_apps) == 0:
+            from_user = update.callback_query.from_user
+            usernames = [
+                e for e in {from_user.username, from_user.first_name, from_user.full_name}
+                if not (await self.client.get_users(name=e, active=True))
+            ]
+            if not usernames:
+                self.data = f"start set-name {sender}"
+                await self.set_name(update)
+                return
+
+            def get_button(name: str) -> list:
+                return [
+                    telegram.InlineKeyboardButton(f"USE '{name}'", callback_data=f"start register {sender} {name}")
+                ]
+
             update.callback_query.message.edit_text(
-                "Do you want to set a username which will be used across all MateBot applications? "
-                "This is highly recommended, since otherwise your numeric ID will be used as username.",
-                reply_markup=telegram.InlineKeyboardMarkup([[
-                    telegram.InlineKeyboardButton("YES", callback_data=f"start use-username {sender} yes"),
-                    telegram.InlineKeyboardButton("NO", callback_data=f"start use-username {sender} no")
-                ]])
+                "Do you want to use your current username across all MateBot applications? You can "
+                "alternatively sign up with a custom username, which will be used across all MateBot apps.",
+                reply_markup=telegram.InlineKeyboardMarkup(
+                    [get_button(name) for name in usernames]
+                    + [[telegram.InlineKeyboardButton("GET A NEW NAME", callback_data=f"start set-name {sender}")]]
+                )
             )
 
         elif selection == "existing":
@@ -101,37 +118,67 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError(f"Unknown option {selection!r}")
 
-    async def use_username(self, update: telegram.Update):
-        _, sender, selection = self.data.split(" ")
+    async def register(self, update: telegram.Update):
+        _, sender, *selection = self.data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        if selection == "yes":
-            def encode(s: str) -> str:
-                return base64.b64encode(s.encode("UTF-8")).decode("ASCII")
-            from_user = update.callback_query.from_user
-            keyboard = [
-                [telegram.InlineKeyboardButton(
-                    name,
-                    callback_data=f"start select-username {sender} {encode(name)}"
-                )]
-                for name in [from_user.username, from_user.first_name, from_user.full_name]
-                if name is not None
-            ]
-            update.callback_query.message.edit_text(
-                "Which username do you want to use?",
-                reply_markup=telegram.InlineKeyboardMarkup(keyboard)
-            )
+        if not selection:
+            self.data = f"set-name {sender}"
+            return await self.set_name(update)
 
-        elif selection == "no":
-            await SDK.create_new_user(str(sender), None)
-            update.callback_query.message.edit_text(
-                "Your account has been created. Use /help to show available commands."
-            )
+        username = " ".join(selection)
+        if await self.client.get_users(name=username):
+            update.callback_query.answer(f"Sorry, the username '{username}' is not available.", show_alert=True)
+            self.data = f"set-name {sender}"
+            return await self.set_name(update)
 
-        else:
-            raise ValueError(f"Unknown option {selection!r}")
+        user = await self.client.sign_up_new_user(update.callback_query.from_user, username)
+        self.logger.info(f"Added new app user: {user} (telegram ID {sender})")
+        update.callback_query.message.edit_text("Your account has been created. Use /help to show available commands.")
+
+    async def abort(self, update: telegram.Update):
+        _, sender = self.data.split(" ")
+        sender = int(sender)
+        if update.callback_query.from_user.id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        with self.client.get_new_session() as session:
+            record = session.query(persistence.RegistrationProcess).get(sender)
+            if record is not None:
+                session.delete(record)
+                session.commit()
+
+        update.callback_query.message.edit_text("You have aborted the registration process. Use /start to begin.")
+
+    async def connect(self, update: telegram.Update):
+        _, sender = self.data.split(" ")
+        sender = int(sender)
+        if update.callback_query.from_user.id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        # TODO: Connect existing accounts
+        raise NotImplementedError
+
+    async def set_name(self, update: telegram.Update):
+        _, sender = self.data.split(" ")
+        sender = int(sender)
+        if update.callback_query.from_user.id != sender:
+            raise ValueError("Wrong Telegram ID")
+
+        with self.client.get_new_session() as session:
+            record = session.query(persistence.RegistrationProcess).get(sender)
+            if record is not None:
+                record.application_id = -1
+            else:
+                record = persistence.RegistrationProcess(telegram_id=sender, application_id=-1)
+            session.add(record)
+            session.commit()
+
+            update.callback_query.message.edit_text(
+                "Which username to you want to use for your account? Please reply directly to this message."
+            )
 
     async def select_app(self, update: telegram.Update):
         _, sender, app_id = self.data.split(" ")
@@ -142,18 +189,23 @@ class StartCallbackQuery(BaseCallbackQuery):
 
         if app_id == -1:
             self.data = f"init {sender} new"
-            await self.init(update)
-            return
+            return await self.init(update)
 
-        raise NotImplementedError
+        apps = await self.client.get_applications(id=app_id)
+        if not apps or len(apps) != 1 or apps[0].name == self.client.app_name:
+            raise ValueError("Expected to find one app but this app")
 
-    async def select_username(self, update: telegram.Update):
-        _, sender, encoded_name = self.data.split(" ")
-        sender = int(sender)
-        if update.callback_query.from_user.id != sender:
-            raise ValueError("Wrong Telegram ID")
+        with self.client.get_new_session() as session:
+            record = session.query(persistence.RegistrationProcess).get(sender)
+            if record is not None:
+                record.application_id = app_id
+            else:
+                record = persistence.RegistrationProcess(telegram_id=sender, application_id=app_id)
+            session.add(record)
+            session.commit()
 
-
-class StartMessage(BaseMessage):
-    def __init__(self):
-        super().__init__("start")
+            update.callback_query.message.edit_text(
+                "What's the username you have used across the MateBot instances? "
+                "It's required to connect your new account with the existing one. "
+                "Please reply to this message directly."
+            )

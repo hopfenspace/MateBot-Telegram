@@ -90,7 +90,7 @@ class TelegramUser(Base):
     __tablename__ = "telegram_users"
 
     telegram_id: int = Column(Integer, nullable=False, primary_key=True, unique=True)
-    user_id: int = Column(Integer, nullable=True, unique=True)
+    user_id: int = Column(Integer, nullable=False, unique=True)
     first_name: str = Column(String(2048), nullable=False)
     last_name: str = Column(String(2048), nullable=True)
     username: str = Column(String(2048), nullable=True)

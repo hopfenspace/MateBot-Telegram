@@ -37,7 +37,7 @@ class StartCommand(BaseCommand):
         if sender.is_bot:
             return
 
-        if update.message.chat.type != "private":
+        if update.message.chat.type != telegram.Chat.PRIVATE:
             update.message.reply_text("This command should be executed in private chat.")
             return
 
@@ -161,8 +161,24 @@ class StartCallbackQuery(BaseCallbackQuery):
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        # TODO: Connect existing accounts
-        raise NotImplementedError
+        with self.client.get_new_session() as session:
+            registration: persistence.RegistrationProcess = session.query(persistence.RegistrationProcess).get(sender)
+            if registration is None:
+                update.callback_query.message.edit_text("This feature can't be used, use /start to begin registration.")
+                return
+            if (registration.application_id and registration.application_id == -1) or registration.core_user_id is None:
+                update.callback_query.message.edit_text("Connecting with no user selected account is not supported.")
+                return
+            user_id = registration.core_user_id
+
+        user = await self.client.sign_up_as_alias(update.callback_query.from_user, user_id)
+        self.logger.info(f"Added new alias for user: {user.name} / {user.id} (telegram ID {sender})")
+        update.callback_query.message.edit_text(
+            "Your account has been connected. Use /help to show available commands.\n\n"
+            "Note that you can't use the application at the moment, because this application alias "
+            "must be confirmed by the other application. Login into the other app and use the "
+            f"confirmation features to confirm the alias '{sender}' for app '{self.client.app_name}'."
+        )
 
     async def set_name(self, update: telegram.Update):
         _, sender = self.data.split(" ")

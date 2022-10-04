@@ -7,11 +7,10 @@ import time
 import tempfile
 
 import telegram
-from matebot_sdk import schemas
+from matebot_sdk.schemas import Transaction
 
 from .. import util
 from ..base import BaseCommand
-from ..client import SDK
 from ..parsing.types import natural as natural_type
 from ..parsing.util import Namespace
 
@@ -61,8 +60,7 @@ class HistoryCommand(BaseCommand):
         else:
             await self._handle_export(args, update)
 
-    @staticmethod
-    async def _handle_export(args: Namespace, update: telegram.Update) -> None:
+    async def _handle_export(self, args: Namespace, update: telegram.Update) -> None:
         """
         Handle the request to export the full transaction log of a user
 
@@ -77,11 +75,11 @@ class HistoryCommand(BaseCommand):
             update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        transactions = await SDK.get_transactions_of_user(user)
+        user = await self.client.get_core_user(update.effective_message.from_user)
+        transactions = await self.client.get_transactions(member_id=user.id)
 
         if args.export == "json":
-            logs = [t.json() for t in transactions]
+            logs = [t.dict() for t in transactions]
             if len(logs) == 0:
                 update.effective_message.reply_text("You don't have any registered transactions yet.")
                 return
@@ -122,8 +120,7 @@ class HistoryCommand(BaseCommand):
             #         )
             #     )
 
-    @staticmethod
-    async def _handle_report(args: Namespace, update: telegram.Update) -> None:
+    async def _handle_report(self, args: Namespace, update: telegram.Update) -> None:
         """
         Handle the request to report the most current transaction entries of a user
 
@@ -134,26 +131,29 @@ class HistoryCommand(BaseCommand):
         :return: None
         """
 
-        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
+        user = await self.client.get_core_user(update.effective_message.from_user)
 
-        def format_transaction(transaction: schemas.Transaction) -> str:
-            timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(transaction.timestamp))
+        def format_transaction(transaction: Transaction) -> str:
+            timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(int(transaction.timestamp)))
             direction = ["<<", ">>"][transaction.sender.id == user.id]
-            partner = SDK.get_username([transaction.sender, transaction.receiver][transaction.sender.id == user.id])
-            amount = transaction.amount / 100
+            partner = ((transaction.sender, transaction.receiver)[transaction.sender.id == user.id]).name
+            amount = transaction.amount
             if transaction.sender.id == user.id:
                 amount = -amount
-            return f"{timestamp}: {amount:>+7.2f}: me {direction} {partner:<16} :: {transaction.reason}"
+            formatted_amount = self.client.format_balance(amount)
+            return f"{timestamp}: {formatted_amount:>7}: me {direction} {partner:<16} :: {transaction.reason}"
 
-        logs = [format_transaction(t) for t in await SDK.get_transactions_of_user(user)][-args.length:]
-        name = SDK.get_username(user)
+        logs = [
+            format_transaction(t)
+            for t in await self.client.get_transactions(member_id=user.id, limit=args.length, descending=True)
+        ][::-1]
 
         if len(logs) == 0:
             update.effective_message.reply_text("You don't have any registered transactions yet.")
             return
 
         log = "\n".join(logs)
-        heading = f"Transaction history for {name}:\n```"
+        heading = f"Transaction history for {user.name}:\n```"
         text = f"{heading}\n{log}```"
         if len(text) < 4096:
             util.safe_call(

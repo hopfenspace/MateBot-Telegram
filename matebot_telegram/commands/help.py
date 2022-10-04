@@ -86,7 +86,9 @@ class HelpCommand(BaseCommand):
                     "with the bot are very limited for security purposes. You "
                     "can ask some internal user to act as your voucher. To "
                     "do this, the internal user needs to execute `/vouch "
-                    "<your username>`. Afterwards, you may use this bot."
+                    "<your username>`. Afterwards, you may use this bot.\n"
+                    "Alternatively, use the /poll command to request access "
+                    "to the internal group by community approval."
                 )
 
         elif user and user.privilege >= user.privilege.PERMITTED:

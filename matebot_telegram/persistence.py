@@ -113,6 +113,8 @@ class SharedMessage(Base):
     share_id: int = Column(Integer, nullable=False)
     chat_id: int = Column(Integer, nullable=False)
     message_id: int = Column(Integer, nullable=False)
+    created: _dt = Column(DateTime, server_default=func.now())
+    modified: _dt = Column(DateTime, server_onupdate=FetchedValue(), server_default=func.now(), onupdate=func.now())
 
     def __repr__(self) -> str:
         return f"SharedMessage(id={self.id}, share_type={self.share_type}, share_id={self.share_id})"
@@ -129,3 +131,5 @@ class RegistrationProcess(Base):
     application_id: int = Column(Integer, nullable=False)
     selected_username: str = Column(String(255), nullable=True)
     core_user_id: int = Column(Integer, nullable=True)
+    created: _dt = Column(DateTime, server_default=func.now())
+    modified: _dt = Column(DateTime, server_onupdate=FetchedValue(), server_default=func.now(), onupdate=func.now())

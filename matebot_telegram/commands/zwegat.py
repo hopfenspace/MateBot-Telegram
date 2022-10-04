@@ -2,17 +2,11 @@
 MateBot command executor classes for /zwegat
 """
 
-import logging
-
 import telegram
-from matebot_sdk.base import PermissionLevel
+from matebot_sdk.schemas import PrivilegeLevel
 
 from ..base import BaseCommand
-from ..client import SDK
 from ..parsing.util import Namespace
-
-
-logger = logging.getLogger("commands")
 
 
 class ZwegatCommand(BaseCommand):
@@ -36,16 +30,15 @@ class ZwegatCommand(BaseCommand):
         :return: None
         """
 
-        sender = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        permission_check = SDK.ensure_permissions(sender, PermissionLevel.ANY_INTERNAL, "zwegat")
-        if not permission_check[0]:
-            update.effective_message.reply_text(permission_check[1])
+        sender = update.effective_message.from_user
+        user = await self.client.get_core_user(sender)
+        if user.privilege < PrivilegeLevel.INTERNAL:
+            update.effective_message.reply_text("You are not permitted to use this command. See /help for details.")
             return
 
-        community = await SDK.get_community_user()
-
-        total = community.balance / 100
-        if total >= 0:
-            update.effective_message.reply_text(f"Peter errechnet ein massives Vermögen von {total:.2f}€")
+        balance = (await self.client.community).balance
+        if balance >= 0:
+            msg = f"Peter errechnet ein massives Vermögen von {self.client.format_balance(balance)}!"
         else:
-            update.effective_message.reply_text(f"Peter errechnet Gesamtschulden von {-total:.2f}€")
+            msg = f"Peter errechnet Gesamtschulden von {-self.client.format_balance(balance)}!"
+        update.effective_message.reply_text(msg)

@@ -11,22 +11,27 @@ import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import client, err, util
+from .. import client, config, err, util
 from ..base import BaseCommand
 
 
-__amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)(\d)?)?$")
 # Regex explanation:
-# It matches any non-zero number of digits with an optional , or . followed by exactly one or two digits
+# It matches any non-zero number of digits with an optional , or . followed by a configured max number of digits
 # If there is a , or . then the first decimal is required
-#
-# The match's groups:
-# 1st group: leading number, 2nd group: 1st decimal, 3rd group: 2nd decimal
+# The first group of a match is the leading digit before a dot or comma,
+# while every following group is a single digit after the dot or comma
 
 
 def amount(arg: str) -> int:
     """
-    Convert the string into an amount of money.
+    Convert the string into an amount of money
+
+    Explanation of the regular expression ``amount_pattern``:
+    It matches any non-zero number of digits with an optional comma ``,``
+    or dot ``.`` followed by a configured maximum number of digits.
+    If there is a ``,`` or ``.`` then the first decimal is required.
+    The first group of a match is are leading digits before a dot or comma,
+    while every following group is a single digit after the dot or comma.
 
     :param arg: string to be parsed
     :type arg: str
@@ -35,21 +40,23 @@ def amount(arg: str) -> int:
     :raises ValueError: when the arg seems to be no valid amount or is too big
     """
 
-    match = __amount_pattern.match(arg)
+    digits = config.config.currency.digits
+    if digits == 0:
+        amount_pattern = re.compile(r"^(\d+)$")
+    elif digits > 0:
+        amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)" + r"(\d)?" * (digits - 1) + r")?$")
+    else:
+        raise ValueError("Negative number of digits is invalid")
+
+    match = amount_pattern.match(arg)
     if match is None:
         raise ValueError("Doesn't match an amount's regex")
 
-    val = int(match.group(1)) * 100
-    if match.group(2):
-        val += int(match.group(2)) * 10
-    if match.group(3):
-        val += int(match.group(3))
-
+    val = sum(int(v or 0) * 10**i for i, v in list(enumerate(reversed(match.groups()))))
     if val == 0:
         raise ValueError("An amount can't be zero")
     if val >= 2**31:
-        raise ValueError("Integer too large.")
-
+        raise ValueError("Integer too large!")
     return val
 
 

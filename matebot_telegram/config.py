@@ -15,7 +15,7 @@ except ImportError:
 
 class Configuration(_pydantic.BaseModel):
     class CurrencyConfiguration(_pydantic.BaseModel):
-        digits: _pydantic.PositiveInt
+        digits: _pydantic.NonNegativeInt
         factor: _pydantic.PositiveInt
         symbol: _pydantic.constr(min_length=1, max_length=4)
 

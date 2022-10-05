@@ -133,6 +133,7 @@ def update_all_shared_messages(
         logger: Optional[logging.Logger] = None,
         keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
+        delete_shared_messages: bool = False,
         job_queue: Optional[telegram.ext.JobQueue] = None
 ) -> bool:
     if job_queue is not None:
@@ -145,6 +146,7 @@ def update_all_shared_messages(
                 logger,
                 keyboard,
                 try_parse_mode,
+                delete_shared_messages,
                 None
             )
 
@@ -173,6 +175,13 @@ def update_all_shared_messages(
             )
         )
         logger.debug(f"Updated message {msg.message_id} in chat {msg.chat_id} by {share_type} ({share_id})")
+    if success:
+        logger.debug("Successfully updated all shared messages")
+    else:
+        logger.warning(f"Failed to update at least one shared message for {share_type} {share_id}")
+    if delete_shared_messages:
+        client.client.shared_messages.delete_messages(share_type, share_id)
+        logger.debug(f"Dropped the shared message database entry for {share_type} {share_id}")
     return success
 
 

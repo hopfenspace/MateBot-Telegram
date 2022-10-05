@@ -73,8 +73,28 @@ def send_auto_share_messages(
         keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
         excluded: List[int] = None,
         try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
-        disable_notification: bool = True
+        disable_notification: bool = True,
+        job_queue: Optional[telegram.ext.JobQueue] = None
 ) -> bool:
+    if job_queue is not None:
+        def _send_auto_share_messages(_):
+            send_auto_share_messages(
+                bot,
+                share_type,
+                share_id,
+                text,
+                logger,
+                keyboard,
+                excluded,
+                try_parse_mode,
+                disable_notification,
+                None
+            )
+
+        (logger or _logger).debug(f"Detaching auto share message call for {share_type} {share_id} to job queue")
+        job_queue.run_once(_send_auto_share_messages, 0)
+        return True
+
     logger = logger or _logger
     excluded = excluded or []
     if share_type.value not in config.auto_forward:
@@ -112,8 +132,26 @@ def update_all_shared_messages(
         text: str,
         logger: Optional[logging.Logger] = None,
         keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
-        try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN
+        try_parse_mode: telegram.ParseMode = telegram.ParseMode.MARKDOWN,
+        job_queue: Optional[telegram.ext.JobQueue] = None
 ) -> bool:
+    if job_queue is not None:
+        def _update_all_shared_messages(_):
+            update_all_shared_messages(
+                bot,
+                share_type,
+                share_id,
+                text,
+                logger,
+                keyboard,
+                try_parse_mode,
+                None
+            )
+
+        (logger or _logger).debug(f"Detaching update share message call for {share_type} {share_id} to job queue")
+        job_queue.run_once(_update_all_shared_messages, 0)
+        return True
+
     logger = logger or _logger
     msgs = client.client.shared_messages.get_messages(share_type, share_id)
     logger.debug(f"Found {len(msgs)} shared messages for {share_type} ({share_id})")

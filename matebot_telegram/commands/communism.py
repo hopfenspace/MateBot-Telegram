@@ -2,7 +2,7 @@
 MateBot command executor classes for /communism and its callback queries
 """
 
-from typing import Callable, Coroutine, Optional, Tuple
+from typing import Awaitable, Callable
 
 import telegram.ext
 from matebot_sdk import schemas
@@ -56,8 +56,8 @@ def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup
             telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"communism {communism.id} ")
         ],
         [
-            telegram.InlineKeyboardButton("ACCEPT", callback_data=f("accept")),
-            telegram.InlineKeyboardButton("CANCEL", callback_data=f("cancel")),
+            telegram.InlineKeyboardButton("COMPLETE", callback_data=f("close")),
+            telegram.InlineKeyboardButton("ABORT", callback_data=f("abort")),
         ]
     ])
 
@@ -184,44 +184,35 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             {
                 "join": self.join,
                 "leave": self.leave,
-                "accept": self.accept,
-                "cancel": self.cancel
+                "close": self.close,
+                "abort": self.abort
             }
         )
 
-    async def _handle_communism_updates(
+    async def _handle_update(
             self,
             update: telegram.Update,
-            pre_check_func: Callable[[schemas.Communism, schemas.User], Tuple[str, bool]],
-            get_sdk_func: Callable[[schemas.Communism, schemas.User], Coroutine],
-            after_update_func: Optional[Callable[[schemas.Communism, schemas.User], None]] = None
+            function: Callable[[int, schemas.User, ...], Awaitable[schemas.Communism]],
+            delete: bool = False,
+            **kwargs
     ) -> None:
         _, communism_id = self.data.split(" ")
         communism_id = int(communism_id)
 
-        user = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        communism = await SDK.get_communism_by_id(communism_id)
-        pre_check = pre_check_func(communism, user)
-        if pre_check[0]:
-            update.callback_query.answer(text=pre_check[0], show_alert=pre_check[1])
-            return
-
-        result = await get_sdk_func(communism, user)
-        if isinstance(result, schemas.Communism) and result.id == communism.id:
-            communism = result
+        sender = await self.client.get_core_user(update.callback_query.from_user)
+        communism = await function(communism_id, sender, **kwargs)
 
         util.update_all_shared_messages(
             update.callback_query.bot,
-            "communism",
+            shared_messages.ShareType.COMMUNISM,
             communism.id,
-            await _get_text(communism),
+            await _get_text(self.client, communism),
             self.logger,
             _get_keyboard(communism),
-            telegram.ParseMode.MARKDOWN
+            telegram.ParseMode.MARKDOWN,
+            delete_shared_messages=delete,
+            job_queue=self.client.job_queue
         )
-
-        if after_update_func:
-            after_update_func(communism, user)
 
     async def join(self, update: telegram.Update) -> None:
         """
@@ -230,11 +221,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_communism_updates(
-            update,
-            lambda c, u: ("", False),
-            lambda c, u: SDK.increase_communism_member(c, u, 1)
-        )
+        return await self._handle_update(update, self.client.increase_communism_participation, count=1)
 
     async def leave(self, update: telegram.Update) -> None:
         """
@@ -243,72 +230,65 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_communism_updates(
-            update,
-            lambda c, u: ("", False),
-            lambda c, u: SDK.decrease_communism_member(c, u, 1)
-        )
+        return await self._handle_update(update, self.client.decrease_communism_participation, count=1)
 
-    async def accept(self, update: telegram.Update) -> None:
+    async def close(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return await self._handle_communism_updates(
-            update,
-            lambda c, u:
-            ("", False)
-            if c.creator_id == u.id
-            else ("You can't accept this communism. You are not the creator.", True),
-            lambda c, u: SDK.accept_communism(c),
-            lambda c, u: shared_message_handler.delete_messages("communism", c.id)
-        )
+        return await self._handle_update(update, self.client.close_communism, delete=True)
 
-    async def cancel(self, update: telegram.Update) -> None:
+    async def abort(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
         :return: None
         """
 
-        return await self._handle_communism_updates(
-            update,
-            lambda c, u:
-                ("", False)
-                if c.creator_id == u.id
-                else ("You can't close this communism. You are not the creator.", True),
-            lambda c, u: SDK.cancel_communism(c),
-            lambda c, u: shared_message_handler.delete_messages("communism", c.id)
-        )
+        return await self._handle_update(update, self.client.abort_communism, delete=True)
 
 
-async def _handle_create_communism(event: schemas.Event):
-    # util.send_auto_share_messages(
-    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    # )
-    raise NotImplementedError
+@dispatcher.register_for(schemas.EventType.COMMUNISM_CREATED)
+async def _handle_communism_created(event: schemas.Event):
+    communism_id = int(event.data["id"])
+    communism = (await client.client.get_communisms(id=communism_id))[0]
+    util.send_auto_share_messages(
+        client.client.bot,
+        shared_messages.ShareType.COMMUNISM,
+        communism_id,
+        await _get_text(client.client, communism),
+        keyboard=_get_keyboard(communism),
+        job_queue=client.client.job_queue
+    )
 
 
-async def _handle_update_communism(event: schemas.Event):
-    # communism = await SDK.get_communism_by_id(id_)
-    # util.update_all_shared_messages(
-    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    # )
-    raise NotImplementedError
+@dispatcher.register_for(schemas.EventType.COMMUNISM_UPDATED)
+async def _handle_communism_updated(event: schemas.Event):
+    communism_id = int(event.data["id"])
+    communism = (await client.client.get_communisms(id=communism_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.COMMUNISM,
+        communism_id,
+        await _get_text(client.client, communism),
+        keyboard=_get_keyboard(communism),
+        job_queue=client.client.job_queue
+    )
 
 
 @dispatcher.register_for(schemas.EventType.COMMUNISM_CLOSED)
-async def _handle_closed_communism(event: schemas.Event):
-    # communism = await SDK.get_communism_by_id(id_)
-    # util.update_all_shared_messages(
-    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    # )
-    # shared_message_handler.delete_messages("communism", communism.id)
-    raise NotImplementedError
-
-
-dispatcher.register(schemas.EventType.COMMUNISM_CREATED, _handle_create_communism)
-dispatcher.register(schemas.EventType.COMMUNISM_UPDATED, _handle_update_communism)
-# dispatcher.register(schemas.EventType.COMMUNISM_CLOSED, _handle_closed_communism)
+async def _handle_communism_closed(event: schemas.Event):
+    communism_id = int(event.data["id"])
+    communism = (await client.client.get_communisms(id=communism_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.COMMUNISM,
+        communism_id,
+        await _get_text(client.client, communism),
+        keyboard=_get_keyboard(communism),
+        delete_shared_messages=True,
+        job_queue=client.client.job_queue
+    )

@@ -6,12 +6,12 @@ import asyncio
 import logging
 from typing import Optional, Union
 
-import telegram
+import telegram.ext
 
 from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
-from . import config, err, util, persistence, shared_messages
+from . import config, err, util, persistence, shared_messages as _shared_messages
 
 
 logger = logging.getLogger("client")
@@ -19,11 +19,15 @@ logger = logging.getLogger("client")
 
 class AsyncMateBotSDKForTelegram(AsyncSDK):
     bot: telegram.Bot
+    job_queue: telegram.ext.JobQueue
+    shared_messages: _shared_messages.SharedMessageHandler
 
-    def __init__(self, bot: telegram.Bot, *args, **kwargs):
+    def __init__(self, dispatcher: telegram.ext.Dispatcher, *args, **kwargs):
         super(AsyncMateBotSDKForTelegram, self).__init__(*args, **kwargs)
-        self.bot = bot
-        self.shared_messages = shared_messages.SharedMessageHandler()
+        self._dispatcher = dispatcher
+        self.bot = dispatcher.bot
+        self.job_queue = dispatcher.job_queue
+        self.shared_messages = _shared_messages.SharedMessageHandler()
 
     @staticmethod
     def get_new_session() -> persistence.Session:
@@ -149,7 +153,7 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
 client: AsyncMateBotSDKForTelegram  # must be available at runtime; use the setup function below at early program stage
 
 
-def setup(bot: telegram.Bot, configuration: config.Configuration) -> AsyncMateBotSDKForTelegram:
+def setup(updater: telegram.ext.Updater, configuration: config.Configuration) -> AsyncMateBotSDKForTelegram:
     logger.debug("Setting up SDK client...")
     persistence.init(configuration.database_url, echo=configuration.database_debug)
     if util.event_loop is None:
@@ -160,7 +164,7 @@ def setup(bot: telegram.Bot, configuration: config.Configuration) -> AsyncMateBo
     if configuration.callback.enabled:
         callback = (configuration.callback.public_url, configuration.callback.shared_secret)
     sdk = AsyncMateBotSDKForTelegram(
-        bot,
+        updater.dispatcher,
         base_url=configuration.server,
         app_name=configuration.application,
         password=configuration.password,

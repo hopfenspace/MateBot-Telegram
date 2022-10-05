@@ -33,7 +33,7 @@ def main():
 
     try:
         api_callback.APICallbackDispatcher(updater.bot)
-        client.client = client.setup(updater.bot, config.config)
+        client.client = client.setup(updater, config.config)
     except APIConnectionException as exc:
         logger.critical(
             f"Connecting to the API server failed! Please review your "

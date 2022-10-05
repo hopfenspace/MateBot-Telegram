@@ -12,7 +12,7 @@ from .. import util
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery, BaseCommand
 from ..parsing.actions import JoinAction
-from ..parsing.types import amount as amount_type
+from ..parsing.types import amount_type
 from ..parsing.util import Namespace
 
 

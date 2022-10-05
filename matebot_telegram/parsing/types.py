@@ -15,14 +15,20 @@ from .. import client, config, err, util
 from ..base import BaseCommand
 
 
-# Regex explanation:
-# It matches any non-zero number of digits with an optional , or . followed by a configured max number of digits
-# If there is a , or . then the first decimal is required
-# The first group of a match is the leading digit before a dot or comma,
-# while every following group is a single digit after the dot or comma
+def amount_type(arg: str) -> int:
+    """
+    Convert the string into an amount of money
+
+    See :func:`amount` for more details.
+    """
+
+    value = amount(arg, config.config.currency.digits)
+    if value >= 2**31:
+        raise ValueError("Integer too large!")
+    return value
 
 
-def amount(arg: str) -> int:
+def amount(arg: str, digits: int) -> int:
     """
     Convert the string into an amount of money
 
@@ -35,12 +41,15 @@ def amount(arg: str) -> int:
 
     :param arg: string to be parsed
     :type arg: str
+    :param digits: number of digits behind the separation symbol usually used
+        in expressions of the amount in the currency (e.g. ``13.37€`` is a
+        usual expression for an amount in Euros with two digits behind the dot)
+    :type digits: int
     :return: Amount of money in cent
     :rtype: int
     :raises ValueError: when the arg seems to be no valid amount or is too big
     """
 
-    digits = config.config.currency.digits
     if digits == 0:
         amount_pattern = re.compile(r"^(\d+)$")
     elif digits > 0:
@@ -55,8 +64,6 @@ def amount(arg: str) -> int:
     val = sum(int(v or 0) * 10**i for i, v in list(enumerate(reversed(match.groups()))))
     if val == 0:
         raise ValueError("An amount can't be zero")
-    if val >= 2**31:
-        raise ValueError("Integer too large!")
     return val
 
 

@@ -3,12 +3,11 @@ MateBot command executor classes for /send and its callback queries
 """
 
 import telegram
-
 from matebot_sdk.exceptions import APIException
 
 from .. import util
 from ..base import BaseCallbackQuery, BaseCommand
-from ..parsing.types import amount as amount_type
+from ..parsing.types import amount_type
 from ..parsing.types import user_type
 from ..parsing.util import Namespace
 

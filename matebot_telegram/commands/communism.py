@@ -11,7 +11,7 @@ from matebot_sdk.exceptions import APIException
 from .. import client, shared_messages, util
 from ..api_callback import dispatcher
 from ..base import BaseCommand, BaseCallbackQuery
-from ..parsing.types import amount as amount_type
+from ..parsing.types import amount_type
 from ..parsing.actions import JoinAction
 from ..parsing.util import Namespace
 

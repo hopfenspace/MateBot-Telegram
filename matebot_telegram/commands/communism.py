@@ -2,38 +2,27 @@
 MateBot command executor classes for /communism and its callback queries
 """
 
-import logging
 from typing import Callable, Coroutine, Optional, Tuple
 
 import telegram.ext
 from matebot_sdk import schemas
-from matebot_sdk.base import PermissionLevel, CallbackUpdate
+from matebot_sdk.exceptions import APIException
 
-from .. import util
+from .. import client, shared_messages, util
 from ..api_callback import dispatcher
 from ..base import BaseCommand, BaseCallbackQuery
-from ..client import SDK
 from ..parsing.types import amount as amount_type
 from ..parsing.actions import JoinAction
 from ..parsing.util import Namespace
-from ..shared_messages import shared_message_handler
 
 
-async def _get_text(communism: schemas.Communism) -> str:
-    users = await SDK.get_users()
-    creator = [user for user in users if user.id == communism.creator_id][0]
-
-    def f(user_id: int, quantity: int) -> str:
-        user = [u for u in users if u.id == user_id]
-        if len(user) != 1:
-            raise ValueError(f"User ID {user_id} couldn't be converted to username properly.")
-        return f"{SDK.get_username(user[0])} ({quantity}x)"
-
-    usernames = ', '.join(f(p.user_id, p.quantity) for p in communism.participants) or "None"
+async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
+    creator = await sdk.get_user(communism.id)
+    usernames = ", ".join(f"{p.user_name} ({p.quantity}x)" for p in communism.participants) or "None"
     markdown = (
-        f"*Communism by {SDK.get_username(creator)}*\n\n"
+        f"*Communism by {creator.name}*\n\n"
         f"Reason: {communism.description}\n"
-        f"Amount: {communism.amount / 100 :.2f}€\n"
+        f"Amount: {sdk.format_balance(communism.amount)}\n"
         f"Joined users ({sum(p.quantity for p in communism.participants)}): {usernames}\n"
     )
 
@@ -43,7 +32,7 @@ async def _get_text(communism: schemas.Communism) -> str:
         markdown += "\n_The communism has been closed._"
         if communism.multi_transaction:
             markdown += f"\n{len(communism.multi_transaction.transactions)} transactions have been processed "
-            markdown += f"for a total value of {communism.multi_transaction.total_amount / 100:.2f}€. "
+            markdown += f"for a total value of {sdk.format_balance(communism.multi_transaction.total_amount)}. "
             markdown += "Take a look at /history for more details."
         else:
             markdown += "\nThe communism was aborted. No transactions have been processed."
@@ -64,7 +53,7 @@ def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup
             telegram.InlineKeyboardButton("LEAVE (-)", callback_data=f("leave")),
         ],
         [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{communism.id} ")
+            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"communism {communism.id} ")
         ],
         [
             telegram.InlineKeyboardButton("ACCEPT", callback_data=f("accept")),
@@ -90,11 +79,11 @@ class CommunismCommand(BaseCommand):
             "can join afterwards (you might need to remember them). People who don't use "
             "the MateBot may be respected by joining multiple times - therefore paying more "
             "than normal and effectively taking the bill of those people. You may collect "
-            "the money from each external user by yourself. After everyone has joined, "
+            "the money from each unregistered user by yourself. After everyone has joined, "
             "you close the communism to calculate and evenly distribute the price.\n\n"
-            "There are two subcommands that can be used. You can get your "
+            "There are two subcommands that can be used. You can get your most recent "
             "active communism as a new message in the current chat by using `show`. "
-            "You can stop your currently active communism using `stop`."
+            "You can stop your most recent, currently active communism using `stop`."
         )
 
         self.parser.add_argument("amount", type=amount_type)
@@ -115,65 +104,72 @@ class CommunismCommand(BaseCommand):
         :return: None
         """
 
-        user = await SDK.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        permission_check = SDK.ensure_permissions(user, PermissionLevel.ANY_WITH_VOUCHER, "communism")
-        if not permission_check[0]:
-            update.effective_message.reply_text(permission_check[1])
-            return
+        user = await self.client.get_core_user(update.effective_message.from_user)
 
-        communisms = await SDK.get_communisms_by_creator(user)
-        active_communisms = [communism for communism in communisms if communism.active]
         if args.subcommand is None:
-            if active_communisms:
-                update.effective_message.reply_text("You already have a communism in progress. Please handle it first.")
+            try:
+                communism = await self.client.create_communism(user, args.amount, args.reason)
+            except APIException as exc:
+                update.effective_message.reply_text(exc.message)
                 return
 
-            communism = await SDK.make_new_communism(user, args.amount, args.reason)
-            text = await _get_text(communism)
+            text = await _get_text(self.client, communism)
             keyboard = _get_keyboard(communism)
             message: telegram.Message = util.safe_call(
                 lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
                 lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
                 use_result=True
             )
-            shared_message_handler.add_message_by("communism", communism.id, message.chat_id, message.message_id)
+            if not self.client.shared_messages.add_message_by(
+                shared_messages.ShareType.COMMUNISM, communism.id, message.chat_id, message.message_id
+            ):
+                self.logger.error(f"Failed to add shared message for communism {communism.id}: {message.to_dict()}")
+
             util.send_auto_share_messages(
                 update.effective_message.bot,
-                "communism",
+                shared_messages.ShareType.COMMUNISM,
                 communism.id,
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
-                excluded=[message.chat_id]
+                excluded=[message.chat_id],
+                job_queue=self.client.job_queue
             )
             return
 
+        active_communisms = await self.client.get_communisms(active=True, creator_id=user.id)
         if not active_communisms:
             update.effective_message.reply_text("You don't have a communism in progress.")
             return
 
         if len(active_communisms) > 1:
             update.effective_message.reply_text(
-                "You have more than one active communism. The subcommand will use the oldest active communism."
+                "You have more than one active communism. The command will affect the most recent active communism."
             )
 
         if args.subcommand == "show":
             # TODO: implement showing the currently active communism in the current chat & updating the shared messages
-            update.effective_message.reply_text("Not implemented.")
+            update.effective_message.reply_text("Not implemented yet.")
+            raise NotImplementedError
 
         elif args.subcommand == "stop":
-            communism = await SDK.cancel_communism(active_communisms[0])
-            text = await _get_text(communism)
-            keyboard = _get_keyboard(communism)
+            aborted_communism = await self.client.abort_communism(active_communisms[-1], user)
+            text = await _get_text(self.client, aborted_communism)
+            keyboard = _get_keyboard(aborted_communism)
+
             util.update_all_shared_messages(
                 update.effective_message.bot,
-                "communism",
-                communism.id,
+                shared_messages.ShareType.COMMUNISM,
+                aborted_communism.id,
                 text,
                 logger=self.logger,
-                keyboard=keyboard
+                keyboard=keyboard,
+                delete_shared_messages=True,
+                job_queue=self.client.job_queue
             )
-            shared_message_handler.delete_messages("communism", communism.id)
+
+        else:
+            raise RuntimeError(f"Invalid communism subcommand detected, this shouldn't happen: {args.subcommand!r}")
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):
@@ -288,28 +284,31 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         )
 
 
-async def _handle_create_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
-    communism = await SDK.get_communism_by_id(id_)
-    util.send_auto_share_messages(
-        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    )
+async def _handle_create_communism(event: schemas.Event):
+    # util.send_auto_share_messages(
+    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    # )
+    raise NotImplementedError
 
 
-async def _handle_update_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
-    communism = await SDK.get_communism_by_id(id_)
-    util.update_all_shared_messages(
-        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    )
+async def _handle_update_communism(event: schemas.Event):
+    # communism = await SDK.get_communism_by_id(id_)
+    # util.update_all_shared_messages(
+    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    # )
+    raise NotImplementedError
 
 
-async def _handle_delete_communism(_m: CallbackUpdate, _t: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
-    communism = await SDK.get_communism_by_id(id_)
-    util.update_all_shared_messages(
-        bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
-    )
-    shared_message_handler.delete_messages("communism", communism.id)
+@dispatcher.register_for(schemas.EventType.COMMUNISM_CLOSED)
+async def _handle_closed_communism(event: schemas.Event):
+    # communism = await SDK.get_communism_by_id(id_)
+    # util.update_all_shared_messages(
+    #     bot, "communism", id_, await _get_text(communism), logger, _get_keyboard(communism)
+    # )
+    # shared_message_handler.delete_messages("communism", communism.id)
+    raise NotImplementedError
 
 
-dispatcher.register((CallbackUpdate.CREATE, "communism"), _handle_create_communism)
-dispatcher.register((CallbackUpdate.UPDATE, "communism"), _handle_update_communism)
-dispatcher.register((CallbackUpdate.DELETE, "communism"), _handle_delete_communism)
+dispatcher.register(schemas.EventType.COMMUNISM_CREATED, _handle_create_communism)
+dispatcher.register(schemas.EventType.COMMUNISM_UPDATED, _handle_update_communism)
+# dispatcher.register(schemas.EventType.COMMUNISM_CLOSED, _handle_closed_communism)

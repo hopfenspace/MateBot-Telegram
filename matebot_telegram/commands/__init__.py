@@ -36,10 +36,13 @@ def setup(dispatcher: _Dispatcher):
     from .handler import FilteredChosenInlineResultHandler
     from .help import HelpCommand, HelpInlineQuery
     from .history import HistoryCommand
+    from .message import CatchallReplyMessage
     from .pay import PayCommand
+    from .polls import PollCommand, PollCallbackQuery
     from .refund import RefundCommand, RefundCallbackQuery
     from .send import SendCommand, SendCallbackQuery
-    from .start import StartCommand, StartCallbackQuery, StartMessage
+    from .start import StartCommand, StartCallbackQuery
+    from .username import UsernameCommand
     from .vouch import VouchCommand, VouchCallbackQuery
     from .zwegat import ZwegatCommand
 
@@ -52,9 +55,11 @@ def setup(dispatcher: _Dispatcher):
         HelpCommand(),
         HistoryCommand(),
         PayCommand(),
+        PollCommand(),
         RefundCommand(),
         SendCommand(),
         StartCommand(),
+        UsernameCommand(),
         VouchCommand(),
         ZwegatCommand()
     ]:
@@ -64,6 +69,7 @@ def setup(dispatcher: _Dispatcher):
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
         RefundCallbackQuery(),
+        PollCallbackQuery(),
         SendCallbackQuery(),
         StartCallbackQuery(),
         VouchCallbackQuery()
@@ -84,7 +90,7 @@ def setup(dispatcher: _Dispatcher):
         )
 
     for message, group in [
-        (StartMessage(), 1)
+        (CatchallReplyMessage(), 1)
     ]:
         dispatcher.add_handler(
             _MessageHandler(ReplyMessageHandlerFilter(False, message.prefix), message, run_async=True),

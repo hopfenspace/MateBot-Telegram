@@ -6,11 +6,9 @@ from typing import Awaitable, Callable
 
 import telegram
 from matebot_sdk import exceptions, messages, schemas
-from matebot_sdk.base import PermissionLevel
 
 from .. import util
 from ..base import BaseCommand, BaseCallbackQuery
-from ..client import SDK
 from ..parsing.types import user_type
 from ..parsing.util import Namespace
 

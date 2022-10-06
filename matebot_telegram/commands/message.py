@@ -36,6 +36,17 @@ class CatchallReplyMessage(BaseMessage):
                     alias_confirmed=True,
                     alias_username=alias
                 )
+                apps = await self.client.get_applications(id=app)
+                if len(apps) != 1:
+                    self.logger.warning(f"App {app} doesn't exist while connecting new user account")
+                    msg.reply_text(
+                        "This application doesn't exist anymore. Please abort and try again.",
+                        reply_markup=telegram.InlineKeyboardMarkup([[
+                            telegram.InlineKeyboardButton("ABORT SIGN-UP", callback_data=f"start abort {sender}")
+                        ]])
+                    )
+                    return
+                app_name = apps[0].name
                 if len(users) == 1:
                     user = users[0]
                 else:
@@ -44,7 +55,7 @@ class CatchallReplyMessage(BaseMessage):
                     except MateBotSDKException:
                         msg.reply_text(
                             f"No user known as '{alias}' and no alias '{alias}' for application "
-                            f"{record.application_id} has been found. Please ensure that you "
+                            f"{app_name!r} has been found. Please ensure that you "
                             f"spelled it correctly and try again by replying to this message.",
                             reply_markup=telegram.InlineKeyboardMarkup([[
                                 telegram.InlineKeyboardButton("ABORT SIGN-UP", callback_data=f"start abort {sender}")
@@ -85,3 +96,9 @@ class CatchallReplyMessage(BaseMessage):
                         ]])
                     )
                 return
+
+            else:
+                msg.reply_text("There's something odd, something that should not happen. Please file a bug report.")
+                self.logger.debug(f"Record: {record.__dict__}")
+                self.logger.warning(f"Invalid registration setup for user {sender}")
+                raise RuntimeError("Registration record is in a bad state")

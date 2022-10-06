@@ -6,8 +6,8 @@ from typing import Awaitable, Callable
 
 import telegram.ext
 from matebot_sdk import schemas
-from matebot_sdk.exceptions import APIException
 
+from . import _common
 from .. import client, shared_messages, util
 from ..api_callback import dispatcher
 from ..base import BaseCommand, BaseCallbackQuery
@@ -107,35 +107,15 @@ class CommunismCommand(BaseCommand):
         user = await self.client.get_core_user(update.effective_message.from_user)
 
         if args.subcommand is None:
-            try:
-                communism = await self.client.create_communism(user, args.amount, args.reason)
-            except APIException as exc:
-                update.effective_message.reply_text(exc.message)
-                return
-
-            text = await _get_text(self.client, communism)
-            keyboard = _get_keyboard(communism)
-            message: telegram.Message = util.safe_call(
-                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
-                use_result=True
-            )
-            if not self.client.shared_messages.add_message_by(
-                shared_messages.ShareType.COMMUNISM, communism.id, message.chat_id, message.message_id
-            ):
-                self.logger.error(f"Failed to add shared message for communism {communism.id}: {message.to_dict()}")
-
-            util.send_auto_share_messages(
-                update.effective_message.bot,
+            return await _common.new_group_operation(
+                update,
+                self.client.create_communism(user, args.amount, args.reason),
+                self.client,
+                lambda c: _get_text(self.client, c),
+                _get_keyboard,
                 shared_messages.ShareType.COMMUNISM,
-                communism.id,
-                text,
-                logger=self.logger,
-                keyboard=keyboard,
-                excluded=[message.chat_id],
-                job_queue=self.client.job_queue
+                self.logger
             )
-            return
 
         active_communisms = await self.client.get_communisms(active=True, creator_id=user.id)
         if not active_communisms:

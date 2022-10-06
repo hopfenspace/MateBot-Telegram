@@ -2,13 +2,14 @@
 MateBot command executor classes for /refund and its callback queries
 """
 
-import logging
-from typing import Callable, ClassVar, Coroutine
+import time
+from typing import Awaitable, Callable, ClassVar
 
 import telegram
-from matebot_sdk import schemas
+from matebot_sdk import exceptions, schemas
 
-from .. import util
+from . import _common
+from .. import client, shared_messages, util
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery, BaseCommand
 from ..parsing.actions import JoinAction
@@ -17,25 +18,16 @@ from ..parsing.util import Namespace
 
 
 async def _get_text(refund: schemas.Refund) -> str:
-    users = await self.client.get_users()
-
-    def get_username(vote: schemas.Vote) -> str:
-        user = [u for u in users if u.id == vote.user_id]
-        if len(user) != 1:
-            raise ValueError(f"User ID {vote.user_id} couldn't be converted to username properly.")
-        return self.client.get_username(user[0])
-
-    approving = [get_username(vote) for vote in refund.poll.votes if vote.vote == 1]
-    neutral = [get_username(vote) for vote in refund.poll.votes if vote.vote == 0]
-    disapproving = [get_username(vote) for vote in refund.poll.votes if vote.vote == -1]
+    approving = [vote.user_name for vote in refund.votes if vote.vote]
+    disapproving = [vote.user_name for vote in refund.votes if not vote.vote]
     markdown = (
-        f"*Refund by {self.client.get_username(refund.creator)}*\n"
+        f"*Refund by {refund.creator.name}*\n"
         f"Reason: {refund.description}\n"
-        f"Amount: {refund.amount / 100 :.2f}€\n\n"
-        f"*Votes ({len(refund.poll.votes)})*\n"
-        f"Proponents ({len(approving)}): {', '.join(approving)}\n"
-        f"Opposers ({len(disapproving)}): {', '.join(disapproving)}\n"
-        + (f"Neutral ({len(neutral)}): {', '.join(neutral)}\n" if neutral else "")
+        f"Amount: {client.client.format_balance(refund.amount)}\n\n"
+        f"Created: {time.asctime(time.gmtime(refund.created))}"
+        f"*Votes ({len(refund.votes)})*\n"
+        f"Proponents ({len(approving)}): {', '.join(approving) or 'None'}\n"
+        f"Opponents ({len(disapproving)}): {', '.join(disapproving) or 'None'}\n"
     )
 
     if refund.active:
@@ -60,8 +52,8 @@ def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
             telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"refund disapprove {refund.id}"),
         ],
         [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{refund.id} "),
-            telegram.InlineKeyboardButton("CLOSE", callback_data=f"refund close {refund.id}")
+            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"refund {refund.id} "),
+            telegram.InlineKeyboardButton("ABORT", callback_data=f"refund abort {refund.id}")
         ]
     ])
 
@@ -106,36 +98,20 @@ class RefundCommand(BaseCommand):
         :return: None
         """
 
-        user = await self.client.get_user_by_app_alias(str(update.effective_message.from_user.id))
-        refunds = await self.client.get_refunds_by_creator(user)
-        active_refunds = [refund for refund in refunds if refund.active]
+        sender = await self.client.get_core_user(update.effective_message.from_user)
+
         if args.subcommand is None:
-            if active_refunds:
-                update.effective_message.reply_text(
-                    f"You already have a {type(self).COMMAND_NAME} request in progress. Please handle it first."
-                )
-                return
-
-            refund = await self.client.make_new_refund(user, args.amount, args.reason)
-            text = await _get_text(refund)
-            keyboard = _get_keyboard(refund)
-            message: telegram.Message = util.safe_call(
-                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
-                use_result=True
+            return await _common.new_group_operation(
+                update,
+                self.client.create_refund(sender, args.amount, args.reason),
+                self.client,
+                _get_text,
+                _get_keyboard,
+                shared_messages.ShareType.REFUND,
+                self.logger
             )
-            shared_message_handler.add_message_by("refund", refund.id, message.chat_id, message.message_id)
-            util.send_auto_share_messages(
-                update.effective_message.bot,
-                "refund",
-                refund.id,
-                text,
-                logger=self.logger,
-                keyboard=keyboard,
-                excluded=[message.chat_id]
-            )
-            return
 
+        active_refunds = await self.client.get_refunds(active=True, creator_id=sender.id)
         if not active_refunds:
             update.effective_message.reply_text(f"You don't have a {type(self).COMMAND_NAME} request in progress.")
             return
@@ -143,21 +119,23 @@ class RefundCommand(BaseCommand):
         if len(active_refunds) > 1:
             update.effective_message.reply_text(
                 f"You have more than one active {type(self).COMMAND_NAME} request. "
-                f"The subcommand will use the oldest active {type(self).COMMAND_NAME} request."
+                f"The command will affect the most recent active {type(self).COMMAND_NAME} request."
             )
 
         if args.subcommand == "show":
             # TODO: implement showing the currently active refund in the current chat & updating the shared messages
             update.effective_message.reply_text("Not implemented.")
+            raise NotImplementedError
 
         elif args.subcommand == "stop":
-            refund = await self.client.cancel_refund(active_refunds[0])
-            text = await _get_text(refund)
-            keyboard = _get_keyboard(refund)
+            aborted_refund = await self.client.abort_refund(active_refunds[-1], sender)
+            text = await _get_text(aborted_refund)
+            keyboard = _get_keyboard(aborted_refund)
+
             util.update_all_shared_messages(
                 update.effective_message.bot,
-                "refund",
-                refund.id,
+                shared_messages.ShareType.REFUND,
+                aborted_refund.id,
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
@@ -177,34 +155,32 @@ class RefundCallbackQuery(BaseCallbackQuery):
             {
                 "approve": self.approve,
                 "disapprove": self.disapprove,
-                "close": self.close
+                "abort": self.abort
             }
         )
 
     async def _handle_add_vote(
             self,
             update: telegram.Update,
-            get_client_func: Callable[[int, schemas.User], Coroutine]
+            get_client_func: Callable[[int, schemas.User], Awaitable[schemas.RefundVoteResponse]]
     ) -> None:
         _, refund_id = self.data.split(" ")
         refund_id = int(refund_id)
 
-        user = await self.client.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        vote = await get_client_func(refund_id, user)
-        update.callback_query.answer(f"You successfully voted {('against', 'for')[vote.vote]} the request.")
+        user = await self.client.get_core_user(update.callback_query.from_user)
+        response = await get_client_func(refund_id, user)
+        update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
 
-        refund = await self.client.get_refund_by_id(refund_id)
-        text = await _get_text(refund)
-        keyboard = _get_keyboard(refund)
+        text = await _get_text(response.refund)
+        keyboard = _get_keyboard(response.refund)
         util.update_all_shared_messages(
             update.callback_query.bot,
-            "refund",
-            refund.id,
+            shared_messages.ShareType.REFUND,
+            refund_id,
             text,
             logger=self.logger,
             keyboard=keyboard
         )
-        update.callback_query.answer()
 
     async def approve(self, update: telegram.Update) -> None:
         """
@@ -224,7 +200,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
 
         return await self._handle_add_vote(update, self.client.disapprove_refund)
 
-    async def close(self, update: telegram.Update) -> None:
+    async def abort(self, update: telegram.Update) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -234,48 +210,66 @@ class RefundCallbackQuery(BaseCallbackQuery):
         _, refund_id = self.data.split(" ")
         refund_id = int(refund_id)
 
-        refund = await self.client.get_refund_by_id(refund_id)
-        user = await self.client.get_user_by_app_alias(str(update.callback_query.from_user.id))
-        if refund.creator.id != user.id:
-            update.callback_query.answer(f"Only the creator of this refund can close it!")
+        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        try:
+            refund = await self.client.abort_refund(refund_id, issuer)
+        except exceptions.APIException as exc:
+            update.callback_query.answer(exc.message, show_alert=True)
             return
 
-        refund = await self.client.cancel_refund(refund)
         text = await _get_text(refund)
         keyboard = _get_keyboard(refund)
         util.update_all_shared_messages(
             update.callback_query.bot,
-            "refund",
+            shared_messages.ShareType.REFUND,
             refund.id,
             text,
             logger=self.logger,
             keyboard=keyboard,
-            delete_shared_messages=True
+            delete_shared_messages=True,
+            job_queue=self.client.job_queue
         )
         update.callback_query.answer()
 
 
-async def _refund_callback_handler(method, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):
-    # refund = await self.client.get_refund_by_id(id_)
-    # if method == method.CREATE:
-    #     util.send_auto_share_messages(bot, "refund", id_, await _get_text(refund), logger, _get_keyboard(refund))
-    # elif method == method.UPDATE or method == method.DELETE:
-    #     util.update_all_shared_messages(bot, "refund", id_, await _get_text(refund), logger, _get_keyboard(refund))
-    #     if method == method.DELETE:
-    #         shared_message_handler.delete_messages("refund", refund.id)
-    pass
-
-
 @dispatcher.register_for(schemas.EventType.REFUND_CREATED)
 async def _handle_refund_created(event: schemas.Event):
-    raise NotImplementedError
+    refund_id = int(event.data["id"])
+    refund = (await client.client.get_refunds(id=refund_id))[0]
+    util.send_auto_share_messages(
+        client.client.bot,
+        shared_messages.ShareType.REFUND,
+        refund_id,
+        await _get_text(refund),
+        keyboard=_get_keyboard(refund),
+        job_queue=client.client.job_queue
+    )
 
 
 @dispatcher.register_for(schemas.EventType.REFUND_UPDATED)
 async def _handle_refund_updated(event: schemas.Event):
-    raise NotImplementedError
+    refund_id = int(event.data["id"])
+    refund = (await client.client.get_refunds(id=refund_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.REFUND,
+        refund_id,
+        await _get_text(refund),
+        keyboard=_get_keyboard(refund),
+        job_queue=client.client.job_queue
+    )
 
 
 @dispatcher.register_for(schemas.EventType.REFUND_CLOSED)
 async def _handle_refund_closed(event: schemas.Event):
-    raise NotImplementedError
+    refund_id = int(event.data["id"])
+    refund = (await client.client.get_refunds(id=refund_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.REFUND,
+        refund_id,
+        await _get_text(refund),
+        keyboard=_get_keyboard(refund),
+        delete_shared_messages=True,
+        job_queue=client.client.job_queue
+    )

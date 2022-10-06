@@ -91,9 +91,9 @@ class TelegramUser(Base):
 
     telegram_id: int = Column(Integer, nullable=False, primary_key=True, unique=True)
     user_id: int = Column(Integer, nullable=False, unique=True)
-    first_name: str = Column(String(2048), nullable=False)
-    last_name: str = Column(String(2048), nullable=True)
-    username: str = Column(String(2048), nullable=True)
+    first_name: str = Column(String(32), nullable=False)
+    last_name: str = Column(String(64), nullable=True)
+    username: str = Column(String(64), nullable=True)
     created: _dt = Column(DateTime, server_default=func.now())
     modified: _dt = Column(DateTime, server_onupdate=FetchedValue(), server_default=func.now(), onupdate=func.now())
 
@@ -109,7 +109,7 @@ class SharedMessage(Base):
     __tablename__ = "shared_messages"
 
     id: int = Column(Integer, nullable=False, primary_key=True, autoincrement=True, unique=True)
-    share_type: str = Column(String(255), nullable=False)
+    share_type: str = Column(String(32), nullable=False)
     share_id: int = Column(Integer, nullable=False)
     chat_id: int = Column(Integer, nullable=False)
     message_id: int = Column(Integer, nullable=False)

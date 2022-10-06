@@ -45,17 +45,7 @@ async def _get_text(refund: schemas.Refund) -> str:
 def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
     if not refund.active:
         return telegram.InlineKeyboardMarkup([])
-
-    return telegram.InlineKeyboardMarkup([
-        [
-            telegram.InlineKeyboardButton("APPROVE", callback_data=f"refund approve {refund.id}"),
-            telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"refund disapprove {refund.id}"),
-        ],
-        [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"refund {refund.id} "),
-            telegram.InlineKeyboardButton("ABORT", callback_data=f"refund abort {refund.id}")
-        ]
-    ])
+    return _common.get_voting_keyboard_for("refund", refund.id)
 
 
 class RefundCommand(BaseCommand):
@@ -102,11 +92,11 @@ class RefundCommand(BaseCommand):
 
         if args.subcommand is None:
             return await _common.new_group_operation(
-                update,
                 self.client.create_refund(sender, args.amount, args.reason),
                 self.client,
                 _get_text,
                 _get_keyboard,
+                update.effective_message,
                 shared_messages.ShareType.REFUND,
                 self.logger
             )

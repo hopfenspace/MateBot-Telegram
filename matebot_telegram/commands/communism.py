@@ -108,11 +108,11 @@ class CommunismCommand(BaseCommand):
 
         if args.subcommand is None:
             return await _common.new_group_operation(
-                update,
                 self.client.create_communism(user, args.amount, args.reason),
                 self.client,
                 lambda c: _get_text(self.client, c),
                 _get_keyboard,
+                update.effective_message,
                 shared_messages.ShareType.COMMUNISM,
                 self.logger
             )

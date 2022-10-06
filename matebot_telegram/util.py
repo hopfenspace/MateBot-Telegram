@@ -14,8 +14,7 @@ from typing import Any, Awaitable, Callable, List, Optional
 import requests
 import telegram.ext
 
-from . import client, shared_messages
-from .config import config
+from . import client, config, shared_messages
 
 
 ASYNC_SLEEP_DURATION: float = 0.5
@@ -97,9 +96,9 @@ def send_auto_share_messages(
 
     logger = logger or _logger
     excluded = excluded or []
-    if share_type.value not in config.auto_forward:
+    if share_type.value not in config.config.auto_forward:
         return False
-    receivers = [*map(int, config.auto_forward[share_type.value])]
+    receivers = [*map(int, getattr(config.config.auto_forward, share_type.value))]
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
         if receiver in [m.chat_id for m in client.client.shared_messages.get_messages(share_type, share_id)] + excluded:
@@ -199,7 +198,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
     logger = logging.getLogger("error")
     if update is None:
         logger.warning("Error handler called without Update object. Check for network/connection errors!")
-        token = config.token
+        token = config.config.token
         response = requests.get(f"https://api.telegram.org/bot{token}/getme")
         if response.status_code != 200:
             logger.error("Network check failed. Telegram API seems to be unreachable.")
@@ -233,7 +232,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
                 raise
             logger.info("A shortened error message has been emitted successfully.")
 
-    for receiver in config.chats.notification:
+    for receiver in config.config.chats.notification:
         send_to(
             context,
             receiver,
@@ -241,7 +240,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             None
         )
 
-    for receiver in config.chats.stacktrace:
+    for receiver in config.config.chats.stacktrace:
         send_to(
             context,
             receiver,
@@ -249,7 +248,7 @@ def log_error(update: telegram.Update, context: telegram.ext.CallbackContext) ->
             "Markdown"
         )
 
-    for receiver in config.chats.debugging:
+    for receiver in config.config.chats.debugging:
         extra = "No Update object found."
         if update is not None:
             extra = json.dumps(update.to_dict(), indent=2, sort_keys=True)

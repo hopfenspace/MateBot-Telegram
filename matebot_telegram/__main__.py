@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import argparse
 import logging.config
 
@@ -14,10 +15,13 @@ def get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main():
+def main() -> int:
     args = get_parser().parse_args()
     if args.config:
         config.setup_configuration(args.config)
+    if not hasattr(config, "config"):
+        print("Failed to read configuration file. Make sure a config file exists and is readable.", file=sys.stderr)
+        return 1
 
     logging.config.dictConfig(config.config.logging)
     logger = logging.getLogger("root")
@@ -55,7 +59,8 @@ def main():
     logger.info("Starting bot...")
     updater.start_polling()
     updater.idle()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    exit(main())

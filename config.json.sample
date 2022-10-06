@@ -74,6 +74,9 @@
             },
             "sqlalchemy.engine.Engine": {
                 "level": "WARNING"
+            },
+            "apscheduler": {
+                "level": "WARNING"
             }
         },
         "root": {

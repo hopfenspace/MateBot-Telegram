@@ -221,7 +221,8 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_update(update, self.client.increase_communism_participation, count=1)
+        await self._handle_update(update, self.client.increase_communism_participation, count=1)
+        update.callback_query.answer("You have joined the communism.")
 
     async def leave(self, update: telegram.Update) -> None:
         """
@@ -230,7 +231,8 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_update(update, self.client.decrease_communism_participation, count=1)
+        await self._handle_update(update, self.client.decrease_communism_participation, count=1)
+        update.callback_query.answer("You have left the communism.")
 
     async def close(self, update: telegram.Update) -> None:
         """
@@ -239,7 +241,8 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_update(update, self.client.close_communism, delete=True)
+        await self._handle_update(update, self.client.close_communism, delete=True)
+        update.callback_query.answer("The communism has been closed.")
 
     async def abort(self, update: telegram.Update) -> None:
         """
@@ -248,7 +251,8 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        return await self._handle_update(update, self.client.abort_communism, delete=True)
+        await self._handle_update(update, self.client.abort_communism, delete=True)
+        update.callback_query.answer("The communism has been aborted.")
 
 
 @dispatcher.register_for(schemas.EventType.COMMUNISM_CREATED)

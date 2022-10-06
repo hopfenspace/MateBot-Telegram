@@ -204,6 +204,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
             logger=self.logger,
             keyboard=keyboard
         )
+        update.callback_query.answer()
 
     async def approve(self, update: telegram.Update) -> None:
         """
@@ -251,6 +252,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
             keyboard=keyboard,
             delete_shared_messages=True
         )
+        update.callback_query.answer()
 
 
 async def _refund_callback_handler(method, _: str, id_: int, bot: telegram.Bot, logger: logging.Logger):

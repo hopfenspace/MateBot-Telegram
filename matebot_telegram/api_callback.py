@@ -6,19 +6,18 @@ import json
 import asyncio
 import inspect
 import logging
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Optional
 
 import telegram
 import tornado.web
 
 from matebot_sdk import schemas
-from matebot_sdk.base import BaseCallbackDispatcher
+from matebot_sdk.base import BaseCallbackDispatcher, CALLBACK_TYPE
 
 from . import config, util
 
 
 dispatcher: Optional["APICallbackDispatcher"] = None  # will be available at runtime
-CALLBACK_TYPE = Callable[[schemas.Event, telegram.Bot, logging.Logger, ...], Optional[Awaitable[None]]]
 
 
 class APICallbackDispatcher(BaseCallbackDispatcher):
@@ -36,7 +35,7 @@ class APICallbackDispatcher(BaseCallbackDispatcher):
 
     def run_callback(self, func: CALLBACK_TYPE, event: schemas.Event, *args, **kwargs):
         self.logger.debug(f"Handling callback for {event.event}: {func}")
-        result = func(event, self.bot, self.logger, *args, **kwargs)
+        result = func(event)
         if result is not None:
             if not inspect.isawaitable(result):
                 raise TypeError(f"{func} should return Optional[Awaitable[None]], but got {type(result)}")

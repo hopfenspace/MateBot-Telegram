@@ -209,7 +209,7 @@ class BaseCallbackQuery(_CommonBase):
             util.execute_func(target, self.logger, update)
 
         except APIException as exc:
-            self.logger.exception(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
+            self.logger.info(f"{type(exc).__name__}: {exc.message} ({exc.status}, {exc.details})")
             update.callback_query.answer(text=exc.message, show_alert=True)
 
         except APIConnectionException as exc:

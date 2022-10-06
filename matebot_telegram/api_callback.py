@@ -90,5 +90,8 @@ class APICallbackHandler(tornado.web.RequestHandler):
             self.logger.error("API server sent invalid JSON data or didn't use the event schema")
             return
 
-        self.logger.debug(f"Dispatching {notifications.number} events via global dispatcher")
+        self.logger.debug(
+            f"Dispatching {notifications.number} events via global dispatcher: "
+            f"{[e.event.value for e in notifications.events]}"
+        )
         dispatcher.dispatch(notifications)

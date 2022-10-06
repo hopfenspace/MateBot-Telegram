@@ -29,8 +29,8 @@ async def new_group_operation(
     keyboard = get_keyboard(result)
 
     message: telegram.Message = util.safe_call(
-        lambda: message.reply_markdown(text, reply_markup=keyboard),
-        lambda: message.reply_text(text, reply_markup=keyboard),
+        lambda: reply_message.reply_markdown(text, reply_markup=keyboard),
+        lambda: reply_message.reply_text(text, reply_markup=keyboard),
         use_result=True
     )
     if not sdk.shared_messages.add_message_by(share_type, result.id, message.chat_id, message.message_id):

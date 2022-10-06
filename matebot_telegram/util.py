@@ -14,6 +14,8 @@ from typing import Any, Awaitable, Callable, List, Optional
 import requests
 import telegram.ext
 
+from matebot_sdk import exceptions
+
 from . import client, config, shared_messages
 
 
@@ -153,21 +155,26 @@ def update_all_shared_messages(
         job_queue.run_once(_update_all_shared_messages, 0)
         return True
 
+    def edit_msg(**kwargs):
+        try:
+            bot.edit_message_text(text=text, **kwargs)
+        except telegram.error.BadRequest as exc:
+            if not str(exc).startswith("Message is not modified: specified new message content"):
+                raise
+
     logger = logger or _logger
     msgs = client.client.shared_messages.get_messages(share_type, share_id)
     logger.debug(f"Found {len(msgs)} shared messages for {share_type} ({share_id})")
     success = True
     for msg in msgs:
         success = success and safe_call(
-            lambda: bot.edit_message_text(
-                text=text,
+            lambda: edit_msg(
                 chat_id=msg.chat_id,
                 message_id=msg.message_id,
                 parse_mode=try_parse_mode,
                 reply_markup=keyboard
             ),
-            lambda: bot.edit_message_text(
-                text=text,
+            lambda: edit_msg(
                 chat_id=msg.chat_id,
                 message_id=msg.message_id,
                 reply_markup=keyboard
@@ -273,6 +280,9 @@ def execute_func(func: Callable[..., Optional[Awaitable]], logger: logging.Logge
 
         try:
             return asyncio.run_coroutine_threadsafe(result, loop=event_loop).result()
+        except exceptions.APIException as exc:
+            logger.warning(f"Unhandled exception from future of {result}: {type(exc).__name__}")
+            raise
         except Exception as exc:
             logger.warning(
                 f"Unhandled exception from future of {result}: {type(exc).__name__}",

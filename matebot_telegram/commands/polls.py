@@ -26,8 +26,8 @@ async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: Poll) -> str:
         PollVariant.LOOSE_PERMISSION: "loose the extended permissions to vote on polls"
     }[poll.variant]
     content = (
-        f"*Poll by {creator.name}*\n\n"
-        f"Question: Should {poll.user.name} {question}?\n"
+        f"*Poll by {creator.name}*\n"
+        f"Question: _Should {poll.user.name} {question}?_\n"
         f"Created: {time.asctime(time.gmtime(poll.created))}\n\n"
         f"*Votes ({len(poll.votes)})*\n"
         f"Proponents ({len(approving)}): {', '.join(approving) or 'None'}\n"
@@ -142,6 +142,7 @@ class PollCallbackQuery(BaseCallbackQuery):
             update.callback_query.answer("Only the creator of this poll request can alter it!")
             return
 
+        user = (await self.client.get_users(affected_user))[0]
         issuer = await self.client.get_core_user(update.callback_query.from_user)
         await _common.new_group_operation(
             self.client.create_poll(affected_user, issuer, poll_type),
@@ -152,7 +153,10 @@ class PollCallbackQuery(BaseCallbackQuery):
             shared_messages.ShareType.POLL,
             self.logger
         )
-        update.callback_query.message.delete()
+        update.callback_query.message.edit_text(
+            f"You have selected the poll type for the new poll about the user {user.name}.",
+            reply_markup=telegram.InlineKeyboardMarkup([])
+        )
 
     async def approve(self, update: telegram.Update) -> None:
         """

@@ -4,7 +4,7 @@ MateBot SDK client to be used across the project
 
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import telegram.ext
 
@@ -124,6 +124,13 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
             user = await super().create_app_user(username, str(telegram_user.id), True)
             self._handle_new_user_update(user.id, telegram_user, session)
             return user
+
+    def find_telegram_user(self, core_id: int) -> Optional[Tuple[int, Optional[str]]]:
+        with self.get_new_session() as session:
+            users = session.query(persistence.TelegramUser).filter_by(user_id=core_id).all()
+            if len(users) == 1:
+                return users[0].telegram_id, users[0].username
+        return None
 
     async def get_core_user(self, identifier: Union[int, str, telegram.User]) -> _User:
         pretty = None

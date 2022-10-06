@@ -23,8 +23,8 @@ async def _get_text(refund: schemas.Refund) -> str:
     markdown = (
         f"*Refund by {refund.creator.name}*\n"
         f"Reason: {refund.description}\n"
-        f"Amount: {client.client.format_balance(refund.amount)}\n\n"
-        f"Created: {time.asctime(time.gmtime(refund.created))}"
+        f"Amount: {client.client.format_balance(refund.amount)}\n"
+        f"Created: {time.asctime(time.gmtime(refund.created))}\n\n"
         f"*Votes ({len(refund.votes)})*\n"
         f"Proponents ({len(approving)}): {', '.join(approving) or 'None'}\n"
         f"Opponents ({len(disapproving)}): {', '.join(disapproving) or 'None'}\n"
@@ -33,12 +33,14 @@ async def _get_text(refund: schemas.Refund) -> str:
     if refund.active:
         markdown += "\n_The refund request is currently active._"
     elif not refund.active:
-        markdown += "\n_The refund request has been closed._"
-        if refund.transaction:
-            markdown += f"\nThe transaction has been processed. Take a look at /history for more details."
+        if refund.allowed is not None:
+            markdown += f"\n_The request was {('rejected', 'allowed')[refund.allowed]}. "
         else:
-            markdown += "\nThe refund request was denied or cancelled. No transactions have been processed."
-
+            markdown += "\n_The request has been aborted. "
+        if refund.transaction:
+            markdown += f"The transaction has been processed. Take a look at your history for more details._"
+        else:
+            markdown += "No transactions have been processed._"
     return markdown
 
 

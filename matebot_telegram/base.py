@@ -107,6 +107,14 @@ class BaseCommand(_CommonBase):
             self.logger.warning(f"APIException @ {type(self).__name__} ({exc.status}, {exc.details})", exc_info=True)
             update.effective_message.reply_text(exc.message)
 
+        except err.MateBotException as exc:
+            self.logger.debug("Uncaught MateBotException will now be replied to user")
+            util.safe_call(
+                lambda: update.effective_message.reply_markdown(str(exc)),
+                lambda: update.effective_message.reply_text(str(exc)),
+                logger=self.logger
+            )
+
     def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
         """
         Parse arguments of the incoming update and execute the .run() method in a separate thread
@@ -129,7 +137,11 @@ class BaseCommand(_CommonBase):
             self.client.patch_user_db_from_update(update)
 
         except err.MateBotException as exc:
-            update.effective_message.reply_text(str(exc))
+            util.safe_call(
+                lambda: update.effective_message.reply_markdown(str(exc)),
+                lambda: update.effective_message.reply_text(str(exc)),
+                logger=self.logger
+            )
 
         else:
             self._run((args, update, context))

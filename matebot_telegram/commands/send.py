@@ -58,16 +58,20 @@ class SendCommand(BaseCommand):
             return f"send {variant} {args.amount} {update.effective_message.from_user.id} {args.receiver.id}"
 
         formatted_amount = self.client.format_balance(args.amount)
-        msg = f"Do you want to send {formatted_amount} to {args.receiver.name}?\nDescription: `{reason}`"
         keyboard = telegram.InlineKeyboardMarkup([[
             telegram.InlineKeyboardButton("CONFIRM", callback_data=e("confirm")),
             telegram.InlineKeyboardButton("ABORT", callback_data=e("abort"))
         ]])
         util.safe_call(
-            lambda: update.effective_message.reply_text(msg, reply_markup=keyboard, parse_mode="Markdown"),
+            lambda: update.effective_message.reply_markdown(
+                f"Do you want to send {formatted_amount} to {args.receiver.name}?\nDescription: `{reason}`",
+                reply_markup=keyboard
+            ),
             lambda: update.effective_message.reply_text(
-                "The request can't be processed, since the message contains "
-                "forbidden entities, e.g. underscores or apostrophes."
+                f"Do you want to send {formatted_amount} to {args.receiver.name}?\n\n"
+                f"Attention: Since your description contains forbidden characters like underscores "
+                f"or apostrophes, the description '<no reason>' will be used as a fallback value.",
+                reply_markup=keyboard
             )
         )
 
@@ -112,7 +116,8 @@ class SendCallbackQuery(BaseCallbackQuery):
                     raise RuntimeError("Multiple reason definitions")
 
         if reason is None:
-            raise RuntimeError("Unknown reason while confirming a Transaction")
+            reason = "send: <no description>"
+            self.logger.error("No description provided")
 
         try:
             transaction = await self.client.create_transaction(sender, receiver, amount, reason)

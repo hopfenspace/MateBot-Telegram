@@ -46,6 +46,18 @@ def setup(dispatcher: _Dispatcher):
     from .vouch import VouchCommand, VouchCallbackQuery
     from .zwegat import ZwegatCommand
 
+    from .. import config
+    if not hasattr(config, "config"):
+        raise RuntimeError("Initialize the config module completely before executing this function!")
+
+    from .. import client
+    if not hasattr(client, "client"):
+        raise RuntimeError("Initialize the client module using its 'setup' function before executing this function!")
+
+    from .. import api_callback
+    if api_callback.dispatcher is None:
+        raise RuntimeError("Initialize the 'api_callback' module and its 'dispatcher' before executing this function!")
+
     for command in [
         BalanceCommand(),
         BlameCommand(),

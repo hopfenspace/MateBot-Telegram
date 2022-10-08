@@ -71,7 +71,7 @@ class DataCommand(BaseCommand):
         open_created_refunds = [r for r in created_refunds if r.active]
         open_relevant_polls = [p for p in relevant_polls if p.active]
         transactions = list(sorted(await self.client.get_transactions(member_id=user.id), key=lambda t: t.timestamp))
-        last_transaction = (transactions and time.asctime(time.localtime(transactions[0].timestamp))) or None
+        last_transaction = (transactions and time.asctime(time.localtime(int(transactions[0].timestamp)))) or None
 
         result = (
             f"Overview over currently stored data for {user.name}:\n"
@@ -91,7 +91,7 @@ class DataCommand(BaseCommand):
             f"Created refunds: {len(created_refunds)} ({len(open_created_refunds)} open)\n"
             f"Relevant polls: {len(relevant_polls)} ({len(open_relevant_polls)} open)\n"
             f"Total votes in refunds and polls: {len(votes)}\n"
-            f"Account created: {time.asctime(time.localtime(user.created))}\n"
+            f"Account created: {time.asctime(time.localtime(int(user.created)))}\n"
             f"Last transaction: {last_transaction}\n"
             f"```\n\n"
             f"Use the /history command to see your transaction log."

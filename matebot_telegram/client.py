@@ -139,7 +139,19 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
             identifier = identifier.id
         if isinstance(identifier, str):
             pretty = identifier
-            identifier = self._lookup_telegram_identifier(identifier)
+            try:
+                identifier = self._lookup_telegram_identifier(identifier)
+            except err.NoUserFound as exc:
+                users = await self.get_users(name=identifier)
+                if users and len(users) == 1:
+                    if [a for a in users[0].aliases if a.confirmed and a.application_id == self.app_id]:
+                        return users[0]
+                    if [a for a in users[0].aliases if a.application_id == self.app_id]:
+                        raise err.UserNotVerified(
+                            f"The user alias for {users[0].name} is not confirmed yet. It can't be "
+                            "used while the connection to the other MateBot apps wasn't verified."
+                        ) from exc
+                raise
         users = await self.get_users_by_alias(alias=str(identifier), confirmed=True, active=True)
         if len(users) == 1:
             return users[0]

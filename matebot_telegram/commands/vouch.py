@@ -62,7 +62,7 @@ class VouchCommand(BaseCommand):
             else:
                 debtors = await self.client.get_users(voucher_id=sender.id)
                 if not debtors:
-                    update.effective_message.reply_text(
+                    update.effective_message.reply_markdown(
                         "You currently don't vouch for anybody. Use the subcommand `add`/`vouch` to vouch "
                         "for another user. See the help page of the vouch command for more information."
                     )

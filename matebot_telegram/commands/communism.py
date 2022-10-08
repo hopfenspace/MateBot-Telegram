@@ -17,7 +17,7 @@ from ..parsing.util import Namespace
 
 
 async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
-    creator = await sdk.get_user(communism.id)
+    creator = await sdk.get_user(communism.creator_id)
     usernames = ", ".join(f"{p.user_name} ({p.quantity}x)" for p in communism.participants) or "None"
     markdown = (
         f"*Communism by {creator.name}*\n\n"

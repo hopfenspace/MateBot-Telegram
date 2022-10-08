@@ -27,9 +27,9 @@ class Configuration(_pydantic.BaseModel):
         shared_secret: Optional[_pydantic.constr(max_length=2047)]
 
     class AutoForwardConfiguration(_pydantic.BaseModel):
-        communism: List[Union[str, int]]
-        poll: List[Union[str, int]]
-        refund: List[Union[str, int]]
+        communism: List[int]
+        poll: List[int]
+        refund: List[int]
 
     class ChatConfiguration(_pydantic.BaseModel):
         transactions: List[Union[str, int]]

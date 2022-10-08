@@ -98,12 +98,14 @@ def send_auto_share_messages(
 
     logger = logger or _logger
     excluded = excluded or []
-    if share_type.value not in config.config.auto_forward:
+    if not hasattr(config.config.auto_forward, share_type.value):
+        logger.warning(f"No auto-forward rules defined for {share_type}!")
         return False
-    receivers = [*map(int, getattr(config.config.auto_forward, share_type.value))]
+    receivers = getattr(config.config.auto_forward, share_type.value)
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
-        if receiver in [m.chat_id for m in client.client.shared_messages.get_messages(share_type, share_id)] + excluded:
+        shared_message = client.client.shared_messages.get_messages(share_type, share_id)
+        if receiver in [int(m.chat_id) for m in shared_message] + excluded:
             continue
         message = safe_call(
             lambda: bot.send_message(

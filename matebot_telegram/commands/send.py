@@ -52,7 +52,10 @@ class SendCommand(BaseCommand):
         else:
             reason = "send: " + str(args.reason)
 
-        await self.client.get_core_user(update.effective_message.from_user)
+        issuer = await self.client.get_core_user(update.effective_message.from_user)
+        if issuer.privilege < issuer.privilege.VOUCHED:
+            update.effective_message.reply_text("You are not permitted to use this feature. See /help for details.")
+            return
 
         def e(variant: str) -> str:
             return f"send {variant} {args.amount} {update.effective_message.from_user.id} {args.receiver.id}"

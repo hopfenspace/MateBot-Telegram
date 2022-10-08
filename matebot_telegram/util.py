@@ -26,6 +26,7 @@ event_thread_running: threading.Event = threading.Event()
 event_thread_started: threading.Event = threading.Event()
 
 _logger = logging.getLogger("util")
+_auto_send_lock = threading.Lock()
 
 
 async def async_thread():
@@ -104,27 +105,28 @@ def send_auto_share_messages(
     receivers = getattr(config.config.auto_forward, share_type.value)
     logger.debug(f"Configured receivers of {share_type} ({share_id}) auto-forward: {receivers}")
     for receiver in receivers:
-        shared_message = client.client.shared_messages.get_messages(share_type, share_id)
-        if receiver in [int(m.chat_id) for m in shared_message] + excluded:
-            continue
-        message = safe_call(
-            lambda: bot.send_message(
-                chat_id=receiver,
-                text=text,
-                parse_mode=try_parse_mode,
-                disable_notification=disable_notification,
-                reply_markup=keyboard,
-            ),
-            lambda: bot.send_message(
-                chat_id=receiver,
-                text=text,
-                disable_notification=disable_notification,
-                reply_markup=keyboard,
-            ),
-            use_result=True
-        )
-        client.client.shared_messages.add_message_by(share_type, share_id, message.chat_id, message.message_id)
-        logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
+        with _auto_send_lock:
+            shared_message = client.client.shared_messages.get_messages(share_type, share_id)
+            if receiver in [int(m.chat_id) for m in shared_message] + excluded:
+                continue
+            message = safe_call(
+                lambda: bot.send_message(
+                    chat_id=receiver,
+                    text=text,
+                    parse_mode=try_parse_mode,
+                    disable_notification=disable_notification,
+                    reply_markup=keyboard,
+                ),
+                lambda: bot.send_message(
+                    chat_id=receiver,
+                    text=text,
+                    disable_notification=disable_notification,
+                    reply_markup=keyboard,
+                ),
+                use_result=True
+            )
+            client.client.shared_messages.add_message_by(share_type, share_id, message.chat_id, message.message_id)
+            logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
     return True
 
 

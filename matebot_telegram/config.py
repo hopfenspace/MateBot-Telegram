@@ -3,7 +3,7 @@ MateBot telegram config loader
 """
 
 import os as _os
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import pydantic as _pydantic
 
@@ -32,10 +32,10 @@ class Configuration(_pydantic.BaseModel):
         refund: List[int]
 
     class ChatConfiguration(_pydantic.BaseModel):
-        transactions: List[Union[str, int]]
-        notification: List[Union[str, int]]
-        stacktrace: List[Union[str, int]]
-        debugging: List[Union[str, int]]
+        transactions: List[int]
+        notification: List[int]
+        stacktrace: List[int]
+        debugging: List[int]
 
     application: _pydantic.constr(max_length=255)
     password: _pydantic.constr(max_length=255)

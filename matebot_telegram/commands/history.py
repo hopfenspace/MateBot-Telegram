@@ -7,9 +7,9 @@ import time
 import tempfile
 
 import telegram
-from matebot_sdk.schemas import Transaction
+from matebot_sdk import schemas
 
-from .. import util
+from .. import api_callback, client, config, util
 from ..base import BaseCommand
 from ..parsing.types import natural as natural_type
 from ..parsing.util import Namespace
@@ -133,7 +133,7 @@ class HistoryCommand(BaseCommand):
 
         user = await self.client.get_core_user(update.effective_message.from_user)
 
-        def format_transaction(transaction: Transaction) -> str:
+        def format_transaction(transaction: schemas.Transaction) -> str:
             timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(int(transaction.timestamp)))
             direction = ["<<", ">>"][transaction.sender.id == user.id]
             partner = ((transaction.sender, transaction.receiver)[transaction.sender.id == user.id]).name
@@ -186,3 +186,48 @@ class HistoryCommand(BaseCommand):
                     lambda: update.effective_message.reply_markdown_v2(text),
                     lambda: update.effective_message.reply_text(text)
                 )
+
+
+@api_callback.dispatcher.register_for(schemas.EventType.TRANSACTION_CREATED)
+async def _handle_incoming_transaction_notification(event: schemas.Event):
+    transaction = (await client.client.get_transactions(id=int(event.data["id"])))[0]
+    sender_user = client.client.find_telegram_user(transaction.sender.id)
+    receiver_user = client.client.find_telegram_user(transaction.receiver.id)
+
+    bot = client.client.bot
+    community = await client.client.community
+    if transaction.sender.id == community.id:
+        alias = ""
+        if receiver_user and receiver_user[1]:
+            alias = f" alias @{receiver_user[1]}"
+        msg = f"*Incoming transaction*\nThe community has sent {client.client.format_balance(transaction.amount)} " \
+              f"to the user {transaction.receiver.name}{alias}.\nDescription: `{transaction.reason}`"
+        for notification_receiver in config.config.chats.transactions:
+            util.safe_call(
+                lambda: bot.send_message(notification_receiver, msg, parse_mode=telegram.ParseMode.MARKDOWN),
+                lambda: bot.send_message(notification_receiver, msg),
+            )
+    if transaction.receiver.id == community.id:
+        alias = ""
+        if receiver_user and receiver_user[1]:
+            alias = f" alias @{receiver_user[1]}"
+        msg = f"*Incoming transaction*\nThe user {transaction.sender.name}{alias} " \
+              f"has sent {client.client.format_balance(transaction.amount)} to the " \
+              f"community.\nDescription: `{transaction.reason}`"
+        for notification_receiver in config.config.chats.transactions:
+            util.safe_call(
+                lambda: bot.send_message(notification_receiver, msg, parse_mode=telegram.ParseMode.MARKDOWN),
+                lambda: bot.send_message(notification_receiver, msg),
+            )
+
+    if [a for a in transaction.receiver.aliases if a.confirmed and a.application_id == client.client.app_id]:
+        if receiver_user:
+            alias = ""
+            if sender_user and sender_user[1]:
+                alias = f" alias @{sender_user[1]}"
+            msg = f"Good news! You received a payment from {transaction.sender.name}{alias} about " \
+                  f"{client.client.format_balance(transaction.amount)}.\nDescription: `{transaction.reason}`"
+            util.safe_call(
+                lambda: bot.send_message(receiver_user[0], msg, parse_mode=telegram.ParseMode.MARKDOWN),
+                lambda: bot.send_message(receiver_user[0], msg)
+            )

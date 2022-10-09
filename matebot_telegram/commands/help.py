@@ -45,21 +45,20 @@ class HelpCommand(BaseCommand):
             try:
                 user = await self.client.get_core_user(update.effective_message.from_user)
             except (err.MateBotException, exceptions.APIConnectionException):
-                msg = self.get_help_usage(self.usage, None)
+                msg = await self.get_help_usage(self.usage, None)
                 util.safe_call(
                     lambda: update.effective_message.reply_markdown(msg),
                     lambda: update.effective_message.reply_text(msg)
                 )
                 raise
-            msg = self.get_help_usage(self.usage, user)
+            msg = await self.get_help_usage(self.usage, user)
 
         util.safe_call(
             lambda: update.effective_message.reply_markdown(msg),
             lambda: update.effective_message.reply_text(msg)
         )
 
-    @staticmethod
-    def get_help_usage(usage: str, user: Optional[schemas.User] = None) -> str:
+    async def get_help_usage(self, usage: str, user: Optional[schemas.User] = None) -> str:
         """
         Retrieve the help message from the help command without arguments
 
@@ -72,7 +71,11 @@ class HelpCommand(BaseCommand):
         """
 
         command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(BaseCommand.AVAILABLE_COMMANDS.keys())))
-        msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n\n{command_list}"
+        msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n{command_list}"
+        dynamic_commands = "\n".join(sorted(
+            [f"- `{c.name}` for {self.client.format_balance(c.price)}" for c in await self.client.get_consumables()]
+        ))
+        msg += f"\n\nAdditionally, the following dynamic consumption commands are available:\n{dynamic_commands}"
 
         if user and not user.active:
             msg += "\n\nYour user account has been disabled. You're not allowed to interact with the bot."

@@ -2,14 +2,15 @@
 MateBot callback query handler for newly created aliases
 """
 
-from typing import Tuple
+import logging
+from typing import Optional, Tuple
 
 import telegram
 from matebot_sdk import schemas
 
+from .. import client, shared_messages
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery
-from ..config import config
 
 
 class AliasCallbackQuery(BaseCallbackQuery):
@@ -28,15 +29,23 @@ class AliasCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    async def _get_alias_and_user(self, update: telegram) -> Tuple[schemas.Alias, schemas.User]:
-        _, alias_id = self.data.split(" ")
-        alias = await self.client.get_alias_by_id(int(alias_id))
-        user = await SDK.get_user_by_app_alias(str(update.callback_query.from_user.id))
+    async def _get_alias_and_user(self, update: telegram) -> Optional[Tuple[schemas.Alias, schemas.User]]:
+        _, alias_id, original_sender = self.data.split(" ")
+        original_sender = int(original_sender)
+        if update.callback_query.from_user.id != original_sender:
+            update.callback_query.answer("Only the account owner of this request can confirm it!", show_alert=True)
+            return
 
-        if alias.user_id != user.id:
+        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        aliases = await self.client.get_aliases(id=int(alias_id))
+        if len(aliases) != 1:
+            self.logger.warning(f"Invalid alias ID {alias_id}")
+            return
+
+        if aliases[0].user_id != issuer.id:
             update.callback_query.answer("Only owner of the account can answer this question!", show_alert=True)
-            return tuple()
-        return alias, user
+            return
+        return aliases[0], issuer
 
     async def accept(self, update: telegram.Update) -> None:
         result = await self._get_alias_and_user(update)
@@ -44,12 +53,15 @@ class AliasCallbackQuery(BaseCallbackQuery):
             return
         alias, user = result
 
-        alias = await SDK.confirm_alias(alias)
-        app = await SDK.get_application_by_id(alias.application_id)
-        msg = f"You successfully confirmed the alias {alias.app_username} of the application {app.name}. " \
+        alias = await self.client.confirm_alias(alias, user)
+        apps = await self.client.get_applications(id=alias.application_id)
+        if len(apps) != 1:
+            self.logger.warning(f"Invalid response with {len(apps)} results instead of exactly one")
+            return
+        msg = f"You successfully confirmed the alias {alias.username} of the application {apps[0].name}. " \
               f"Your accounts are now linked together and will use the same balance, permissions etc."
         update.callback_query.message.edit_text(msg, reply_markup=telegram.InlineKeyboardMarkup([]))
-        shared_message_handler.delete_messages("alias", alias.id)
+        self.client.shared_messages.delete_messages(shared_messages.ShareType.ALIAS, alias.id)
 
     async def deny(self, update: telegram.Update) -> None:
         result = await self._get_alias_and_user(update)
@@ -57,100 +69,96 @@ class AliasCallbackQuery(BaseCallbackQuery):
             return
         alias, user = result
 
-        await SDK.drop_alias(alias)
+        deletion = await self.client.delete_alias(alias, user)
         update.callback_query.message.edit_text(
-            "The alias has been deleted. It won't be possible to use it in the future.",
+            "The alias has been deleted. It won't be possible to use it in the future.\n"
+            f"You have {len(deletion.aliases)} registered aliases for your account.",
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
-        shared_message_handler.delete_messages("alias", alias.id)
+        self.client.shared_messages.delete_messages(shared_messages.ShareType.ALIAS, alias.id)
 
     async def report(self, update: telegram.Update) -> None:
-        result = await self._get_alias_and_user(update)
-        if not result:
-            return
-        alias, user = result
-
-        msg = (
-            f"Spam reported in chat {update.effective_chat.id} by {update.effective_user.name} "
-            f"({update.effective_user.id}) for the new alias {alias.id} ({alias.dict()})! "
-            f"Please determine the source of this newly created alias."
-        )
-        self.logger.warning(msg)
-        for receiver in config["chats"]["notification"]:
-            update.callback_query.bot.send_message(receiver, msg)
-
-        await SDK.drop_alias(alias)
-        update.callback_query.message.edit_text(
-            "The alias has been deleted. It won't be possible to use it in the future.\nThanks for your report.",
-            reply_markup=telegram.InlineKeyboardMarkup([])
-        )
-        shared_message_handler.delete_messages("alias", alias.id)
-
-
-async def _handle_create_alias(event: schemas.Event):
-    # app = await SDK.application
-    # alias = await SDK.get_alias_by_id(id_)
-    # if alias.confirmed:
-    #     logger.debug(f"Alias {alias} is already confirmed")
-    #     return
-    #
-    # other_app = await SDK.get_application_by_id(alias.application_id)
-    # user = await SDK.get_user_by_id(alias.user_id)
-    # app_aliases = [a for a in user.aliases if app.id == a.application_id and a.confirmed and a.unique]
-    # if not app_aliases:
-    #     logger.debug(f"No confirmed unique app aliases found for {user}")
-    #     return
-    #
-    # msg = (
-    #     "Someone has just registered a new app alias using your existing account in another application. "
-    #     "Currently, the other app alias is not confirmed and will therefore not be accepted for "
-    #     "transactions or other operations.\nIf this alias was created by you, you need to ACCEPT it "
-    #     "to connect your accounts successfully. If this wasn't you, please DENY this request.\n\n"
-    #     f"Application ID: {alias.application_id}\n"
-    #     f"Application name: {other_app.name}\n"
-    #     f"Alias username: {alias.app_username}\n"
-    #     f"Alias unique flag: {alias.unique}"
-    # )
-    #
-    # username = app_aliases[0].app_username
-    # message = bot.send_message(
-    #     username if not username.isdigit() else int(username),
-    #     msg,
-    #     reply_markup=telegram.InlineKeyboardMarkup([
-    #         [
-    #             telegram.InlineKeyboardButton("ACCEPT", callback_data=f"alias accept {alias.id}"),
-    #             telegram.InlineKeyboardButton("DENY", callback_data=f"alias deny {alias.id}"),
-    #         ],
-    #         [
-    #             telegram.InlineKeyboardButton("DENY AND REPORT SPAM", callback_data=f"alias report {alias.id}"),
-    #         ]
-    #     ])
-    # )
-    # shared_message_handler.add_message_by("alias", alias.id, message.chat_id, message.message_id)
-    raise NotImplementedError
+        raise NotImplementedError
+        # result = await self._get_alias_and_user(update)
+        # if not result:
+        #     return
+        # alias, user = result
+        #
+        # msg = (
+        #     f"Spam reported in chat {update.effective_chat.id} by {update.effective_user.name} "
+        #     f"({update.effective_user.id}) for the new alias {alias.id} ({alias.dict()})! "
+        #     f"Please determine the source of this newly created alias."
+        # )
+        # self.logger.warning(msg)
+        # for receiver in config["chats"]["notification"]:
+        #     update.callback_query.bot.send_message(receiver, msg)
+        #
+        # await SDK.drop_alias(alias)
+        # update.callback_query.message.edit_text(
+        #     "The alias has been deleted. It won't be possible to use it in the future.\nThanks for your report.",
+        #     reply_markup=telegram.InlineKeyboardMarkup([])
+        # )
+        # self.client.shared_messages.delete_messages(shared_messages.ShareType.ALIAS, alias.id)
 
 
-async def _handle_update_alias(event: schemas.Event):
-    # alias = await SDK.get_alias_by_id(id_)
-    # if alias.confirmed:
-    #     util.update_all_shared_messages(bot, "alias", id_, "The alias has been successfully enabled.", logger)
-    #     shared_message_handler.delete_messages("alias", id_)
-    raise NotImplementedError
-
-
-async def _handle_delete_alias(event: schemas.Event):
-    # util.update_all_shared_messages(bot, "alias", id_, "The alias has been successfully enabled.", logger)
-    # shared_message_handler.delete_messages("alias", id_)
-    raise NotImplementedError
-
-
+@dispatcher.register_for(schemas.EventType.ALIAS_CONFIRMATION_REQUESTED)
 async def _handle_alias_confirmation_requested(event: schemas.Event):
-    raise NotImplementedError
+    logger = logging.getLogger("api-callback.alias")
+    aliases = await client.client.get_aliases(id=event.data["id"])
+    if len(aliases) != 1:
+        logger.warning(f"Confirmation request for invalid alias ID {event.data['id']}")
+        return
+    alias = aliases[0]
+    if alias.confirmed:
+        logger.debug(f"Alias ID {alias.id} for user ID {alias.user_id} is already confirmed")
+        return
+
+    if alias.application_id == client.client.app_id:
+        logger.debug(f"Confirmation request for origin application ID {alias.application_id} ignored")
+        return
+    apps = await client.client.get_applications(id=alias.application_id)
+    if len(apps) != 1:
+        logger.error(f"Not exactly one app returned for call, found {len(apps)} objects")
+        return
+    app = apps[0]
+    username = (await client.client.get_user(alias.user_id)).name
+    user = client.client.find_telegram_user(alias.user_id)
+    if not user:
+        logger.debug("No telegram user found to notify for the newly created alias")
+        return
+
+    msg = (
+        "Someone has just registered a new app alias using your existing account in another application. "
+        "Currently, the other app alias is not confirmed and will therefore not be accepted for "
+        "transactions or other operations.\nIf this alias was created by you, you need to ACCEPT it "
+        "to connect your accounts successfully. You will then be able to use any of the confirmed "
+        "registered applications interchangeably.\nIf this wasn't you, please DENY this request, "
+        "which will also delete that newly created alias so it can't be activated in the future.\n\n"
+        f"Application ID: {alias.application_id}\n"
+        f"Application name: {app.name}\n"
+        f"Creator username: {username}\n"
+        f"Alias username: {alias.username}"
+    )
+
+    message = client.client.bot.send_message(
+        user[0],
+        msg,
+        reply_markup=telegram.InlineKeyboardMarkup([
+            [
+                telegram.InlineKeyboardButton("ACCEPT", callback_data=f"alias accept {alias.id} {user[0]}"),
+                telegram.InlineKeyboardButton("DENY", callback_data=f"alias deny {alias.id} {user[0]}"),
+            ],
+            # TODO: Maybe add the report mechanic again in the future
+            # [
+            #     telegram.InlineKeyboardButton("DENY AND REPORT", callback_data=f"alias report {alias.id} {user[0]}"),
+            # ]
+        ])
+    )
+    client.client.shared_messages.add_message_by(
+        shared_messages.ShareType.ALIAS, alias.id, message.chat_id, message.message_id
+    )
 
 
+@dispatcher.register_for(schemas.EventType.ALIAS_CONFIRMED)
 async def _handle_alias_confirmed(event: schemas.Event):
     raise NotImplementedError
-
-
-dispatcher.register(schemas.EventType.ALIAS_CONFIRMATION_REQUESTED, _handle_alias_confirmation_requested)
-dispatcher.register(schemas.EventType.ALIAS_CONFIRMED, _handle_alias_confirmed)

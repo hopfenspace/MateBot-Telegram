@@ -13,6 +13,7 @@ from . import persistence
 
 @enum.unique
 class ShareType(enum.Enum):
+    ALIAS = "alias"
     COMMUNISM = "communism"
     POLL = "poll"
     REFUND = "refund"

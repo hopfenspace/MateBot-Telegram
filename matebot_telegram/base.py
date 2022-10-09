@@ -108,10 +108,11 @@ class BaseCommand(_CommonBase):
             update.effective_message.reply_text(exc.message)
 
         except err.MateBotException as exc:
+            msg = str(exc)
             self.logger.debug("Uncaught MateBotException will now be replied to user")
             util.safe_call(
-                lambda: update.effective_message.reply_markdown(str(exc)),
-                lambda: update.effective_message.reply_text(str(exc)),
+                lambda: update.effective_message.reply_markdown(msg),
+                lambda: update.effective_message.reply_text(msg),
                 logger=self.logger
             )
 
@@ -137,9 +138,10 @@ class BaseCommand(_CommonBase):
             self.client.patch_user_db_from_update(update)
 
         except err.MateBotException as exc:
+            msg = str(exc)
             util.safe_call(
-                lambda: update.effective_message.reply_markdown(str(exc)),
-                lambda: update.effective_message.reply_text(str(exc)),
+                lambda: update.effective_message.reply_markdown(msg),
+                lambda: update.effective_message.reply_text(msg),
                 logger=self.logger
             )
 

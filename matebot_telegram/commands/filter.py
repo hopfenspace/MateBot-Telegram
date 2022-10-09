@@ -9,6 +9,24 @@ import telegram.ext
 from .. import client
 
 
+class CommandMessageFilter(telegram.ext.UpdateFilter):
+    """
+    Update filter for messages which are telegram bot commands starting with '/'
+    """
+
+    def __init__(self, allow_edits: bool, *_):
+        self.allow_edits = allow_edits
+
+    def filter(self, update: telegram.Update) -> bool:
+        if update.effective_message is None or (update.edited_message is not None and not self.allow_edits):
+            return False
+        msg = update.effective_message
+        cmd = telegram.messageentity.MessageEntity.BOT_COMMAND
+        if msg.from_user.is_bot or not msg.entities or msg.entities[0].type != cmd or not msg.text.startswith("/"):
+            return False
+        return True
+
+
 class ReplyMessageHandlerFilter(telegram.ext.UpdateFilter):
     """
     Update filter to only allow messages which are a reply to a message from the bot

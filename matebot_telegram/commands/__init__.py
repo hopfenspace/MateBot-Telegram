@@ -29,9 +29,9 @@ def setup(dispatcher: _Dispatcher):
     from .balance import BalanceCommand
     from .blame import BlameCommand
     from .communism import CommunismCommand, CommunismCallbackQuery
-    from .consume import ConsumeCommand
+    from .consume import ConsumeCommand, ConsumeMessage
     from .data import DataCommand
-    from .filter import ReplyMessageHandlerFilter
+    from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
     from .forward import ForwardInlineQuery, ForwardInlineResult
     from .handler import FilteredChosenInlineResultHandler
     from .help import HelpCommand, HelpInlineQuery
@@ -101,10 +101,8 @@ def setup(dispatcher: _Dispatcher):
             FilteredChosenInlineResultHandler(inline_result, pattern=inline_result.pattern, run_async=True)
         )
 
-    for message, group in [
-        (CatchallReplyMessage(), 1)
+    for message, filter_cls in [
+        (CatchallReplyMessage(), ReplyMessageHandlerFilter),
+        (ConsumeMessage(), CommandMessageFilter),
     ]:
-        dispatcher.add_handler(
-            _MessageHandler(ReplyMessageHandlerFilter(False, message.prefix), message, run_async=True),
-            group=group
-        )
+        dispatcher.add_handler(_MessageHandler(filter_cls(False, message.prefix), message, run_async=True))

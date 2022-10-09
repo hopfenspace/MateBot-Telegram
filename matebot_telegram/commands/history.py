@@ -2,6 +2,7 @@
 MateBot command executor classes for /history
 """
 
+import csv
 import json
 import time
 import tempfile
@@ -78,8 +79,21 @@ class HistoryCommand(BaseCommand):
         user = await self.client.get_core_user(update.effective_message.from_user)
         transactions = await self.client.get_transactions(member_id=user.id)
 
+        def conv_transaction(t: schemas.Transaction) -> dict:
+            return {
+                "id": t.id,
+                "amount": t.amount,
+                "amount_formatted": self.client.format_balance(t.amount),
+                "sender": t.sender.id,
+                "receiver": t.receiver.id,
+                "reason": t.reason,
+                "registered": t.timestamp,
+                "registered_formatted": time.asctime(time.gmtime(t.timestamp)),
+                "multi_transaction": t.multi_transaction_id is not None
+            }
+
         if args.export == "json":
-            logs = [t.dict() for t in transactions]
+            logs = [conv_transaction(t) for t in transactions]
             if len(logs) == 0:
                 update.effective_message.reply_text("You don't have any registered transactions yet.")
                 return
@@ -98,27 +112,32 @@ class HistoryCommand(BaseCommand):
                 )
 
         elif args.export == "csv":
-            # TODO: implement CSV export of transactions
-            update.effective_message.reply_text("This feature is not implemented yet.")
-            return
+            logs = [conv_transaction(t) for t in transactions]
+            if len(logs) == 0:
+                update.effective_message.reply_text("You don't have any registered transactions yet.")
+                return
+            fields = list(logs[0].keys())
 
-            # content = TransactionLog(user).to_csv(True)
-            # if content is None:
-            #     update.effective_message.reply_text("You don't have any registered transactions yet.")
-            #     return
-            #
-            # with tempfile.TemporaryFile(mode="w+b") as file:
-            #     file.write(content.encode("UTF-8"))
-            #     file.seek(0)
-            #
-            #     update.effective_message.reply_document(
-            #         document=file,
-            #         filename="transactions.csv",
-            #         caption=(
-            #             "You requested the export of your transaction log. "
-            #             f"This file contains all known transactions of {user.name}."
-            #         )
-            #     )
+            with tempfile.TemporaryFile(mode="w+b") as telegram_file:
+                with tempfile.TemporaryFile(mode="w+", newline="") as csv_file:
+                    writer = csv.DictWriter(csv_file, fieldnames=fields, dialect="unix")
+                    writer.writeheader()
+                    for row in logs:
+                        writer.writerow(row)
+                    csv_file.flush()
+                    csv_file.seek(0)
+                    content = csv_file.read()
+
+                telegram_file.write(content.encode("UTF-8"))
+                telegram_file.seek(0)
+                update.effective_message.reply_document(
+                    document=telegram_file,
+                    filename="transactions.csv",
+                    caption=(
+                        "You requested the export of your transaction log. "
+                        f"This file contains all known transactions of {user.name}."
+                    )
+                )
 
     async def _handle_report(self, args: Namespace, update: telegram.Update) -> None:
         """

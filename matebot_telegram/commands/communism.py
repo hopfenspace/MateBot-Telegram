@@ -31,9 +31,13 @@ async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.C
     elif not communism.active:
         markdown += "\n_The communism has been closed._"
         if communism.multi_transaction:
-            markdown += f"\n{len(communism.multi_transaction.transactions)} transactions have been processed "
-            markdown += f"for a total value of {sdk.format_balance(communism.multi_transaction.total_amount)}. "
-            markdown += "Take a look at /history for more details."
+            transaction_count = len(communism.multi_transaction.transactions)
+            markdown += (
+                f"\n{transaction_count} transaction{('', 's')[transaction_count != 1]} "
+                f"{('has', 'have')[transaction_count != 1]} been processed for a total "
+                f"value of {sdk.format_balance(communism.multi_transaction.total_amount)}. "
+                "Take a look at /history for more details."
+            )
         else:
             markdown += "\nThe communism was aborted. No transactions have been processed."
 
@@ -122,15 +126,60 @@ class CommunismCommand(BaseCommand):
             update.effective_message.reply_text("You don't have a communism in progress.")
             return
 
-        if len(active_communisms) > 1:
-            update.effective_message.reply_text(
-                "You have more than one active communism. The command will affect the most recent active communism."
+        if args.subcommand == "show":
+            text = await _get_text(self.client, active_communisms[-1])
+            keyboard = _get_keyboard(active_communisms[-1])
+            new_message = util.safe_call(
+                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
+                use_result=True
             )
 
-        if args.subcommand == "show":
-            # TODO: implement showing the currently active communism in the current chat & updating the shared messages
-            update.effective_message.reply_text("Not implemented yet.")
-            raise NotImplementedError
+            for message in self.client.shared_messages.get_messages(
+                shared_messages.ShareType.COMMUNISM, active_communisms[-1].id
+            ):
+                if message.chat_id != new_message.chat_id:
+                    continue
+
+                try:
+                    edited_message: telegram.Message = util.safe_call(
+                        lambda: update.effective_message.bot.edit_message_text(
+                            "\n\n".join(
+                                text.split("\n\n")[:-1]
+                                + ["_This message has been invalidated. Use the updated "
+                                   "message below to interact with this communism._"]
+                            ),
+                            message.chat_id,
+                            message.message_id,
+                            parse_mode=telegram.ParseMode.MARKDOWN
+                        ),
+                        lambda: update.effective_message.bot.edit_message_text(
+                            "\n\n".join(
+                                text.split("\n\n")[:-1]
+                                + ["_This message has been invalidated. Use the updated "
+                                   "message below to interact with this communism._"]
+                            ),
+                            message.chat_id,
+                            message.message_id
+                        ),
+                        use_result=True
+                    )
+                except telegram.error.TelegramError as exc:
+                    self.logger.warning(f"Failed to edit shared message for 'show': {type(exc).__name__}: {exc!s}")
+                else:
+                    self.client.shared_messages.delete_message_by(
+                        shared_messages.ShareType.COMMUNISM,
+                        active_communisms[-1].id,
+                        edited_message.chat_id,
+                        edited_message.message_id
+                    )
+
+            self.client.shared_messages.add_message_by(
+                shared_messages.ShareType.COMMUNISM,
+                active_communisms[-1].id,
+                new_message.chat_id,
+                new_message.message_id
+            )
 
         elif args.subcommand == "stop":
             aborted_communism = await self.client.abort_communism(active_communisms[-1], user)
@@ -146,6 +195,10 @@ class CommunismCommand(BaseCommand):
                 keyboard=keyboard,
                 delete_shared_messages=True,
                 job_queue=self.client.job_queue
+            )
+            update.effective_message.reply_text(
+                f"You have aborted your most recent communism about "
+                f"{self.client.format_balance(aborted_communism.amount)}!"
             )
 
         else:

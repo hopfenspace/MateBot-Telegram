@@ -115,9 +115,15 @@ class RefundCommand(BaseCommand):
             )
 
         if args.subcommand == "show":
-            # TODO: implement showing the currently active refund in the current chat & updating the shared messages
-            update.effective_message.reply_text("Not implemented.")
-            raise NotImplementedError
+            _common.show_updated_group_operation(
+                self.client,
+                update.effective_message,
+                await _get_text(active_refunds[-1]),
+                _get_keyboard(active_refunds[-1]),
+                shared_messages.ShareType.REFUND,
+                active_refunds[-1].id,
+                self.logger
+            )
 
         elif args.subcommand == "stop":
             aborted_refund = await self.client.abort_refund(active_refunds[-1], sender)

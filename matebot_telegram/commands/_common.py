@@ -1,3 +1,7 @@
+"""
+Private helpers for group operations of the Telegram MateBot
+"""
+
 import logging
 from typing import Awaitable, Callable, TypeVar
 
@@ -19,6 +23,12 @@ async def new_group_operation(
         share_type: shared_messages.ShareType,
         logger: logging.Logger
 ):
+    """
+    Create a new group operation and send out auto-shared messages
+
+    A group operation is currently only a communism or refund.
+    """
+
     try:
         result = await awaitable
     except exceptions.APIException as exc:
@@ -48,7 +58,79 @@ async def new_group_operation(
     )
 
 
+def show_updated_group_operation(
+        sdk: client.AsyncMateBotSDKForTelegram,
+        msg: telegram.Message,
+        text: str,
+        keyboard: telegram.InlineKeyboardMarkup,
+        share_type: shared_messages.ShareType,
+        operation_id: int,
+        logger: logging.Logger
+):
+    """
+    Implement the 'show' subcommand for a group operation handle shared messages
+
+    A group operation is currently only a communism or refund.
+    """
+
+    new_message = util.safe_call(
+        lambda: msg.reply_markdown(text, reply_markup=keyboard),
+        lambda: msg.reply_text(text, reply_markup=keyboard),
+        use_result=True
+    )
+
+    for message in sdk.shared_messages.get_messages(share_type, operation_id):
+        if message.chat_id != new_message.chat_id:
+            continue
+
+        try:
+            edited_message: telegram.Message = util.safe_call(
+                lambda: msg.bot.edit_message_text(
+                    "\n\n".join(
+                        text.split("\n\n")[:-1]
+                        + ["_This message has been invalidated. Use the updated "
+                           f"message below to interact with this {share_type.value}._"]
+                    ),
+                    message.chat_id,
+                    message.message_id,
+                    parse_mode=telegram.ParseMode.MARKDOWN
+                ),
+                lambda: msg.bot.edit_message_text(
+                    "\n\n".join(
+                        text.split("\n\n")[:-1]
+                        + ["_This message has been invalidated. Use the updated "
+                           f"message below to interact with this {share_type.value}._"]
+                    ),
+                    message.chat_id,
+                    message.message_id
+                ),
+                use_result=True
+            )
+        except telegram.error.TelegramError as exc:
+            logger.warning(f"Failed to edit shared msg of {share_type} {operation_id}: {type(exc).__name__}: {exc!s}")
+        else:
+            sdk.shared_messages.delete_message_by(
+                shared_messages.ShareType.COMMUNISM,
+                operation_id,
+                edited_message.chat_id,
+                edited_message.message_id
+            )
+
+    sdk.shared_messages.add_message_by(
+        shared_messages.ShareType.COMMUNISM,
+        operation_id,
+        new_message.chat_id,
+        new_message.message_id
+    )
+
+
 def get_voting_keyboard_for(name: str, object_id: int) -> telegram.InlineKeyboardMarkup:
+    """
+    Produce a voting keyboard for a group operation
+
+    A group operation is currently only a communism or refund.
+    """
+
     return telegram.InlineKeyboardMarkup([
         [
             telegram.InlineKeyboardButton("APPROVE", callback_data=f"{name} approve {object_id}"),

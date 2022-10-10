@@ -127,58 +127,14 @@ class CommunismCommand(BaseCommand):
             return
 
         if args.subcommand == "show":
-            text = await _get_text(self.client, active_communisms[-1])
-            keyboard = _get_keyboard(active_communisms[-1])
-            new_message = util.safe_call(
-                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard),
-                use_result=True
-            )
-
-            for message in self.client.shared_messages.get_messages(
-                shared_messages.ShareType.COMMUNISM, active_communisms[-1].id
-            ):
-                if message.chat_id != new_message.chat_id:
-                    continue
-
-                try:
-                    edited_message: telegram.Message = util.safe_call(
-                        lambda: update.effective_message.bot.edit_message_text(
-                            "\n\n".join(
-                                text.split("\n\n")[:-1]
-                                + ["_This message has been invalidated. Use the updated "
-                                   "message below to interact with this communism._"]
-                            ),
-                            message.chat_id,
-                            message.message_id,
-                            parse_mode=telegram.ParseMode.MARKDOWN
-                        ),
-                        lambda: update.effective_message.bot.edit_message_text(
-                            "\n\n".join(
-                                text.split("\n\n")[:-1]
-                                + ["_This message has been invalidated. Use the updated "
-                                   "message below to interact with this communism._"]
-                            ),
-                            message.chat_id,
-                            message.message_id
-                        ),
-                        use_result=True
-                    )
-                except telegram.error.TelegramError as exc:
-                    self.logger.warning(f"Failed to edit shared message for 'show': {type(exc).__name__}: {exc!s}")
-                else:
-                    self.client.shared_messages.delete_message_by(
-                        shared_messages.ShareType.COMMUNISM,
-                        active_communisms[-1].id,
-                        edited_message.chat_id,
-                        edited_message.message_id
-                    )
-
-            self.client.shared_messages.add_message_by(
+            _common.show_updated_group_operation(
+                self.client,
+                update.effective_message,
+                await _get_text(self.client, active_communisms[-1]),
+                _get_keyboard(active_communisms[-1]),
                 shared_messages.ShareType.COMMUNISM,
                 active_communisms[-1].id,
-                new_message.chat_id,
-                new_message.message_id
+                self.logger
             )
 
         elif args.subcommand == "stop":

@@ -88,7 +88,7 @@ class HistoryCommand(BaseCommand):
                 "receiver": t.receiver.id,
                 "reason": t.reason,
                 "registered": t.timestamp,
-                "registered_formatted": time.asctime(time.gmtime(t.timestamp)),
+                "registered_formatted": time.asctime(time.localtime(int(t.timestamp))),
                 "multi_transaction": t.multi_transaction_id is not None
             }
 

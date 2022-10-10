@@ -40,5 +40,5 @@ class ZwegatCommand(BaseCommand):
         if balance >= 0:
             msg = f"Peter errechnet ein massives Vermögen von {self.client.format_balance(balance)}!"
         else:
-            msg = f"Peter errechnet Gesamtschulden von {-self.client.format_balance(balance)}!"
+            msg = f"Peter errechnet Gesamtschulden von {self.client.format_balance(-balance)}!"
         update.effective_message.reply_text(msg)

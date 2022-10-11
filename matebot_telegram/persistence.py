@@ -127,7 +127,7 @@ class RegistrationProcess(Base):
 
     __tablename__ = "registration_processes"
 
-    telegram_id: int = Column(Integer, nullable=False, primary_key=True, unique=True)
+    telegram_id: int = Column(Integer, nullable=False, primary_key=True, unique=True, autoincrement=True)
     application_id: int = Column(Integer, nullable=False)
     selected_username: str = Column(String(255), nullable=True)
     core_user_id: int = Column(Integer, nullable=True)

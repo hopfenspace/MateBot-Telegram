@@ -31,6 +31,7 @@ def setup(dispatcher: _Dispatcher):
     from .communism import CommunismCommand, CommunismCallbackQuery
     from .consume import ConsumeCommand, ConsumeMessage
     from .data import DataCommand
+    from .donate import DonateCommand, DonateCallbackQuery
     from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
     from .forward import ForwardInlineQuery, ForwardInlineResult
     from .handler import FilteredChosenInlineResultHandler
@@ -64,6 +65,7 @@ def setup(dispatcher: _Dispatcher):
         ConsumeCommand(),
         CommunismCommand(),
         DataCommand(),
+        DonateCommand(),
         HelpCommand(),
         HistoryCommand(),
         PayCommand(),
@@ -80,6 +82,7 @@ def setup(dispatcher: _Dispatcher):
     for callback_query in [
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
+        DonateCallbackQuery(),
         RefundCallbackQuery(),
         PollCallbackQuery(),
         SendCallbackQuery(),

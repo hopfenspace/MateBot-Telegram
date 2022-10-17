@@ -92,7 +92,7 @@ class SendCallbackQuery(BaseCallbackQuery):
 
     async def confirm(self, update: telegram.Update) -> None:
         """
-        Confirm and process an transaction requests based on incoming callback queries
+        Confirm and process a transaction request based on incoming callback queries
 
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -136,7 +136,7 @@ class SendCallbackQuery(BaseCallbackQuery):
 
     async def abort(self, update: telegram.Update) -> None:
         """
-        Abort an transaction requests
+        Abort a transaction request
 
         :param update: incoming Telegram update
         :type update: telegram.Update

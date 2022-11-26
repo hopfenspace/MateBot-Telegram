@@ -66,7 +66,7 @@ class ConsumeCommand(BaseCommand):
 
 class ConsumeMessage(BaseMessage):
     """
-    Handler for dynamic consume message commands, i.e. commands which are not
+    Handler for dynamic consume message commands, i.e. commands which are not statically registered
     """
 
     def __init__(self):
@@ -77,6 +77,11 @@ class ConsumeMessage(BaseMessage):
         self.logger.debug(f"Incoming possible consume custom command. Text: '{msg.text}'")
         self.logger.debug(f"Consumable '{possible_consumable}' with amount '{possible_amount}'")
 
+        consumables = await self.client.get_consumables(name=possible_consumable[1:])
+        if len(consumables) != 1:
+            msg.reply_text("Unknown command. See /help for details.")
+            return
+
         try:
             amount = int(possible_amount)
         except ValueError:
@@ -84,11 +89,6 @@ class ConsumeMessage(BaseMessage):
             return
         if amount <= 0:
             msg.reply_text("The number of consumed goods must be positive.")
-            return
-
-        consumables = await self.client.get_consumables(name=possible_consumable[1:])
-        if len(consumables) != 1:
-            msg.reply_text("Unknown command. See /help for details.")
             return
 
         try:

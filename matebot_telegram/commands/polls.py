@@ -4,31 +4,33 @@ MateBot command executor classes for /poll and its callback queries
 
 import time
 import telegram
+from typing import Awaitable, Callable
 
-from matebot_sdk.schemas import Poll, PollVariant
+from matebot_sdk import exceptions, schemas
 
 from . import _common
 from .. import client, shared_messages, util
+from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery, BaseCommand
 from ..parsing.types import user_type
 from ..parsing.util import Namespace
 
 
-async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: Poll) -> str:
+async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: schemas.Poll) -> str:
     creator = await sdk.get_user(poll.creator_id)
     approving = [vote.user_name for vote in poll.votes if vote.vote]
     disapproving = [vote.user_name for vote in poll.votes if not vote.vote]
 
     question = {
-        PollVariant.GET_INTERNAL: "join the internal group and gain its privileges",
-        PollVariant.GET_PERMISSION: "get extended permissions to vote on polls",
-        PollVariant.LOOSE_INTERNAL: "loose the internal privileges and be degraded to an external user",
-        PollVariant.LOOSE_PERMISSION: "loose the extended permissions to vote on polls"
+        schemas.PollVariant.GET_INTERNAL: "join the internal group and gain its privileges",
+        schemas.PollVariant.GET_PERMISSION: "get extended permissions to vote on polls",
+        schemas.PollVariant.LOOSE_INTERNAL: "loose the internal privileges and be degraded to an external user",
+        schemas.PollVariant.LOOSE_PERMISSION: "loose the extended permissions to vote on polls"
     }[poll.variant]
     content = (
         f"*Poll by {creator.name}*\n"
         f"Question: _Should {poll.user.name} {question}?_\n"
-        f"Created: {time.asctime(time.gmtime(poll.created))}\n\n"
+        f"Created: {time.asctime(time.gmtime(float(poll.created)))}\n\n"
         f"*Votes ({len(poll.votes)})*\n"
         f"Proponents ({len(approving)}): {', '.join(approving) or 'None'}\n"
         f"Opponents ({len(disapproving)}): {', '.join(disapproving) or 'None'}\n"
@@ -44,7 +46,7 @@ async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: Poll) -> str:
     return content
 
 
-def _get_keyboard(poll: Poll) -> telegram.InlineKeyboardMarkup:
+def _get_keyboard(poll: schemas.Poll) -> telegram.InlineKeyboardMarkup:
     if not poll.active:
         return telegram.InlineKeyboardMarkup([])
     return _common.get_voting_keyboard_for("poll", poll.id)
@@ -85,7 +87,7 @@ class PollCommand(BaseCommand):
         sender = await self.client.get_core_user(update.effective_message.from_user)
         affected_user = args.user or sender
 
-        def f(variant: PollVariant) -> str:
+        def f(variant: schemas.PollVariant) -> str:
             return f"poll new {affected_user.id} {variant.value} {update.effective_message.from_user.id}"
 
         content = (
@@ -94,11 +96,11 @@ class PollCommand(BaseCommand):
             "Which type of poll do you want to create?"
         )
         keyboard = telegram.InlineKeyboardMarkup([[
-            telegram.InlineKeyboardButton("REQUEST INTERNAL", callback_data=f(PollVariant.GET_INTERNAL)),
-            telegram.InlineKeyboardButton("REVOKE INTERNAL", callback_data=f(PollVariant.LOOSE_INTERNAL))
+            telegram.InlineKeyboardButton("REQUEST INTERNAL", callback_data=f(schemas.PollVariant.GET_INTERNAL)),
+            telegram.InlineKeyboardButton("REVOKE INTERNAL", callback_data=f(schemas.PollVariant.LOOSE_INTERNAL))
         ], [
-            telegram.InlineKeyboardButton("REQUEST PERMISSIONS", callback_data=f(PollVariant.GET_PERMISSION)),
-            telegram.InlineKeyboardButton("REVOKE PERMISSIONS", callback_data=f(PollVariant.LOOSE_PERMISSION))
+            telegram.InlineKeyboardButton("REQUEST PERMISSIONS", callback_data=f(schemas.PollVariant.GET_PERMISSION)),
+            telegram.InlineKeyboardButton("REVOKE PERMISSIONS", callback_data=f(schemas.PollVariant.LOOSE_PERMISSION))
         ]])
 
         util.safe_call(
@@ -136,7 +138,7 @@ class PollCallbackQuery(BaseCallbackQuery):
         _, affected_user, poll_type, original_sender = self.data.split(" ")
         affected_user = int(affected_user)
         original_sender = int(original_sender)
-        poll_type = PollVariant(poll_type)
+        poll_type = schemas.PollVariant(poll_type)
 
         if update.callback_query.from_user.id != original_sender:
             update.callback_query.answer("Only the creator of this poll request can alter it!")
@@ -158,6 +160,28 @@ class PollCallbackQuery(BaseCallbackQuery):
             reply_markup=telegram.InlineKeyboardMarkup([])
         )
 
+    async def _handle_vote(
+            self,
+            update: telegram.Update,
+            get_client_func: Callable[[int, schemas.User], Awaitable[schemas.PollVoteResponse]]
+    ) -> None:
+        poll_id = int(self.data.split(" ")[-1])
+
+        user = await self.client.get_core_user(update.callback_query.from_user)
+        response = await get_client_func(poll_id, user)
+        update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
+
+        text = await _get_text(self.client, response.poll)
+        keyboard = _get_keyboard(response.poll)
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            shared_messages.ShareType.POLL,
+            poll_id,
+            text,
+            logger=self.logger,
+            keyboard=keyboard
+        )
+
     async def approve(self, update: telegram.Update) -> None:
         """
         Create a new poll
@@ -167,7 +191,7 @@ class PollCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise NotImplementedError
+        return await self._handle_vote(update, self.client.approve_poll)
 
     async def disapprove(self, update: telegram.Update) -> None:
         """
@@ -178,7 +202,7 @@ class PollCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise NotImplementedError
+        return await self._handle_vote(update, self.client.disapprove_poll)
 
     async def abort(self, update: telegram.Update) -> None:
         """
@@ -189,4 +213,69 @@ class PollCallbackQuery(BaseCallbackQuery):
         :return: None
         """
 
-        raise NotImplementedError
+        _, poll_id = self.data.split(" ")
+        poll_id = int(poll_id)
+
+        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        try:
+            poll = await self.client.abort_poll(poll_id, issuer)
+        except exceptions.APIException as exc:
+            update.callback_query.answer(exc.message, show_alert=True)
+            return
+
+        text = await _get_text(self.client, poll)
+        keyboard = _get_keyboard(poll)
+        util.update_all_shared_messages(
+            update.callback_query.bot,
+            shared_messages.ShareType.POLL,
+            poll.id,
+            text,
+            logger=self.logger,
+            keyboard=keyboard,
+            delete_shared_messages=True,
+            job_queue=self.client.job_queue
+        )
+        update.callback_query.answer()
+
+
+@dispatcher.register_for(schemas.EventType.POLL_CREATED)
+async def _handle_poll_created(event: schemas.Event):
+    poll_id = int(event.data["id"])
+    poll = (await client.client.get_polls(id=poll_id))[0]
+    util.send_auto_share_messages(
+        client.client.bot,
+        shared_messages.ShareType.POLL,
+        poll_id,
+        await _get_text(client.client, poll),
+        keyboard=_get_keyboard(poll),
+        job_queue=client.client.job_queue
+    )
+
+
+@dispatcher.register_for(schemas.EventType.POLL_UPDATED)
+async def _handle_poll_updated(event: schemas.Event):
+    poll_id = int(event.data["id"])
+    poll = (await client.client.get_polls(id=poll_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.POLL,
+        poll_id,
+        await _get_text(client.client, poll),
+        keyboard=_get_keyboard(poll),
+        job_queue=client.client.job_queue
+    )
+
+
+@dispatcher.register_for(schemas.EventType.POLL_CLOSED)
+async def _handle_poll_closed(event: schemas.Event):
+    poll_id = int(event.data["id"])
+    poll = (await client.client.get_polls(id=poll_id))[0]
+    util.update_all_shared_messages(
+        client.client.bot,
+        shared_messages.ShareType.POLL,
+        poll_id,
+        await _get_text(client.client, poll),
+        keyboard=_get_keyboard(poll),
+        delete_shared_messages=True,
+        job_queue=client.client.job_queue
+    )

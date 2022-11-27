@@ -1,8 +1,12 @@
 # MateBot Telegram
 
-Telegram Bot as frontend to the [MateBot API](https://github.com/hopfenspace/MateBot)
-that allows users to buy Mate, ice cream and pizza or more, easily share bills
-or get refunds from the community when they paid for something used by everyone.
+_MateBot Telegram_ is a Telegram Bot as frontend to the
+[MateBot API](https://github.com/hopfenspace/MateBot)
+that allows users to buy Mate, ice cream and pizza or more, easily
+share bills (in the so called "communisms") or get refunds from the
+community when they paid for something used by everyone. It provides
+external and internal user relationships with polls about membership
+policies as well as the possibility for users to vouch for others.
 
 ## Setup
 
@@ -27,10 +31,6 @@ from the systemd unit file storage (e.g. `/etc/systemd/system/` on Debian-like
 systems) to this file and run `systemctl daemon-reload`. You should now have a
 systemd service `matebot-telegram` that can be started and stopped easily.
 To enable auto-start at system boot, use `systemctl enable matebot-telegram`.
-
-## Documentation
-
-See `docs` folder or [our deployed documentation](https://docs.hopfenspace.org/matebot).
 
 ## License
 

@@ -92,7 +92,7 @@ def setup(dispatcher: _Dispatcher):
         dispatcher.add_handler(_CallbackQueryHandler(callback_query, pattern=callback_query.pattern, run_async=True))
 
     for inline_query in [
-        ForwardInlineQuery(r"^\d+(\s?\S?)*"),
+        ForwardInlineQuery(r"^forward"),
         HelpInlineQuery(r"")
     ]:
         dispatcher.add_handler(_InlineQueryHandler(inline_query, pattern=inline_query.pattern, run_async=True))

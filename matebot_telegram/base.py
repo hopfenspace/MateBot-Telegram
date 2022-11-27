@@ -330,7 +330,8 @@ class BaseInlineQuery(_CommonBase):
             heading: str,
             msg_text: str,
             *args,
-            parse_mode: str = None
+            parse_mode: str = None,
+            result_id: str = None
     ) -> telegram.InlineQueryResultArticle:
         """
         Get an article as possible inline result for an inline query
@@ -342,13 +343,15 @@ class BaseInlineQuery(_CommonBase):
         :param args: arguments passed to :meth:`get_result_id`
         :type args: typing.Any
         :param parse_mode: parse mode that should be used to parse this text (default: Markdown v1)
-        :type parse_mode: str
+        :type parse_mode: typing.Optional[str]
+        :param result_id: specify the result ID of the inline result instead of generating it
+        :type result_id: typing.Optional[str]
         :return: inline query result (of type article)
         :rtype: telegram.InlineQueryResultArticle
         """
 
         return telegram.InlineQueryResultArticle(
-            id=self.get_result_id(*args),
+            id=result_id or self.get_result_id(*args),
             title=heading,
             input_message_content=telegram.InputTextMessageContent(
                 message_text=msg_text,

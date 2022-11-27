@@ -2,15 +2,14 @@
 MateBot inline query executors to forward collective operations
 """
 
-import typing
+import re
 import datetime
+from typing import List, Optional
 
 import telegram
 
+from .. import client, err, util
 from ..base import BaseInlineQuery, BaseInlineResult
-# from ..collectives.base import BaseCollective
-# from ..collectives.communism import Communism
-# from ..collectives.payment import Payment
 
 
 class ForwardInlineQuery(BaseInlineQuery):
@@ -27,18 +26,21 @@ class ForwardInlineQuery(BaseInlineQuery):
 
     def get_result_id(
             self,
-            collective_id: typing.Optional[int] = None,
-            receiver: typing.Optional[int] = None
+            collective_type: Optional[str] = None,
+            collective_id: Optional[int] = None,
+            receiver: Optional[int] = None
     ) -> str:
         """
-        Generate a result ID based on the collective ID and receiving user
+        Generate a result ID based on the collective type, its ID and receiving user ID
 
-        Note that both a collective ID and a receiver are necessary in order
-        to generate the result ID that encodes the information to forward a
-        collective. If at least one of those parameters is not present, it's
-        assumed that it's a help query. Note that the help query uses a
+        Note that both a collective type, its ID and a receiver are necessary in
+        order to generate the result ID that encodes the information to forward a
+        collective. If any value is set while at least one of those parameters is
+        not present, it will raise a ValueError. Note that the help query uses a
         different result ID format than the answers to the forwarding queries.
 
+        :param collective_type: name of the collective operation type to be forwarded
+        :type collective_type: typing.Optional[str]
         :param collective_id: internal ID of the collective operation to be forwarded
         :type collective_id: typing.Optional[int]
         :param receiver: Telegram ID (Chat ID) of the recipient of the forwarded message
@@ -48,15 +50,19 @@ class ForwardInlineQuery(BaseInlineQuery):
         """
 
         now = int(datetime.datetime.now().timestamp())
-        if collective_id is None or receiver is None:
+        unset_values = collective_type is None, collective_id is None, receiver is None
+        if all(unset_values):
             return f"forward-help-{now}"
+        if any(unset_values):
+            raise ValueError("Not all required arguments set")
+        return f"forward-{now}-{collective_type}-{collective_id}-{receiver}"
 
-        return f"forward-{now}-{collective_id}-{receiver}"
-
-    def get_help(self) -> telegram.InlineQueryResultArticle:
+    def get_help(self, collective_type: Optional[str] = None) -> telegram.InlineQueryResultArticle:
         """
         Get the help option in the list of choices
 
+        :param collective_type: name of the collective type that should be forwarded
+        :type collective_type: typing.Optional[str]
         :return: inline query result choice for the help message
         :rtype: telegram.InlineQueryResultArticle
         """
@@ -75,14 +81,68 @@ class ForwardInlineQuery(BaseInlineQuery):
             "for a general help and an overview of other available commands."
         )
 
-    def run(self, query: telegram.InlineQuery) -> None:
-        """
-        Search for a user in the database and allow the user to forward communisms
+    async def _run(self, query: telegram.InlineQuery) -> List[telegram.InlineQueryResult]:
+        try:
+            await client.client.get_core_user(query.from_user)
+        except (err.UniqueUserNotFound, err.UserNotVerified):
+            return [self.get_result(
+                "Service unavailable",
+                "You need to create or verify your account before proceeding. See /help for more details."
+            )]
 
-        :param query: inline query as part of an incoming Update
-        :type query: telegram.InlineQuery
-        :return: None
-        """
+        answers = []
+        help_match = re.fullmatch(r"^forward (communism|poll|refund)( \d*)( \S*)?$", query.query)
+        if help_match:
+            help_match = help_match.group(1)
+        answers.append(self.get_help(help_match))
+
+        search_match = re.fullmatch(r"^forward (communism|poll|refund) (\d+) (\S+)$", query.query)
+        if search_match:
+            collective_t, collective_id, receiver = search_match.groups()
+            search_function = {
+                "communism": client.client.get_communisms,
+                "poll": client.client.get_polls,
+                "refund": client.client.get_refunds
+            }[collective_t]
+            search_results = await search_function(id=int(collective_id))
+            if len(search_results) != 1:
+                return [self.get_result(
+                    f"{collective_t.title()} ID not found",
+                    f"Forwarding the {collective_t} failed, because the "
+                    f"{collective_t} ID was not found. Always make sure that "
+                    f"the unique number in the inline query was not altered."
+                )]
+            collective = search_results[0]
+
+            now = int(datetime.datetime.now().timestamp())
+            try:
+                core_user = await self.client.get_core_user(receiver)
+            except err.MateBotException as exc:
+                self.logger.debug(f"Ignoring exception {exc!r} for core user lookup {receiver!r}")
+                answers.append(self.get_result(
+                    f"No such user found",
+                    str(exc) or "No such user found",
+                    result_id=f"forward-none-{now}-0"
+                ))
+            else:
+                if any(a for a in core_user.aliases if a.confirmed and a.application_id == client.client.app_id):
+                    answers.append(self.get_result(
+                        f"Forward this {collective_t} to {core_user.name}",
+                        f"I am forwarding this collective to {core_user.name}...",
+                        collective_t,
+                        collective.id,
+                        core_user.id
+                    ))
+                else:
+                    answers.append(self.get_result(
+                        f"User {core_user.name} can't be reached",
+                        f"Sorry, but you can't forward this {collective_t} to {core_user.name} "
+                        f"because that user either doesn't use the Telegram frontend of the "
+                        f"MateBot or hasn't completely verified the linked account yet.",
+                        result_id=f"forward-none-{now}-{core_user.id}"
+                    ))
+
+        # matebot_sdk.schemas
 
         # if len(query.query) == 0:
         #     return
@@ -137,6 +197,19 @@ class ForwardInlineQuery(BaseInlineQuery):
         #
         # except (IndexError, ValueError):
         #     query.answer([self.get_help()])
+
+        return answers
+
+    def run(self, query: telegram.InlineQuery) -> None:
+        """
+        Search for a user in the database and allow the user to forward collective operations
+
+        :param query: inline query as part of an incoming Update
+        :type query: telegram.InlineQuery
+        :return: None
+        """
+
+        query.answer(util.execute_func(self._run, self.logger, query))
 
 
 class ForwardInlineResult(BaseInlineResult):

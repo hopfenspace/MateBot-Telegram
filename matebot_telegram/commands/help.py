@@ -128,7 +128,9 @@ class HelpInlineQuery(BaseInlineQuery):
         :rtype: str
         """
 
-        return f"help-{int(datetime.datetime.now().timestamp())}"
+        if len(args) == 0:
+            return f"help-{str(datetime.datetime.now().timestamp()).replace('.', '-')}"
+        return f"help-{str(datetime.datetime.now().timestamp()).replace('.', '-')}-{args[0]}"
 
     def get_command_help(self, command: str) -> Optional[telegram.InlineQueryResult]:
         """
@@ -179,4 +181,8 @@ class HelpInlineQuery(BaseInlineQuery):
         if first_word.lower() in BaseCommand.AVAILABLE_COMMANDS:
             query.answer([self.get_command_help(first_word.lower())])
         else:
-            query.answer([self.get_help()])
+            query.answer([self.get_help()] + [
+                self.get_command_help(c.lower())
+                for c in BaseCommand.AVAILABLE_COMMANDS
+                if c.lower().startswith(first_word)
+            ])

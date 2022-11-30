@@ -17,7 +17,7 @@ from ..parsing.types import amount_type
 from ..parsing.util import Namespace
 
 
-async def _get_text(refund: schemas.Refund) -> str:
+async def get_text(_, refund: schemas.Refund) -> str:
     approving = [vote.user_name for vote in refund.votes if vote.vote]
     disapproving = [vote.user_name for vote in refund.votes if not vote.vote]
     markdown = (
@@ -44,7 +44,7 @@ async def _get_text(refund: schemas.Refund) -> str:
     return markdown
 
 
-def _get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
+def get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
     if not refund.active:
         return telegram.InlineKeyboardMarkup([])
     return _common.get_voting_keyboard_for("refund", refund.id)
@@ -96,8 +96,8 @@ class RefundCommand(BaseCommand):
             return await _common.new_group_operation(
                 self.client.create_refund(sender, args.amount, args.reason),
                 self.client,
-                _get_text,
-                _get_keyboard,
+                lambda p: get_text(None, p),
+                get_keyboard,
                 update.effective_message,
                 shared_messages.ShareType.REFUND,
                 self.logger
@@ -118,8 +118,8 @@ class RefundCommand(BaseCommand):
             _common.show_updated_group_operation(
                 self.client,
                 update.effective_message,
-                await _get_text(active_refunds[-1]),
-                _get_keyboard(active_refunds[-1]),
+                await get_text(None, active_refunds[-1]),
+                get_keyboard(active_refunds[-1]),
                 shared_messages.ShareType.REFUND,
                 active_refunds[-1].id,
                 self.logger
@@ -127,8 +127,8 @@ class RefundCommand(BaseCommand):
 
         elif args.subcommand == "stop":
             aborted_refund = await self.client.abort_refund(active_refunds[-1], sender)
-            text = await _get_text(aborted_refund)
-            keyboard = _get_keyboard(aborted_refund)
+            text = await get_text(None, aborted_refund)
+            keyboard = get_keyboard(aborted_refund)
 
             util.update_all_shared_messages(
                 update.effective_message.bot,
@@ -169,8 +169,8 @@ class RefundCallbackQuery(BaseCallbackQuery):
         response = await get_client_func(refund_id, user)
         update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
 
-        text = await _get_text(response.refund)
-        keyboard = _get_keyboard(response.refund)
+        text = await get_text(None, response.refund)
+        keyboard = get_keyboard(response.refund)
         util.update_all_shared_messages(
             update.callback_query.bot,
             shared_messages.ShareType.REFUND,
@@ -215,8 +215,8 @@ class RefundCallbackQuery(BaseCallbackQuery):
             update.callback_query.answer(exc.message, show_alert=True)
             return
 
-        text = await _get_text(refund)
-        keyboard = _get_keyboard(refund)
+        text = await get_text(None, refund)
+        keyboard = get_keyboard(refund)
         util.update_all_shared_messages(
             update.callback_query.bot,
             shared_messages.ShareType.REFUND,
@@ -238,8 +238,8 @@ async def _handle_refund_created(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.REFUND,
         refund_id,
-        await _get_text(refund),
-        keyboard=_get_keyboard(refund),
+        await get_text(None, refund),
+        keyboard=get_keyboard(refund),
         job_queue=client.client.job_queue
     )
 
@@ -252,8 +252,8 @@ async def _handle_refund_updated(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.REFUND,
         refund_id,
-        await _get_text(refund),
-        keyboard=_get_keyboard(refund),
+        await get_text(None, refund),
+        keyboard=get_keyboard(refund),
         job_queue=client.client.job_queue
     )
 
@@ -266,8 +266,8 @@ async def _handle_refund_closed(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.REFUND,
         refund_id,
-        await _get_text(refund),
-        keyboard=_get_keyboard(refund),
+        await get_text(None, refund),
+        keyboard=get_keyboard(refund),
         delete_shared_messages=True,
         job_queue=client.client.job_queue
     )

@@ -21,12 +21,13 @@ async def new_group_operation(
         get_keyboard: Callable[[T], telegram.InlineKeyboardMarkup],
         reply_message: telegram.Message,
         share_type: shared_messages.ShareType,
-        logger: logging.Logger
+        logger: logging.Logger,
+        send_auto_shared_messages: bool = True
 ):
     """
     Create a new group operation and send out auto-shared messages
 
-    A group operation is currently only a communism or refund.
+    A group operation is currently only a communism, poll or refund.
     """
 
     try:
@@ -46,16 +47,17 @@ async def new_group_operation(
     if not sdk.shared_messages.add_message_by(share_type, result.id, message.chat_id, message.message_id):
         logger.error(f"Failed to add shared message for {share_type} {result.id}: {message.to_dict()}")
 
-    util.send_auto_share_messages(
-        sdk.bot,
-        share_type,
-        result.id,
-        text,
-        logger=logger,
-        keyboard=keyboard,
-        excluded=[message.chat_id],
-        job_queue=sdk.job_queue
-    )
+    if send_auto_shared_messages:
+        util.send_auto_share_messages(
+            sdk.bot,
+            share_type,
+            result.id,
+            text,
+            logger=logger,
+            keyboard=keyboard,
+            excluded=[message.chat_id],
+            job_queue=sdk.job_queue
+        )
 
 
 def show_updated_group_operation(
@@ -70,7 +72,7 @@ def show_updated_group_operation(
     """
     Implement the 'show' subcommand for a group operation handle shared messages
 
-    A group operation is currently only a communism or refund.
+    A group operation is currently only a communism or refund. Polls don't support 'show'.
     """
 
     new_message = util.safe_call(
@@ -128,7 +130,7 @@ def get_voting_keyboard_for(name: str, object_id: int) -> telegram.InlineKeyboar
     """
     Produce a voting keyboard for a group operation
 
-    A group operation is currently only a communism or refund.
+    A group operation is currently only a communism, poll or refund.
     """
 
     return telegram.InlineKeyboardMarkup([

@@ -16,7 +16,7 @@ from ..parsing.actions import JoinAction
 from ..parsing.util import Namespace
 
 
-async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
+async def get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
     creator = await sdk.get_user(communism.creator_id)
     usernames = ", ".join(f"{p.user_name} ({p.quantity}x)" for p in communism.participants) or "None"
     markdown = (
@@ -44,7 +44,7 @@ async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.C
     return markdown
 
 
-def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
+def get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
     if not communism.active:
         return telegram.InlineKeyboardMarkup([])
 
@@ -57,7 +57,7 @@ def _get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup
             telegram.InlineKeyboardButton("LEAVE (-)", callback_data=f("leave")),
         ],
         [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"communism {communism.id} ")
+            telegram.InlineKeyboardButton("FORWARD", callback_data=f"forward communism {communism.id} ask -1")
         ],
         [
             telegram.InlineKeyboardButton("COMPLETE", callback_data=f("close")),
@@ -114,8 +114,8 @@ class CommunismCommand(BaseCommand):
             return await _common.new_group_operation(
                 self.client.create_communism(user, args.amount, args.reason),
                 self.client,
-                lambda c: _get_text(self.client, c),
-                _get_keyboard,
+                lambda c: get_text(self.client, c),
+                get_keyboard,
                 update.effective_message,
                 shared_messages.ShareType.COMMUNISM,
                 self.logger
@@ -130,8 +130,8 @@ class CommunismCommand(BaseCommand):
             _common.show_updated_group_operation(
                 self.client,
                 update.effective_message,
-                await _get_text(self.client, active_communisms[-1]),
-                _get_keyboard(active_communisms[-1]),
+                await get_text(self.client, active_communisms[-1]),
+                get_keyboard(active_communisms[-1]),
                 shared_messages.ShareType.COMMUNISM,
                 active_communisms[-1].id,
                 self.logger
@@ -139,8 +139,8 @@ class CommunismCommand(BaseCommand):
 
         elif args.subcommand == "stop":
             aborted_communism = await self.client.abort_communism(active_communisms[-1], user)
-            text = await _get_text(self.client, aborted_communism)
-            keyboard = _get_keyboard(aborted_communism)
+            text = await get_text(self.client, aborted_communism)
+            keyboard = get_keyboard(aborted_communism)
 
             util.update_all_shared_messages(
                 update.effective_message.bot,
@@ -195,9 +195,9 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             update.callback_query.bot,
             shared_messages.ShareType.COMMUNISM,
             communism.id,
-            await _get_text(self.client, communism),
+            await get_text(self.client, communism),
             self.logger,
-            _get_keyboard(communism),
+            get_keyboard(communism),
             telegram.ParseMode.MARKDOWN,
             delete_shared_messages=delete,
             job_queue=self.client.job_queue
@@ -252,8 +252,8 @@ async def _handle_communism_created(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.COMMUNISM,
         communism_id,
-        await _get_text(client.client, communism),
-        keyboard=_get_keyboard(communism),
+        await get_text(client.client, communism),
+        keyboard=get_keyboard(communism),
         job_queue=client.client.job_queue
     )
 
@@ -266,8 +266,8 @@ async def _handle_communism_updated(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.COMMUNISM,
         communism_id,
-        await _get_text(client.client, communism),
-        keyboard=_get_keyboard(communism),
+        await get_text(client.client, communism),
+        keyboard=get_keyboard(communism),
         job_queue=client.client.job_queue
     )
 
@@ -280,8 +280,8 @@ async def _handle_communism_closed(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.COMMUNISM,
         communism_id,
-        await _get_text(client.client, communism),
-        keyboard=_get_keyboard(communism),
+        await get_text(client.client, communism),
+        keyboard=get_keyboard(communism),
         delete_shared_messages=True,
         job_queue=client.client.job_queue
     )

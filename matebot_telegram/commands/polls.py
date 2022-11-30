@@ -16,7 +16,7 @@ from ..parsing.types import user_type
 from ..parsing.util import Namespace
 
 
-async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: schemas.Poll) -> str:
+async def get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: schemas.Poll) -> str:
     creator = await sdk.get_user(poll.creator_id)
     approving = [vote.user_name for vote in poll.votes if vote.vote]
     disapproving = [vote.user_name for vote in poll.votes if not vote.vote]
@@ -46,7 +46,7 @@ async def _get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: schemas.Poll) 
     return content
 
 
-def _get_keyboard(poll: schemas.Poll) -> telegram.InlineKeyboardMarkup:
+def get_keyboard(poll: schemas.Poll) -> telegram.InlineKeyboardMarkup:
     if not poll.active:
         return telegram.InlineKeyboardMarkup([])
     return _common.get_voting_keyboard_for("poll", poll.id)
@@ -149,8 +149,8 @@ class PollCallbackQuery(BaseCallbackQuery):
         await _common.new_group_operation(
             self.client.create_poll(affected_user, issuer, poll_type),
             self.client,
-            lambda p: _get_text(self.client, p),
-            _get_keyboard,
+            lambda p: get_text(self.client, p),
+            get_keyboard,
             update.callback_query.message,
             shared_messages.ShareType.POLL,
             self.logger
@@ -171,8 +171,8 @@ class PollCallbackQuery(BaseCallbackQuery):
         response = await get_client_func(poll_id, user)
         update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
 
-        text = await _get_text(self.client, response.poll)
-        keyboard = _get_keyboard(response.poll)
+        text = await get_text(self.client, response.poll)
+        keyboard = get_keyboard(response.poll)
         util.update_all_shared_messages(
             update.callback_query.bot,
             shared_messages.ShareType.POLL,
@@ -223,8 +223,8 @@ class PollCallbackQuery(BaseCallbackQuery):
             update.callback_query.answer(exc.message, show_alert=True)
             return
 
-        text = await _get_text(self.client, poll)
-        keyboard = _get_keyboard(poll)
+        text = await get_text(self.client, poll)
+        keyboard = get_keyboard(poll)
         util.update_all_shared_messages(
             update.callback_query.bot,
             shared_messages.ShareType.POLL,
@@ -246,8 +246,8 @@ async def _handle_poll_created(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.POLL,
         poll_id,
-        await _get_text(client.client, poll),
-        keyboard=_get_keyboard(poll),
+        await get_text(client.client, poll),
+        keyboard=get_keyboard(poll),
         job_queue=client.client.job_queue
     )
 
@@ -260,8 +260,8 @@ async def _handle_poll_updated(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.POLL,
         poll_id,
-        await _get_text(client.client, poll),
-        keyboard=_get_keyboard(poll),
+        await get_text(client.client, poll),
+        keyboard=get_keyboard(poll),
         job_queue=client.client.job_queue
     )
 
@@ -274,8 +274,8 @@ async def _handle_poll_closed(event: schemas.Event):
         client.client.bot,
         shared_messages.ShareType.POLL,
         poll_id,
-        await _get_text(client.client, poll),
-        keyboard=_get_keyboard(poll),
+        await get_text(client.client, poll),
+        keyboard=get_keyboard(poll),
         delete_shared_messages=True,
         job_queue=client.client.job_queue
     )

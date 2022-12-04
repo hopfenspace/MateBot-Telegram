@@ -8,7 +8,6 @@ from telegram.ext import (
     Dispatcher as _Dispatcher,
     CommandHandler as _CommandHandler,
     CallbackQueryHandler as _CallbackQueryHandler,
-    InlineQueryHandler as _InlineQueryHandler,
     MessageHandler as _MessageHandler
 )
 
@@ -33,7 +32,7 @@ def setup(dispatcher: _Dispatcher):
     from .data import DataCommand
     from .donate import DonateCommand, DonateCallbackQuery
     from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
-    from .forward import ForwardInlineQuery, ForwardInlineResult
+    from .forward import ForwardCallbackQuery, ForwardReplyMessage
     from .handler import FilteredChosenInlineResultHandler
     from .help import HelpCommand, HelpInlineQuery
     from .history import HistoryCommand
@@ -77,35 +76,30 @@ def setup(dispatcher: _Dispatcher):
         VouchCommand(),
         ZwegatCommand()
     ]:
-        dispatcher.add_handler(_CommandHandler(command.name, command, run_async=True), group=0)
+        dispatcher.add_handler(
+            _CommandHandler(command.name, command, run_async=True),
+            group=0
+        )
 
     for callback_query in [
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
         DonateCallbackQuery(),
+        ForwardCallbackQuery(),
         RefundCallbackQuery(),
         PollCallbackQuery(),
         SendCallbackQuery(),
         StartCallbackQuery(),
         VouchCallbackQuery()
     ]:
-        dispatcher.add_handler(_CallbackQueryHandler(callback_query, pattern=callback_query.pattern, run_async=True))
-
-    for inline_query in [
-        ForwardInlineQuery(r"^forward"),
-        HelpInlineQuery(r"")
-    ]:
-        dispatcher.add_handler(_InlineQueryHandler(inline_query, pattern=inline_query.pattern, run_async=True))
-
-    for inline_result in [
-        ForwardInlineResult(r"^forward-\d+-\d+-\d+")
-    ]:
         dispatcher.add_handler(
-            FilteredChosenInlineResultHandler(inline_result, pattern=inline_result.pattern, run_async=True)
+            _CallbackQueryHandler(callback_query, pattern=callback_query.pattern, run_async=True),
+            group=1
         )
 
-    for message, filter_cls in [
-        (CatchallReplyMessage(), ReplyMessageHandlerFilter),
-        (ConsumeMessage(), CommandMessageFilter),
+    for message, filter_obj, group in [
+        (ForwardReplyMessage(), ReplyMessageHandlerFilter(True, "forward"), 2),
+        (ConsumeMessage(), CommandMessageFilter(False), 0),
+        (CatchallReplyMessage(), ReplyMessageHandlerFilter(False, None), 2),
     ]:
-        dispatcher.add_handler(_MessageHandler(filter_cls(False, message.prefix), message, run_async=True))
+        dispatcher.add_handler(_MessageHandler(filter_obj, message, run_async=True), group=group)

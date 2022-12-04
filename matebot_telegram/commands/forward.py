@@ -44,6 +44,7 @@ class ForwardCallbackQuery(BaseCallbackQuery):
         match = self.DATA_REGEX.match(self.data)
         if not match:
             self.logger.debug(f"Unknown forward callback query ignored: {self.data!r}")
+            cb.answer()
             return
         collective_type, collective_id, cmd, user_id = match.groups()
         collective_id, user_id = int(collective_id), int(user_id)
@@ -55,6 +56,7 @@ class ForwardCallbackQuery(BaseCallbackQuery):
         }[collective_type]
         collectives = await getter(id=collective_id, active=True)
         if len(collectives) != 1:
+            cb.answer()
             return
 
         if cmd == "abort":
@@ -71,6 +73,7 @@ class ForwardCallbackQuery(BaseCallbackQuery):
                     callback_data=f"forward {collective_type} {collective_id} abort {cb.from_user.id}"
                 )]])
             )
+            cb.answer()
 
 
 class ForwardReplyMessage(BaseMessage):
@@ -183,7 +186,10 @@ class ForwardReplyMessage(BaseMessage):
                 keyboard=refund.get_keyboard(collective),
                 job_queue=client.client.job_queue
             )
-        msg.reply_to_message.edit_text(f"This {collective} is forwarded to {core_user.name} ...", reply_markup=None)
+        msg.reply_to_message.edit_text(
+            f"This {collective_type} is forwarded to {core_user.name} ...",
+            reply_markup=None
+        )
 
 
 class ForwardInlineQuery(BaseInlineQuery):

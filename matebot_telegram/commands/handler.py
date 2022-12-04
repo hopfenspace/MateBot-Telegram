@@ -8,7 +8,7 @@ import typing
 import telegram.ext
 
 
-class FilteredChosenInlineResultHandler(telegram.ext.InlineQueryHandler):
+class FilteredChosenInlineResultHandler(telegram.ext.Handler):
     """
     Handler class to filter chosen inline result queries based on patterns for their result IDs
 
@@ -20,11 +20,12 @@ class FilteredChosenInlineResultHandler(telegram.ext.InlineQueryHandler):
     :param callback: callback function for this handler that will be called to handle this update
     :type callback: typing.Callable
     :param pattern: optional pattern the result_id of the incoming Update will be checked against
-    :type pattern: typing.Union[str, re.Pattern]
+    :type pattern: Union[str, re.Pattern]
     """
 
     def __init__(self, callback: typing.Callable, pattern: typing.Union[str, re.Pattern] = None, **kwargs):
-        super().__init__(callback, pattern=pattern, **kwargs)
+        super().__init__(callback, **kwargs)
+        self.pattern = pattern
 
     def check_update(self, update: telegram.Update) -> typing.Union[bool, re.Match]:
         """

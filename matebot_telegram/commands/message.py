@@ -11,7 +11,7 @@ from ..base import BaseMessage
 
 class CatchallReplyMessage(BaseMessage):
     """
-    Catchall handler all reply messages to a message sent by the bot itself
+    Catchall handler for reply messages to a message sent by the bot itself
     """
 
     def __init__(self):

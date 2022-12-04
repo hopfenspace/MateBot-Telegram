@@ -158,7 +158,7 @@ class HelpInlineQuery(BaseInlineQuery):
 
         return self.get_result(
             "Help",
-            "This bot provides limited inline support. To get more information about inline "
+            "This bot provides inline support. To get more information about inline "
             "bots, look at [the Telegram blog](https://telegram.org/blog/inline-bots).\n\n"
             "Currently, a basic user search to forward communisms (see /communism) and refund "
             "requests (see /refund; an alias for the deprecated command /pay still exists) "

@@ -126,6 +126,10 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
             return user
 
     def find_telegram_user(self, core_id: int) -> Optional[Tuple[int, Optional[str]]]:
+        """
+        Find a Telegram user ID with optional Telegram username by a given core ID, if any
+        """
+
         with self.get_new_session() as session:
             users = session.query(persistence.TelegramUser).filter_by(user_id=core_id).all()
             if len(users) == 1:
@@ -133,6 +137,10 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         return None
 
     async def get_core_user(self, identifier: Union[int, str, telegram.User]) -> _User:
+        """
+        Lookup core user by identifier (core ID, core username, Telegram user or any unique alias username)
+        """
+
         pretty = None
         if isinstance(identifier, telegram.User):
             pretty = identifier.username or identifier.first_name

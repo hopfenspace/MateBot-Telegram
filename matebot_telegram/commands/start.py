@@ -167,7 +167,7 @@ class StartCallbackQuery(BaseCallbackQuery):
                 update.callback_query.message.edit_text("This feature can't be used, use /start to begin registration.")
                 return
             if (registration.application_id and registration.application_id == -1) or registration.core_user_id is None:
-                update.callback_query.message.edit_text("Connecting with no user selected account is not supported.")
+                update.callback_query.message.edit_text("Connecting with no selected user account is not supported.")
                 return
             user_id = registration.core_user_id
 
@@ -223,8 +223,8 @@ class StartCallbackQuery(BaseCallbackQuery):
             session.add(record)
             session.commit()
 
-            update.callback_query.message.edit_text(
-                "What's the username you have used across the MateBot instances? "
-                "It's required to connect your new account with the existing one. "
-                "Please reply to this message directly."
-            )
+        update.callback_query.message.edit_text(
+            "What's the username you have used across the MateBot instances? "
+            "It's required to connect your new account with the existing one. "
+            "Please reply to this message directly."
+        )

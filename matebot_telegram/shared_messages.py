@@ -116,3 +116,14 @@ class SharedMessageHandler:
                     session.delete(m)
                 session.commit()
         return True
+
+    def pop_all_messages_by_chat(self, chat_id: int) -> List[SharedMessage]:
+        """Delete and return all shared messages with a common chat ID, regardless of share type or ID"""
+        with self._lock:
+            with persistence.get_new_session() as session:
+                messages = session.query(persistence.SharedMessage).filter_by(chat_id=chat_id).all()
+                results = [SharedMessage.from_model(model) for model in messages]
+                for m in messages:
+                    session.delete(m)
+                session.commit()
+                return results

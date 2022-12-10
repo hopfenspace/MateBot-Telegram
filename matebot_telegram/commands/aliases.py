@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 import telegram
 from matebot_sdk import schemas
 
-from .. import client, shared_messages
+from .. import client, persistence, shared_messages
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery
 
@@ -161,4 +161,34 @@ async def _handle_alias_confirmation_requested(event: schemas.Event):
 
 @dispatcher.register_for(schemas.EventType.ALIAS_CONFIRMED)
 async def _handle_alias_confirmed(event: schemas.Event):
-    raise NotImplementedError
+    app_name = event.data["app"]
+    alias = (await client.client.get_aliases(int(event.data["id"])))[0]
+    assert alias.confirmed
+    user = await client.client.get_user(int(event.data["user"]))
+    assert alias.user_id == user.id
+
+    if app_name == client.client.app_name:
+        with client.client.get_new_session() as session:
+            registrations = session.query(persistence.RegistrationProcess).filter_by(core_user_id=user.id).all()
+            for r in registrations:
+                session.delete(r)
+            session.commit()
+
+    text = (
+        f"The new alias '{alias.username}' for the app '{app_name}' has been confirmed. "
+        f"It is now connected to your user account. You now have a total of {len(user.aliases)} "
+        f"connected aliases.\nIf this action has not been performed by you, you should disable that alias."
+    )
+    optional_receiver = client.client.find_telegram_user(user.id)
+    try:
+        if optional_receiver is not None:
+            telegram_id, _ = optional_receiver
+            client.client.bot.send_message(telegram_id, text)
+        for shared_msg in client.client.shared_messages.get_messages(shared_messages.ShareType.ALIAS, alias.id):
+            client.client.bot.delete_message(shared_msg.chat_id, shared_msg.message_id)
+            client.client.shared_messages.delete_message(shared_msg)
+    except:
+        for shared_msg in client.client.shared_messages.get_messages(shared_messages.ShareType.ALIAS, alias.id):
+            client.client.bot.edit_message_text(text, shared_msg.chat_id, shared_msg.message_id, reply_markup=None)
+            client.client.shared_messages.delete_message(shared_msg)
+        raise

@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 from datetime import datetime as _dt
 
-from sqlalchemy import BigInteger, create_engine, Column, DateTime, FetchedValue, String
+from sqlalchemy import BigInteger, create_engine, Column, DateTime, FetchedValue, Integer, String
 from sqlalchemy.engine import Engine as _Engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.sql import func
@@ -108,7 +108,7 @@ class SharedMessage(Base):
 
     __tablename__ = "shared_messages"
 
-    id: int = Column(BigInteger, nullable=False, primary_key=True, autoincrement=True, unique=True)
+    id: int = Column(Integer, nullable=False, primary_key=True, autoincrement=True, unique=True)
     share_type: str = Column(String(32), nullable=False)
     share_id: int = Column(BigInteger, nullable=False)
     chat_id: int = Column(BigInteger, nullable=False)

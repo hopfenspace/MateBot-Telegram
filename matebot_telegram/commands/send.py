@@ -8,7 +8,7 @@ from matebot_sdk.exceptions import APIException
 from .. import util
 from ..base import BaseCallbackQuery, BaseCommand
 from ..parsing.types import amount_type
-from ..parsing.types import user_type
+from ..parsing.types import any_user_type
 from ..parsing.util import Namespace
 
 
@@ -31,10 +31,10 @@ class SendCommand(BaseCommand):
         )
 
         self.parser.add_argument("amount", type=amount_type)
-        self.parser.add_argument("receiver", type=user_type)
+        self.parser.add_argument("receiver", type=any_user_type)
         self.parser.add_argument("reason", default="<no description>", nargs="*")
         second_usage = self.parser.new_usage()
-        second_usage.add_argument("receiver", type=user_type)
+        second_usage.add_argument("receiver", type=any_user_type)
         second_usage.add_argument("amount", type=amount_type)
         second_usage.add_argument("reason", default="<no description>", nargs="*")
 

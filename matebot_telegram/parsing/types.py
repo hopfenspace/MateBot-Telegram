@@ -86,6 +86,16 @@ def natural(arg: str) -> int:
     return result
 
 
+def _conv_arg_to_user(arg: EntityString, allow_foreign_user: bool) -> schemas.User:
+    if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
+        coroutine = client.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
+    elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
+        coroutine = client.client.get_core_user(str(arg), foreign_user=allow_foreign_user)
+    else:
+        raise err.ParsingError('No user mentioned. Try with "@".')
+    return asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()
+
+
 def user_type(arg: EntityString) -> schemas.User:
     """
     Convert an entity string into a User schema
@@ -97,14 +107,21 @@ def user_type(arg: EntityString) -> schemas.User:
     :raises ValueError: when username is ambiguous or the argument wasn't a mention
     """
 
-    if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
-        coroutine = client.client.get_core_user(arg.entity.user)
-    elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
-        coroutine = client.client.get_core_user(str(arg))
-    else:
-        raise err.ParsingError('No user mentioned. Try with "@".')
+    return _conv_arg_to_user(arg, False)
 
-    return asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()
+
+def any_user_type(arg: EntityString) -> schemas.User:
+    """
+    Convert an entity string into a User schema, allowing foreign users that never used this application
+
+    :param arg: string to be parsed
+    :type arg: EntityString
+    :return: fully functional MateBot User schema
+    :rtype: matebot_sdk.schemas.User
+    :raises ValueError: when username is ambiguous or the argument wasn't a mention
+    """
+
+    return _conv_arg_to_user(arg, True)
 
 
 def command(arg: str) -> BaseCommand:

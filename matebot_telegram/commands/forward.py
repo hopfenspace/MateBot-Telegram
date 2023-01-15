@@ -118,7 +118,7 @@ class ForwardReplyMessage(BaseMessage):
 
         # Search for the user referenced in the user's message
         try:
-            core_user = await self.client.get_core_user(msg.text)
+            core_user = await self.client.get_core_user(msg.text, foreign_user=True)
         except (err.MateBotException, exceptions.MateBotSDKException) as exc:
             self.logger.debug(f"During handling of the forward message {msg.text!r}: {exc!r}")
             msg.reply_text(str(exc))

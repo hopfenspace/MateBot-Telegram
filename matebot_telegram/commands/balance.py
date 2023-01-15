@@ -6,7 +6,7 @@ import telegram
 
 from ..base import BaseCommand
 from ..parsing.util import Namespace
-from ..parsing.types import user_type
+from ..parsing.types import any_user_type
 
 
 class BalanceCommand(BaseCommand):
@@ -24,7 +24,7 @@ class BalanceCommand(BaseCommand):
             "the 'balance' of this user is returned instead of yours."
         )
 
-        self.parser.add_argument("user", type=user_type, nargs="?")
+        self.parser.add_argument("user", type=any_user_type, nargs="?")
 
     async def run(self, args: Namespace, update: telegram.Update) -> None:
         """

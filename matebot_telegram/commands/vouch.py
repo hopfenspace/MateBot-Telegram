@@ -9,7 +9,7 @@ from matebot_sdk import exceptions, schemas
 
 from .. import api_callback, client, util
 from ..base import BaseCommand, BaseCallbackQuery
-from ..parsing.types import user_type
+from ..parsing.types import any_user_type
 from ..parsing.util import Namespace
 
 
@@ -35,7 +35,7 @@ class VouchCommand(BaseCommand):
 
         p = self.parser.new_usage()
         p.add_argument("command", choices=("add", "vouch", "remove", "stop"), type=lambda x: str(x).lower())
-        p.add_argument("user", type=user_type)
+        p.add_argument("user", type=any_user_type)
 
     async def run(self, args: Namespace, update: telegram.Update) -> None:
         """

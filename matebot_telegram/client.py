@@ -136,9 +136,17 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                 return users[0].telegram_id, users[0].username
         return None
 
-    async def get_core_user(self, identifier: Union[int, str, telegram.User]) -> _User:
+    async def get_core_user(
+            self,
+            identifier: Union[int, str, telegram.User],
+            foreign_user: bool = False,
+            community: bool = False
+    ) -> _User:
         """
         Lookup core user by identifier (core ID, core username, Telegram user or any unique alias username)
+
+        If `foreign_user` is set, a single core user which isn't known in this app, can be
+        returned; otherwise NoUserFound. If `community` is set, the community user may be returned.
         """
 
         pretty = None
@@ -150,9 +158,9 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
             try:
                 identifier = self._lookup_telegram_identifier(identifier)
             except err.NoUserFound as exc:
-                users = await self.get_users(name=identifier)
+                users = await self.get_users(name=identifier, community=community)
                 if users and len(users) == 1:
-                    if [a for a in users[0].aliases if a.confirmed and a.application_id == self.app_id]:
+                    if [a for a in users[0].aliases if a.confirmed and a.application_id == self.app_id] or foreign_user:
                         return users[0]
                     if [a for a in users[0].aliases if a.application_id == self.app_id]:
                         raise err.UserNotVerified(

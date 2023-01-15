@@ -12,7 +12,7 @@ from . import _common
 from .. import client, shared_messages, util
 from ..api_callback import dispatcher
 from ..base import BaseCallbackQuery, BaseCommand
-from ..parsing.types import user_type
+from ..parsing.types import any_user_type
 from ..parsing.util import Namespace
 
 
@@ -73,7 +73,7 @@ class PollCommand(BaseCommand):
             "want the community to vote whether that other user should be banished."
         )
 
-        self.parser.add_argument("user", type=user_type, nargs="?")
+        self.parser.add_argument("user", type=any_user_type, nargs="?")
 
     async def run(self, args: Namespace, update: telegram.Update) -> None:
         """

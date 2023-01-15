@@ -139,7 +139,7 @@ def get_voting_keyboard_for(name: str, object_id: int) -> telegram.InlineKeyboar
             telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"{name} disapprove {object_id}"),
         ],
         [
-            telegram.InlineKeyboardButton("FORWARD", switch_inline_query_current_chat=f"{name} {object_id} "),
+            telegram.InlineKeyboardButton("FORWARD", callback_data=f"forward {name} {object_id} ask -1"),
             telegram.InlineKeyboardButton("ABORT", callback_data=f"{name} abort {object_id}")
         ]
     ])

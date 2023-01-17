@@ -8,6 +8,8 @@ from ..base import BaseCommand
 from ..parsing.util import Namespace
 from ..parsing.types import any_user_type
 
+from matebot_sdk.schemas import PrivilegeLevel
+
 
 class BalanceCommand(BaseCommand):
     """
@@ -35,10 +37,13 @@ class BalanceCommand(BaseCommand):
         :return: None
         """
 
+        user = await self.client.get_core_user(update.effective_message.from_user)
         if args.user:
-            update.effective_message.reply_text(
-                f"Balance of {args.user.name} is: {self.client.format_balance(args.user)}"
-            )
+            if user.privilege < PrivilegeLevel.VOUCHED:
+                update.effective_message.reply_text("You are not permitted to use this command.")
+            else:
+                update.effective_message.reply_text(
+                    f"Balance of {args.user.name} is: {self.client.format_balance(args.user)}"
+                )
         else:
-            user = await self.client.get_core_user(update.effective_message.from_user)
             update.effective_message.reply_text(f"Your balance is: {self.client.format_balance(user)}")

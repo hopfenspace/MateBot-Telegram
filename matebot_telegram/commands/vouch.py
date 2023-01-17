@@ -181,7 +181,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
 
         ext = f"No transaction was required, since {debtor.name} already had a balance of 0."
         if response.transaction is not None:
-            ext = f"A transaction about {self.client.format_balance(response.transaction.amount)} has been made."
+            ext = f"A transaction of {self.client.format_balance(response.transaction.amount)} has been made."
         update.callback_query.message.edit_text(
             f"You don't vouch for {debtor.name} anymore. Therefore, the "
             f"privileges of {debtor.name} to use this bot have been limited.\n{ext}",
@@ -251,7 +251,7 @@ async def _handle_voucher_updated(event: schemas.Event):
         voucher_alias = f" alias @{voucher_telegram[1]}"
     info = ""
     if transaction:
-        info = f"\nAdditionally, a payment about {client.client.format_balance(transaction.amount)} has been made."
+        info = f"\nAdditionally, a payment of {client.client.format_balance(transaction.amount)} has been made."
 
     if debtor_telegram is not None:
         if voucher_id is None:

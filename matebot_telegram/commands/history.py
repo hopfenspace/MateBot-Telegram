@@ -244,8 +244,8 @@ async def _handle_incoming_transaction_notification(event: schemas.Event):
             alias = ""
             if sender_user and sender_user[1]:
                 alias = f" alias @{sender_user[1]}"
-            msg = f"Good news! You received a payment from {transaction.sender.name}{alias} about " \
-                  f"{client.client.format_balance(transaction.amount)}.\nDescription: `{transaction.reason}`"
+            msg = f"Good news! You received a payment of {client.client.format_balance(transaction.amount)} " \
+                  f"from {transaction.sender.name}{alias}.\nDescription: `{transaction.reason}`"
             util.safe_call(
                 lambda: bot.send_message(receiver_user[0], msg, parse_mode=telegram.ParseMode.MARKDOWN),
                 lambda: bot.send_message(receiver_user[0], msg)

@@ -153,7 +153,7 @@ class CommunismCommand(BaseCommand):
                 job_queue=self.client.job_queue
             )
             update.effective_message.reply_text(
-                f"You have aborted your most recent communism about "
+                f"You have aborted your most recent communism of "
                 f"{self.client.format_balance(aborted_communism.amount)}!"
             )
 

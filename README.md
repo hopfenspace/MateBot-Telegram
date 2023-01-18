@@ -3,7 +3,7 @@
 _MateBot Telegram_ is a Telegram Bot as frontend to the
 [MateBot API](https://github.com/hopfenspace/MateBot)
 that allows users to buy Mate, ice cream and pizza or more, easily
-share bills (in the so called "communisms") or get refunds from the
+share bills (in the so-called "communisms") or get refunds from the
 community when they paid for something used by everyone. It provides
 external and internal user relationships with polls about membership
 policies as well as the possibility for users to vouch for others.
@@ -13,12 +13,19 @@ policies as well as the possibility for users to vouch for others.
 ### Installation
 
 1. Make sure you have Python (>= 3.7) and pip (>= 19) installed.
-2. Clone this repository.
+2. Clone this repository recursively, since it requires a submodule.
 3. Copy `config.json.sample` to `config.json` and adapt the options at
-    the top of the file to fit your needs (you need a running server of
-    the MateBot API and maybe also an existing app name and password).
-4. `python3 -m venv venv`
-5. `venv/bin/pip3 install -r requirements.txt`
+   the top of the file to fit your needs (you need a running server of
+   the MateBot API and maybe also an existing app name and password).
+   The `database_url` needs to be recognized by SQLAlchemy. See
+   [here](https://docs.sqlalchemy.org/en/20/core/connections.html)
+   for details about the URL format.
+4. Make a symlink for the SDK in the subdirectory:
+   `ln -s dependencies/matebot_python_sdk/matebot_sdk matebot_sdk`
+5. Create and activate a virtual environment for this project:
+   `python3 -m venv venv && source venv/bin/activate`
+6. Install the requirements of the SDK and this project:
+   `venv/bin/pip3 install -r requirements.txt -r dependencies/matebot_python_sdk/requirements.txt`
 
 ### Execution
 

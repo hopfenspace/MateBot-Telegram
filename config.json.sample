@@ -19,7 +19,7 @@
         "public_url": "<Public base URL of the callback server (reachable by the API server)>",
         "address": "<Address the callback server should bind to, e.g. '0.0.0.0'>",
         "port": 8080,
-        "shared_secret": "<Optional shared secret for HTTP Bearer Auth to the callback server by the API server>"
+        "shared_secret": "<Required shared secret for HTTP Bearer Auth to the callback server by the API server>"
     },
     "auto_forward": {
         "communism": [],

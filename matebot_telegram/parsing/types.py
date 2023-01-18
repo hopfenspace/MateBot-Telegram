@@ -22,13 +22,13 @@ def amount_type(arg: str) -> int:
     See :func:`amount` for more details.
     """
 
-    value = amount(arg, config.config.currency.digits)
+    value = amount(arg, config.config.currency.digits, config.config.currency.symbol)
     if value >= 2**31:
         raise ValueError("Integer too large!")
     return value
 
 
-def amount(arg: str, digits: int) -> int:
+def amount(arg: str, digits: int, symbol: str) -> int:
     """
     Convert the string into an amount of money
 
@@ -45,15 +45,18 @@ def amount(arg: str, digits: int) -> int:
         in expressions of the amount in the currency (e.g. ``13.37€`` is a
         usual expression for an amount in Euros with two digits behind the dot)
     :type digits: int
+    :param symbol: symbol (one UTF-8 character) of the currency, which is optional
+        at the end of the amount expression (doesn't affect the amount itself)
+    :type symbol: str
     :return: Amount of money in cent
     :rtype: int
     :raises ValueError: when the arg seems to be no valid amount or is too big
     """
 
     if digits == 0:
-        amount_pattern = re.compile(r"^(\d+)$")
+        amount_pattern = re.compile(r"^(\d+)" + f"({symbol}?)" + r"$")
     elif digits > 0:
-        amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)" + r"(\d)?" * (digits - 1) + r")?$")
+        amount_pattern = re.compile(r"^(\d+)(?:[,.](\d)" + r"(\d)?" * (digits - 1) + r")?" + f"({symbol}?)" + r"$")
     else:
         raise ValueError("Negative number of digits is invalid")
 
@@ -61,7 +64,7 @@ def amount(arg: str, digits: int) -> int:
     if match is None:
         raise ValueError("Doesn't match an amount's regex")
 
-    val = sum(int(v or 0) * 10**i for i, v in list(enumerate(reversed(match.groups()))))
+    val = sum(int(v or 0) * 10**(i-1) for i, v in list(enumerate(reversed(match.groups()))) if v != '' and v != symbol)
     if val == 0:
         raise ValueError("An amount can't be zero")
     return val

@@ -24,7 +24,7 @@ def setup(dispatcher: _Dispatcher):
     initialization of the Telegram bot and MateBot SDK, respectively.
     """
 
-    from .aliases import AliasCallbackQuery
+    from .aliases import AliasCommand, AliasCallbackQuery
     from .balance import BalanceCommand
     from .blame import BlameCommand
     from .communism import CommunismCommand, CommunismCallbackQuery
@@ -59,6 +59,7 @@ def setup(dispatcher: _Dispatcher):
         raise RuntimeError("Initialize the 'api_callback' module and its 'dispatcher' before executing this function!")
 
     for command in [
+        AliasCommand(),
         BalanceCommand(),
         BlameCommand(),
         ConsumeCommand(),

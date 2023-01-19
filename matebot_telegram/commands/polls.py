@@ -4,7 +4,7 @@ MateBot command executor classes for /poll and its callback queries
 
 import time
 import telegram
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Optional
 
 from matebot_sdk import exceptions, schemas
 
@@ -87,7 +87,9 @@ class PollCommand(BaseCommand):
         sender = await self.client.get_core_user(update.effective_message.from_user)
         affected_user = args.user or sender
 
-        def f(variant: schemas.PollVariant) -> str:
+        def f(variant: Optional[schemas.PollVariant]) -> str:
+            if variant is None:
+                return f"poll dont-open {affected_user.id} - {update.effective_message.from_user.id}"
             return f"poll new {affected_user.id} {variant.value} {update.effective_message.from_user.id}"
 
         content = (
@@ -101,6 +103,8 @@ class PollCommand(BaseCommand):
         ], [
             telegram.InlineKeyboardButton("REQUEST PERMISSIONS", callback_data=f(schemas.PollVariant.GET_PERMISSION)),
             telegram.InlineKeyboardButton("REVOKE PERMISSIONS", callback_data=f(schemas.PollVariant.LOOSE_PERMISSION))
+        ], [
+            telegram.InlineKeyboardButton("Don't open a poll now", callback_data=f(None))
         ]])
 
         util.safe_call(
@@ -119,12 +123,21 @@ class PollCallbackQuery(BaseCallbackQuery):
             "poll",
             "^poll",
             {
+                "dont-open": self.dont_open,
                 "new": self.new,
                 "approve": self.approve,
                 "disapprove": self.approve,
                 "abort": self.abort
             }
         )
+
+    async def dont_open(self, update: telegram.Update) -> None:
+        _, _, _, original_sender = self.data.split(" ")
+        if update.callback_query.from_user.id != int(original_sender):
+            update.callback_query.answer("Only the creator of this poll request can use it!")
+            return
+        update.callback_query.message.edit_text("You chose not to open a poll right now.", reply_markup=None)
+        update.callback_query.answer("No poll has been opened")
 
     async def new(self, update: telegram.Update) -> None:
         """

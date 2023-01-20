@@ -101,7 +101,7 @@ class ConsumeMessage(BaseMessage):
 
         try:
             issuer = await self.client.get_core_user(msg.from_user)
-            consumption = await self.client.create_consumption(consumables[0], amount, issuer)
+            _ = await self.client.create_consumption(consumables[0], amount, issuer)
         except exceptions.MateBotSDKException as exc:
             msg.reply_text(exc.message)
         except err.MateBotException as exc:
@@ -109,7 +109,7 @@ class ConsumeMessage(BaseMessage):
         else:
             msg.reply_text(
                 f"Enjoy your{('', f' {amount}')[amount != 1]} {consumables[0].name}{('', 's')[amount != 1]}! "
-                f"You paid {self.client.format_balance(consumption.amount)} to the community."
+                f"{consumables[0].emoji * amount}"
             )
 
 

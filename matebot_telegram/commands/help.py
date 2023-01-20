@@ -22,6 +22,7 @@ class HelpCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "help",
+            "List available commands with helpful information and inspect their usage\n\n"
             "The `/help` command prints the help page for any "
             "command. If no argument is passed, it will print its "
             "usage and a list of all available commands.",

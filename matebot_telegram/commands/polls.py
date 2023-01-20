@@ -60,7 +60,7 @@ class PollCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "poll",
-            "Use this command to manage community polls.\n\n"
+            "Manage community membership polls\n\n"
             "Community polls are used to grant users new permissions or revoke them. "
             "It's a ballot where the members of the community who already have the "
             "special permission to vote on such polls determine the outcome together.\n\n"

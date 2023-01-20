@@ -19,7 +19,7 @@ class ConsumeCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "consume",
-            "Use this command to consume consumable goods.\n\n"
+            "Consume consumable goods\n\n"
             "The first argument `consumable` determines which good you want to consume, "
             "while the optional second argument `number` determines the number of "
             "consumed goods (defaulting to a single one). Use the special consumable "

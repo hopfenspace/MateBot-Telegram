@@ -61,7 +61,7 @@ class RefundCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             type(self).COMMAND_NAME,
-            f"Use this command to create a {type(self).COMMAND_NAME} request.\n\n"
+            f"Create a {type(self).COMMAND_NAME} request\n\n"
             f"When you want to get money from the community, a {type(self).COMMAND_NAME} "
             "request needs to be created. It requires an amount and a description. "
             "The community members with vote permissions will then vote for or against "

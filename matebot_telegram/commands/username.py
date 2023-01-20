@@ -19,7 +19,7 @@ class UsernameCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "username",
-            "Use this command to show or update your global MateBot username.\n\n"
+            "Show or update your global MateBot username\n\n"
             "This username will be used across all applications running with the "
             "same MateBot core application. Usernames must therefore be unique."
         )

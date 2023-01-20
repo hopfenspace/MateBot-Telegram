@@ -19,7 +19,7 @@ class DataCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "data",
-            "Use this command to see the data the bot has stored about you.\n\n"
+            "Show the data the bot has stored about you\n\n"
             "This command can only be used in private chat to protect private data.\n"
             "To view your transactions, use the command `/history` instead."
         )

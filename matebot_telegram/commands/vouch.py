@@ -21,7 +21,7 @@ class VouchCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "vouch",
-            "Use this command to vouch for other users.\n\n"
+            "Vouch for other users and show other users' vouchers\n\n"
             "The possible interactions with this bot are pretty limited for external "
             "people for security purposes. If you intend to use this bot, you can ask an "
             "internal user to vouch for you. Doing so gives you the necessary permissions.\n\n"

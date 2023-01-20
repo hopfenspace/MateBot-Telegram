@@ -19,7 +19,7 @@ class BalanceCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "balance",
-            "Use this command to show a user's balance.\n\n"
+            "Show a user's balance\n\n"
             "When you use this command without arguments, the bot will "
             "reply with your current amount of money stored in your virtual "
             "wallet. If you specify a username or mention someone as an argument, "

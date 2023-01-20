@@ -17,7 +17,7 @@ class StartCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "start",
-            "Use this command once per user to start interacting with this bot.\n\n"
+            "Start interacting with this bot, once per user\n\n"
             "This command creates your user account in case it was not yet. Otherwise, "
             "this command might not be pretty useful. Note that you should not delete "
             "the chat with the bot in order to receive personal notifications from it.\n\n"

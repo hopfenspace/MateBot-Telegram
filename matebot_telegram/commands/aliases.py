@@ -31,7 +31,7 @@ class AliasCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "alias",
-            "Use this command to manage your connected user accounts of other applications\n\n"
+            "Manage your connected user accounts of other applications\n\n"
             "By default, this command shows you currently connected aliases, i.e. available "
             "logins from other applications that have access to your user account. There are "
             "a few subcommands available, e.g. `accept` to verify an alias and make it usable "

@@ -18,9 +18,9 @@ class DonateCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "donate",
-            "Use this command to donate money to the community.\n\n"
+            "Donate money to the community\n\n"
             "Performing this command allows you to transfer money to the "
-            "community. It works similar to the /send operation. "
+            "community user. It works similar to the /send operation."
         )
 
         self.parser.add_argument("amount", type=amount_type)

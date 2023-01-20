@@ -76,7 +76,7 @@ class CommunismCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "communism",
-            "Use this command to start, stop or show a communism.\n\n"
+            "Start, stop or show a communism to split bills among several users\n\n"
             "When you pay for something that is used or otherwise consumed by a bigger "
             "group of people, you can open a communism for it to get your money back.\n\n"
             "When you use this command, you specify a reason and the price. The others "

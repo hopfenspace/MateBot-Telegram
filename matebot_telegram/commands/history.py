@@ -24,7 +24,7 @@ class HistoryCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "history",
-            "Use this command to get an overview of your transactions.\n\n"
+            "Get an overview of your past transactions\n\n"
             "You can specify the number of most recent transactions (default "
             "10) which will be returned by the bot. Using a huge number will "
             "just print all your transactions, maybe in multiple messages.\n\n"

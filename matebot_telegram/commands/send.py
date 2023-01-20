@@ -20,7 +20,7 @@ class SendCommand(BaseCommand):
     def __init__(self):
         super().__init__(
             "send",
-            "Use this command to send money to another user.\n\n"
+            "Send money to another user\n\n"
             "Performing this command allows you to send money to someone else. "
             "Obviously, the receiver of your transaction has to be registered with "
             "this bot. For security purposes, the bot will ask you to confirm your "

@@ -93,7 +93,10 @@ def _conv_arg_to_user(arg: EntityString, allow_foreign_user: bool) -> schemas.Us
     if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
         coroutine = client.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
     elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
-        coroutine = client.client.get_core_user(str(arg), foreign_user=allow_foreign_user)
+        name = str(arg)
+        if name.startswith("@"):
+            name = name[1:]
+        coroutine = client.client.get_core_user(name, foreign_user=allow_foreign_user)
     else:
         raise err.ParsingError('No user mentioned. Try with "@".')
     return asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()

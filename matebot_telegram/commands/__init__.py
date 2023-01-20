@@ -28,7 +28,7 @@ def setup(dispatcher: _Dispatcher):
     from .balance import BalanceCommand
     from .blame import BlameCommand
     from .communism import CommunismCommand, CommunismCallbackQuery
-    from .consume import ConsumeCommand, ConsumeMessage
+    from .consume import ConsumeCommand, ConsumeMessage, get_consumable_commands
     from .data import DataCommand
     from .donate import DonateCommand, DonateCallbackQuery
     from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
@@ -58,7 +58,7 @@ def setup(dispatcher: _Dispatcher):
     if api_callback.dispatcher is None:
         raise RuntimeError("Initialize the 'api_callback' module and its 'dispatcher' before executing this function!")
 
-    for command in [
+    commands = [
         AliasCommand(),
         BalanceCommand(),
         BlameCommand(),
@@ -76,11 +76,15 @@ def setup(dispatcher: _Dispatcher):
         UsernameCommand(),
         VouchCommand(),
         ZwegatCommand()
-    ]:
+    ]
+    for command in commands:
         dispatcher.add_handler(
             _CommandHandler(command.name, command, run_async=True),
             group=0
         )
+    bot_commands = sorted([cmd.bot_command for cmd in commands] + get_consumable_commands(), key=lambda b: b.command)
+    dispatcher.bot.logger.info(f"Configuring {len(bot_commands)} bot commands ...")
+    dispatcher.bot.set_my_commands(bot_commands)
 
     for callback_query in [
         AliasCallbackQuery(),

@@ -2,10 +2,14 @@
 MateBot command executor classes for /consume
 """
 
+import asyncio
+from typing import List
+
 import telegram.ext
+
 from matebot_sdk import exceptions, schemas
 
-from .. import err
+from .. import client, err, util
 from ..base import BaseCommand, BaseMessage
 from ..parsing.types import natural as natural_type, extended_consumable_type
 from ..parsing.util import Namespace
@@ -103,3 +107,16 @@ class ConsumeMessage(BaseMessage):
                 f"Enjoy your{('', f' {amount}')[amount != 1]} {consumables[0].name}{('', 's')[amount != 1]}! "
                 f"You paid {self.client.format_balance(consumption.amount)} to the community."
             )
+
+
+def get_consumable_commands() -> List[telegram.BotCommand]:
+    """
+    Return a list of bot commands for the individual consumables
+    """
+
+    coroutine = client.client.get_consumables()
+    consumables = asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()
+    return [
+        telegram.BotCommand(c.name, f"{c.description} ({client.client.format_balance(c.price)})")
+        for c in consumables
+    ]

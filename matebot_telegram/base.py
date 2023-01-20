@@ -68,6 +68,15 @@ class BaseCommand(_CommonBase):
             BaseCommand.AVAILABLE_COMMANDS[self.name] = self
 
     @property
+    def bot_command(self) -> telegram.BotCommand:
+        """
+        Get the BotCommand representation of this class (contains no functionality!)
+        """
+
+        short_description = self.description.split("\n\n")[0]
+        return telegram.BotCommand(self.name, short_description)
+
+    @property
     def usage(self) -> str:
         """
         Get the usage string of a command

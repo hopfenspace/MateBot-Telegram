@@ -30,12 +30,20 @@ class VouchCommand(BaseCommand):
             "you are vouching for can't pay possible debts for whatever reason. If the "
             "community decides to disable the external user's account, you have to pay "
             "remaining debts, if there are any. However, you would also get the balance in "
-            "case it's positive. After all, you are responsible to deal with the external user."
+            "case it's positive. After all, you are responsible to deal with the external user.\n\n"
+            "This command provides three usages. First, without arguments, it will show your current "
+            "debtors or your current voucher. Second, with one argument, it shows you the voucher "
+            "of one particular user. Note that you need have sufficient permissions to use that "
+            "command. Third, with two arguments you can manage your debtors. The first needs to be "
+            "a command like `start` to begin vouching for someone and `stop` to do the opposite. The "
+            "second argument is the user you want to vouch or stop vouching for."
         )
 
-        p = self.parser.new_usage()
-        p.add_argument("command", choices=("add", "vouch", "remove", "stop"), type=lambda x: str(x).lower())
-        p.add_argument("user", type=any_user_type)
+        p1 = self.parser.new_usage()
+        p1.add_argument("user", type=any_user_type)
+        p2 = self.parser.new_usage()
+        p2.add_argument("command", choices=("add", "start", "remove", "stop"), type=lambda x: str(x).lower())
+        p2.add_argument("user", type=any_user_type)
 
     async def run(self, args: Namespace, update: telegram.Update) -> None:
         """
@@ -50,6 +58,22 @@ class VouchCommand(BaseCommand):
         sender = await self.client.get_core_user(update.effective_message.from_user)
 
         if args.command is None:
+            if args.user is not None:
+                if sender.privilege < schemas.PrivilegeLevel.INTERNAL:
+                    update.effective_message.reply_text("You are not permitted to use this feature.")
+                elif args.user.external:
+                    if args.user.voucher_id:
+                        voucher = await self.client.get_user(args.user.voucher_id)
+                        update.effective_message.reply_text(f"Currently, {voucher.name} vouches for {args.user.name}.")
+                    else:
+                        update.effective_message.reply_text(f"Nobody vouches for {args.user.name} at the moment.")
+                else:
+                    debtors = await self.client.get_users(voucher_id=args.user.id)
+                    if not debtors:
+                        update.effective_message.reply_text(f"{args.user.name} vouches for nobody at the moment.")
+                    else:
+                        update.effective_message.reply_text(f"{args.user.name} vouches for {len(debtors)} other users.")
+                return
             if sender.voucher_id is not None:
                 assert sender.external
                 voucher = await self.client.get_user(sender.voucher_id)
@@ -63,7 +87,7 @@ class VouchCommand(BaseCommand):
                 debtors = await self.client.get_users(voucher_id=sender.id)
                 if not debtors:
                     update.effective_message.reply_markdown(
-                        "You currently don't vouch for anybody. Use the subcommand `add`/`vouch` to vouch "
+                        "You currently don't vouch for anybody. Use the subcommand `add` or `start` to vouch "
                         "for another user. See the help page of the vouch command for more information."
                     )
                 else:

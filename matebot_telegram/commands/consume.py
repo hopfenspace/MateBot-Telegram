@@ -81,7 +81,11 @@ class ConsumeMessage(BaseMessage):
         self.logger.debug(f"Incoming possible consume custom command. Text: '{msg.text}'")
         self.logger.debug(f"Consumable '{possible_consumable}' with amount '{possible_amount}'")
 
-        consumables = await self.client.get_consumables(name=possible_consumable[1:])
+        possible_consumable = str(possible_consumable).split("@")[0]
+        if possible_consumable.startswith("/"):
+            possible_consumable = possible_consumable[1:]
+
+        consumables = await self.client.get_consumables(name=possible_consumable)
         if len(consumables) != 1:
             msg.reply_text("Unknown command. See /help for details.")
             return

@@ -124,7 +124,7 @@ class VouchCommand(BaseCommand):
                 f"This user is not external. Therefore, you can't vouch for {args.user.name}."
             )
 
-        elif args.command in ("add", "vouch"):
+        elif args.command in ("add", "start"):
             if args.user.voucher_id == sender.id:
                 msg = f"You already vouch for {args.user.name}. If you " \
                     "want to stop this, use the command `/vouch stop <username>`."

@@ -4,14 +4,13 @@ See :class:`mate_bot.parsing.actions.Action`'s type parameter
 """
 
 import re
-import asyncio
-from typing import Union
+from typing import Any, Coroutine, Union
 
 import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import client, config, err, util
+from .. import client, config, err
 from ..base import BaseCommand
 
 
@@ -89,41 +88,40 @@ def natural(arg: str) -> int:
     return result
 
 
-def _conv_arg_to_user(arg: EntityString, allow_foreign_user: bool) -> schemas.User:
-    if arg.entity and arg.entity.type == telegram.constants.MESSAGEENTITY_TEXT_MENTION:
-        coroutine = client.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
-    elif arg.entity is None or arg.entity.type == telegram.constants.MESSAGEENTITY_MENTION:
+def _conv_arg_to_user(arg: EntityString, allow_foreign_user: bool) -> Coroutine[Any, Any, schemas.User]:
+    if arg.entity and arg.entity.type == telegram.constants.MessageEntityType.TEXT_MENTION:
+        return client.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
+    elif arg.entity is None or arg.entity.type == telegram.constants.MessageEntityType.MENTION:
         name = str(arg)
         if name.startswith("@"):
             name = name[1:]
-        coroutine = client.client.get_core_user(name, foreign_user=allow_foreign_user)
+        return client.client.get_core_user(name, foreign_user=allow_foreign_user)
     else:
         raise err.ParsingError('No user mentioned. Try with "@".')
-    return asyncio.run_coroutine_threadsafe(coroutine, loop=util.event_loop).result()
 
 
-def user_type(arg: EntityString) -> schemas.User:
+def user_type(arg: EntityString) -> Coroutine[Any, Any, schemas.User]:
     """
     Convert an entity string into a User schema
 
     :param arg: string to be parsed
     :type arg: EntityString
-    :return: fully functional MateBot User schema
-    :rtype: matebot_sdk.schemas.User
+    :return: awaitable that returns a fully functional MateBot User schema
+    :rtype: Coroutine[Any, Any, matebot_sdk.schemas.User]
     :raises ValueError: when username is ambiguous or the argument wasn't a mention
     """
 
     return _conv_arg_to_user(arg, False)
 
 
-def any_user_type(arg: EntityString) -> schemas.User:
+def any_user_type(arg: EntityString) -> Coroutine[Any, Any, schemas.User]:
     """
     Convert an entity string into a User schema, allowing foreign users that never used this application
 
     :param arg: string to be parsed
     :type arg: EntityString
-    :return: fully functional MateBot User schema
-    :rtype: matebot_sdk.schemas.User
+    :return: awaitable that returns a fully functional MateBot User schema
+    :rtype: Coroutine[Any, Any, matebot_sdk.schemas.User]
     :raises ValueError: when username is ambiguous or the argument wasn't a mention
     """
 
@@ -147,7 +145,7 @@ def command(arg: str) -> BaseCommand:
         raise ValueError(f"{arg} is an unknown command")
 
 
-def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
+async def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
     """
     Convert the string into a consumable schema, if found, or the special string "?"
 
@@ -160,7 +158,7 @@ def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
 
     if arg.strip() == "?":
         return "?"
-    for consumable in asyncio.run_coroutine_threadsafe(client.client.get_consumables(), loop=util.event_loop).result():
+    for consumable in await client.client.get_consumables():
         if consumable.name.lower() == arg.lower():
             return consumable
     raise ValueError(f"{arg} is no known consumable")

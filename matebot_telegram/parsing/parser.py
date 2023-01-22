@@ -3,6 +3,7 @@ MateBot's CommandParser
 """
 
 import typing
+import inspect
 
 import telegram
 
@@ -60,7 +61,7 @@ class CommandParser(Representable):
         self._usages.append(CommandUsage())
         return self._usages[-1]
 
-    def parse(self, msg: telegram.Message) -> Namespace:
+    async def parse(self, msg: telegram.Message) -> Namespace:
         """
         Parse a telegram message into a namespace.
 
@@ -80,9 +81,9 @@ class CommandParser(Representable):
             arg_strings = arg_strings[1:]
 
         # Parse
-        return self._parse(arg_strings)
+        return await self._parse(arg_strings)
 
-    def _parse(self, arg_strings: typing.List[str]) -> Namespace:
+    async def _parse(self, arg_strings: typing.List[str]) -> Namespace:
         """
         Internal function for parsing from a list of strings.
 
@@ -107,7 +108,7 @@ class CommandParser(Representable):
             else:
                 # Try the remaining ones
                 try:
-                    return self._parse_usage(usage, arg_strings)
+                    return await self._parse_usage(usage, arg_strings)
                 except ParsingError as err:
                     errors.append(err)
                 continue
@@ -124,7 +125,7 @@ class CommandParser(Representable):
                 msg += f"\n`/{self._name} {usage}` {error}"
             raise ParsingError(msg)
 
-    def _parse_usage(self, usage: CommandUsage, arg_strings: typing.List[str]) -> Namespace:
+    async def _parse_usage(self, usage: CommandUsage, arg_strings: typing.List[str]) -> Namespace:
         """
         Try to parse the arguments with a usage
 
@@ -145,7 +146,7 @@ class CommandParser(Representable):
         for action in usage.actions:
             setattr(namespace, action.dest, action.default)
 
-        def consume_action(local_action: Action, strings: typing.List[str]):
+        async def consume_action(local_action: Action, strings: typing.List[str]):
             """
             Use an action to consume as many argument strings as possible
             """
@@ -159,6 +160,8 @@ class CommandParser(Representable):
                 try:
                     # Try converting the argument string
                     value = local_action.type(string)
+                    if inspect.isawaitable(value):
+                        value = await value
 
                     # Check choices
                     if action.choices is not None and value not in action.choices:
@@ -205,7 +208,7 @@ class CommandParser(Representable):
         left_strings = list(arg_strings)
 
         for action in usage.actions:
-            consume_action(action, left_strings)
+            await consume_action(action, left_strings)
 
         if len(left_strings) > 0:
             raise ParsingError(f"Unrecognized argument{plural_s(left_strings)}: {', '.join(left_strings)}")

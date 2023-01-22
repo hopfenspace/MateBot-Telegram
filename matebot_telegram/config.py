@@ -54,17 +54,9 @@ class Configuration(_pydantic.BaseModel):
     logging: dict
 
 
-def setup_configuration(*paths: str) -> bool:
-    global config
+def setup_configuration(*paths: str) -> Configuration:
     for path in paths:
         if _os.path.exists(path):
             with open(path) as f:
-                config = Configuration(**_json.load(f))
-            return True
-    return False
-
-
-config: Configuration  # must be available at runtime, the setup below is just a default
-
-if not setup_configuration("config.json"):
-    setup_configuration(_os.path.join("..", "config.json"))
+                return Configuration(**_json.load(f))
+    raise RuntimeError("No configuration file found.")

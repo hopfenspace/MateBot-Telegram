@@ -24,8 +24,8 @@ policies as well as the possibility for users to vouch for others.
    `ln -s dependencies/matebot_python_sdk/matebot_sdk matebot_sdk`
 5. Create and activate a virtual environment for this project:
    `python3 -m venv venv && source venv/bin/activate`
-6. Install the requirements of the SDK and this project:
-   `venv/bin/pip3 install -r requirements.txt -r dependencies/matebot_python_sdk/requirements.txt`
+6. Install the requirements of this project:
+   `venv/bin/pip3 install -r requirements.txt`
 
 ### Execution
 

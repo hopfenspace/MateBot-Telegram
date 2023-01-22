@@ -50,7 +50,7 @@ def get_init(logger: logging.Logger):
         application.add_error_handler(log_error)
 
         logger.debug("Configuring API callback handler")
-        application.dispatcher = api_callback.APICallbackDispatcher(application.bot)
+        application.dispatcher = api_callback.APICallbackDispatcher(logging.getLogger("mbt.api-dispatcher"))
 
         if not config.config.callback.enabled:
             logger.info("Callbacks have been disabled in the configuration file")

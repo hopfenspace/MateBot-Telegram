@@ -2,8 +2,6 @@
 MateBot SDK client to be used across the project
 """
 
-import asyncio
-import logging
 from typing import Optional, Tuple, Union
 
 import telegram.ext
@@ -11,22 +9,15 @@ import telegram.ext
 from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
-from . import config, err, util, persistence, shared_messages as _shared_messages
-
-
-logger = logging.getLogger("client")
+# Note that there's another import in the `format_balance` staticmethod
+from . import err, persistence, shared_messages as _shared_messages
 
 
 class AsyncMateBotSDKForTelegram(AsyncSDK):
-    bot: telegram.Bot
-    job_queue: telegram.ext.JobQueue
     shared_messages: _shared_messages.SharedMessageHandler
 
-    def __init__(self, dispatcher: telegram.ext.Dispatcher, *args, **kwargs):
-        super(AsyncMateBotSDKForTelegram, self).__init__(*args, **kwargs)
-        self._dispatcher = dispatcher
-        self.bot = dispatcher.bot
-        self.job_queue = dispatcher.job_queue
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.shared_messages = _shared_messages.SharedMessageHandler()
 
     @staticmethod
@@ -35,10 +26,12 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
 
     @staticmethod
     def format_balance(balance_or_user: Union[int, float, _User]):
+        from .application import get_running_app
+        currency = get_running_app().config.currency
         if isinstance(balance_or_user, _User):
             balance_or_user = balance_or_user.balance
-        v = balance_or_user / config.config.currency.factor
-        return f"{v:.{config.config.currency.digits}f}{config.config.currency.symbol}"
+        v = balance_or_user / currency.factor
+        return f"{v:.{currency.digits}f}{currency.symbol}"
 
     @staticmethod
     def patch_user_db_from_update(update: telegram.Update):
@@ -183,32 +176,3 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                 "and the user recently used the bot. Try sending /start to the bot privately."
             )
         raise err.UniqueUserNotFound(f"Multiple users were found for {pretty or identifier}. Please file a bug report.")
-
-
-client: AsyncMateBotSDKForTelegram  # must be available at runtime; use the setup function below at early program stage
-
-
-def setup(updater: telegram.ext.Updater, configuration: config.Configuration) -> AsyncMateBotSDKForTelegram:
-    logger.debug("Setting up SDK client...")
-    persistence.init(configuration.database_url, echo=configuration.database_debug)
-    if util.event_loop is None:
-        logger.error("Event loop uninitialized! Refusing to setup SDK client!")
-        raise RuntimeError("Uninitialized event loop")
-
-    callback = None
-    if configuration.callback.enabled:
-        callback = (configuration.callback.public_url, configuration.callback.shared_secret)
-    sdk = AsyncMateBotSDKForTelegram(
-        updater.dispatcher,
-        base_url=configuration.server,
-        app_name=configuration.application,
-        password=configuration.password,
-        callback=callback,
-        logger=logging.getLogger("sdk.client"),
-        verify=configuration.ssl_verify and (configuration.ca_path or True),
-        user_agent=configuration.user_agent or None
-    )
-
-    asyncio.run_coroutine_threadsafe(sdk.setup(), loop=util.event_loop).result()
-    logger.debug("Completed SDK setup")
-    return sdk

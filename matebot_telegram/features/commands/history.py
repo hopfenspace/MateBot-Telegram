@@ -10,10 +10,10 @@ import tempfile
 import telegram
 from matebot_sdk import schemas
 
-from .. import api_callback, client, config, util
+from ... import util
 from ..base import BaseCommand
-from ..parsing.types import natural as natural_type
-from ..parsing.util import Namespace
+from ...parsing.types import natural as natural_type
+from ...parsing.util import Namespace
 
 
 class HistoryCommand(BaseCommand):
@@ -73,7 +73,7 @@ class HistoryCommand(BaseCommand):
         """
 
         if update.effective_chat.type != update.effective_chat.PRIVATE:
-            update.effective_message.reply_text("This command can only be used in private chat.")
+            await update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
         user = await self.client.get_core_user(update.effective_message.from_user)
@@ -95,14 +95,14 @@ class HistoryCommand(BaseCommand):
         if args.export == "json":
             logs = [conv_transaction(t) for t in transactions]
             if len(logs) == 0:
-                update.effective_message.reply_text("You don't have any registered transactions yet.")
+                await update.effective_message.reply_text("You don't have any registered transactions yet.")
                 return
 
             with tempfile.TemporaryFile(mode="w+b") as file:
                 file.write(json.dumps(logs, indent=4).encode("UTF-8"))
                 file.seek(0)
 
-                update.effective_message.reply_document(
+                await update.effective_message.reply_document(
                     document=file,
                     filename="transactions.json",
                     caption=(
@@ -114,7 +114,7 @@ class HistoryCommand(BaseCommand):
         elif args.export == "csv":
             logs = [conv_transaction(t) for t in transactions]
             if len(logs) == 0:
-                update.effective_message.reply_text("You don't have any registered transactions yet.")
+                await update.effective_message.reply_text("You don't have any registered transactions yet.")
                 return
             fields = list(logs[0].keys())
 
@@ -130,7 +130,7 @@ class HistoryCommand(BaseCommand):
 
                 telegram_file.write(content.encode("UTF-8"))
                 telegram_file.seek(0)
-                update.effective_message.reply_document(
+                await update.effective_message.reply_document(
                     document=telegram_file,
                     filename="transactions.csv",
                     caption=(
@@ -168,21 +168,21 @@ class HistoryCommand(BaseCommand):
         ][::-1]
 
         if len(logs) == 0:
-            update.effective_message.reply_text("You don't have any registered transactions yet.")
+            await update.effective_message.reply_text("You don't have any registered transactions yet.")
             return
 
         log = "\n".join(logs)
         heading = f"Transaction history for {user.name}:\n```"
         text = f"{heading}\n{log}```"
         if len(text) < 4096:
-            util.safe_call(
+            await util.safe_call(
                 lambda: update.effective_message.reply_markdown_v2(text),
                 lambda: update.effective_message.reply_text(text)
             )
             return
 
         if update.effective_message.chat.type != update.effective_chat.PRIVATE:
-            update.effective_message.reply_text(
+            await update.effective_message.reply_text(
                 "Your requested transaction logs are too long. Try a smaller "
                 "number of entries or execute this command in private chat again."
             )
@@ -192,7 +192,7 @@ class HistoryCommand(BaseCommand):
             for entry in logs:
                 if len("\n".join(results + [entry])) > 4096:
                     results.append("```")
-                    util.safe_call(
+                    await util.safe_call(
                         lambda: update.effective_message.reply_markdown_v2("\n".join(results)),
                         lambda: update.effective_message.reply_text("\n".join(results))
                     )
@@ -201,52 +201,7 @@ class HistoryCommand(BaseCommand):
 
             if len(results) > 0:
                 text = "\n".join(results + ["```"])
-                util.safe_call(
+                await util.safe_call(
                     lambda: update.effective_message.reply_markdown_v2(text),
                     lambda: update.effective_message.reply_text(text)
                 )
-
-
-@api_callback.dispatcher.register_for(schemas.EventType.TRANSACTION_CREATED)
-async def _handle_incoming_transaction_notification(event: schemas.Event):
-    transaction = (await client.client.get_transactions(id=int(event.data["id"])))[0]
-    sender_user = client.client.find_telegram_user(transaction.sender.id)
-    receiver_user = client.client.find_telegram_user(transaction.receiver.id)
-
-    bot = client.client.bot
-    community = await client.client.community
-    if transaction.sender.id == community.id:
-        alias = ""
-        if receiver_user and receiver_user[1]:
-            alias = f" alias @{receiver_user[1]}"
-        msg = f"*Incoming transaction*\nThe community has sent {client.client.format_balance(transaction.amount)} " \
-              f"to the user {transaction.receiver.name}{alias}.\nDescription: `{transaction.reason}`"
-        for notification_receiver in config.config.chats.transactions:
-            util.safe_call(
-                lambda: bot.send_message(notification_receiver, msg, parse_mode=telegram.ParseMode.MARKDOWN),
-                lambda: bot.send_message(notification_receiver, msg),
-            )
-    if transaction.receiver.id == community.id:
-        alias = ""
-        if receiver_user and receiver_user[1]:
-            alias = f" alias @{receiver_user[1]}"
-        msg = f"*Incoming transaction*\nThe user {transaction.sender.name}{alias} " \
-              f"has sent {client.client.format_balance(transaction.amount)} to the " \
-              f"community.\nDescription: `{transaction.reason}`"
-        for notification_receiver in config.config.chats.transactions:
-            util.safe_call(
-                lambda: bot.send_message(notification_receiver, msg, parse_mode=telegram.ParseMode.MARKDOWN),
-                lambda: bot.send_message(notification_receiver, msg),
-            )
-
-    if [a for a in transaction.receiver.aliases if a.confirmed and a.application_id == client.client.app_id]:
-        if receiver_user:
-            alias = ""
-            if sender_user and sender_user[1]:
-                alias = f" alias @{sender_user[1]}"
-            msg = f"Good news! You received a payment of {client.client.format_balance(transaction.amount)} " \
-                  f"from {transaction.sender.name}{alias}.\nDescription: `{transaction.reason}`"
-            util.safe_call(
-                lambda: bot.send_message(receiver_user[0], msg, parse_mode=telegram.ParseMode.MARKDOWN),
-                lambda: bot.send_message(receiver_user[0], msg)
-            )

@@ -6,8 +6,8 @@ import telegram
 from matebot_sdk.exceptions import MateBotSDKException
 
 from ..base import BaseCommand
-from ..parsing.types import natural as natural_type
-from ..parsing.util import Namespace
+from ...parsing.types import natural as natural_type
+from ...parsing.util import Namespace
 
 
 class BlameCommand(BaseCommand):
@@ -45,4 +45,4 @@ class BlameCommand(BaseCommand):
                 msg = f"The users with the highest debts are:\n{', '.join(map(lambda u: u.name, debtors))}"
         except MateBotSDKException as exc:
             msg = exc.message
-        update.effective_message.reply_text(msg)
+        await update.effective_message.reply_text(msg)

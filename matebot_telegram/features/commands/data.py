@@ -6,9 +6,9 @@ import time
 
 import telegram
 
-from .. import err, util
+from ... import err, util
 from ..base import BaseCommand
-from ..parsing.util import Namespace
+from ...parsing.util import Namespace
 
 
 class DataCommand(BaseCommand):
@@ -34,13 +34,13 @@ class DataCommand(BaseCommand):
         """
 
         if update.effective_message.chat.type != telegram.Chat.PRIVATE:
-            update.effective_message.reply_text("This command can only be used in private chat.")
+            await update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
         try:
             user = await self.client.get_core_user(update.effective_message.from_user)
         except err.MateBotException as exc:
-            update.message.reply_text(str(exc))
+            await update.message.reply_text(str(exc))
             return
 
         if user.external:
@@ -97,7 +97,7 @@ class DataCommand(BaseCommand):
             f"Use the /history command to see your transaction log."
         )
 
-        util.safe_call(
+        await util.safe_call(
             lambda: update.effective_message.reply_markdown(result),
             lambda: update.effective_message.reply_text(result)
         )

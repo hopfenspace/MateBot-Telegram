@@ -5,8 +5,8 @@ MateBot command executor classes for /balance
 import telegram
 
 from ..base import BaseCommand
-from ..parsing.util import Namespace
-from ..parsing.types import any_user_type
+from ...parsing.util import Namespace
+from ...parsing.types import any_user_type
 
 from matebot_sdk.schemas import PrivilegeLevel
 
@@ -40,10 +40,10 @@ class BalanceCommand(BaseCommand):
         user = await self.client.get_core_user(update.effective_message.from_user)
         if args.user:
             if user.privilege < PrivilegeLevel.VOUCHED:
-                update.effective_message.reply_text("You are not permitted to use this command.")
+                await update.effective_message.reply_text("You are not permitted to use this command.")
             else:
-                update.effective_message.reply_text(
+                await update.effective_message.reply_text(
                     f"Balance of {args.user.name} is: {self.client.format_balance(args.user)}"
                 )
         else:
-            update.effective_message.reply_text(f"Your balance is: {self.client.format_balance(user)}")
+            await update.effective_message.reply_text(f"Your balance is: {self.client.format_balance(user)}")

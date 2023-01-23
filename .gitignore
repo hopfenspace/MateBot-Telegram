@@ -1,0 +1,10 @@
+venv
+.idea
+__pycache__
+
+*.db
+*.log
+*.json
+*.lock
+*.real
+*.sqlite*

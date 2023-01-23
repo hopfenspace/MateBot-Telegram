@@ -20,18 +20,16 @@ policies as well as the possibility for users to vouch for others.
    The `database_url` needs to be recognized by SQLAlchemy. See
    [here](https://docs.sqlalchemy.org/en/20/core/connections.html)
    for details about the URL format.
-4. Make a symlink for the SDK in the subdirectory:
-   `ln -s dependencies/matebot_python_sdk/matebot_sdk matebot_sdk`
-5. Create and activate a virtual environment for this project:
+4. Create and activate a virtual environment for this project:
    `python3 -m venv venv && source venv/bin/activate`
-6. Install the requirements of the SDK and this project:
-   `venv/bin/pip3 install -r requirements.txt -r dependencies/matebot_python_sdk/requirements.txt`
+5. Install the requirements of this project:
+   `venv/bin/pip3 install -r requirements.txt`
 
 ### Execution
 
 `venv/bin/python3 -m matebot_telegram`
 
-Optional: This repository provides a systemd sample file at
+Optional: This repository provides a minimal systemd sample file at
 `matebot-telegram.service.sample`. Copy this file to `matebot-telegram.service`
 and adapt the settings in there to fit your environment. Then create a symlink
 from the systemd unit file storage (e.g. `/etc/systemd/system/` on Debian-like

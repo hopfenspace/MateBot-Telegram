@@ -96,14 +96,18 @@ def main(conf: config.Configuration) -> int:
     logger.info("Starting application ...")
 
     database.init(conf.database_url, echo=conf.database_debug)
-    application = ApplicationBuilder() \
-        .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt.app")}) \
-        .token(config.config.token) \
-        .persistence(persistence.BotPersistence()) \
-        .post_init(get_init(logging.getLogger("mbt.init"))) \
-        .post_shutdown(get_shutdown(logging.getLogger("mbt.shutdown"))) \
-        .rate_limiter(rate_limiter.RetryLimiter(logging.getLogger("mbt.limit"))) \
+    init = get_init(logging.getLogger("mbt.init"))
+    application = (
+        ApplicationBuilder()
+        .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt.app")})
+        .token(conf.token)
+        .arbitrary_callback_data(1024)
+        .persistence(persistence.BotPersistence(logging.getLogger("mbt.persistence"), update_interval=10))
+        .post_init(init)
+        .post_shutdown(get_shutdown(logging.getLogger("mbt.shutdown")))
+        .rate_limiter(rate_limiter.RetryLimiter(logging.getLogger("mbt.limit")))
         .build()
+    )
 
     application.run_polling()
     logger.info("Stopped MateBot Telegram.")

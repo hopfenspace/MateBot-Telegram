@@ -8,7 +8,7 @@ from typing import List, Optional
 import pydantic as _pydantic
 
 try:
-    import ujson as _json
+    import ujson as _json  # noqa
 except ImportError:
     import json as _json
 

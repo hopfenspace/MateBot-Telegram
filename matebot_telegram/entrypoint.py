@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder
 from matebot_sdk.exceptions import APIConnectionException
 
 # Note that the submodule 'commands' will imported dynamically in the `init` coroutine below
-from . import api_callback, application as _app, client, config, database, rate_limiter, persistence
+from . import api_callback, application as _app, client, config, context, database, rate_limiter, persistence
 
 
 async def log_error(*args, **kwargs):
@@ -101,6 +101,7 @@ def main(conf: config.Configuration) -> int:
         ApplicationBuilder()
         .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt.app")})
         .token(conf.token)
+        .context_types(context.ExtendedContextType)
         .arbitrary_callback_data(1024)
         .persistence(persistence.BotPersistence(logging.getLogger("mbt.persistence"), update_interval=10))
         .post_init(init)

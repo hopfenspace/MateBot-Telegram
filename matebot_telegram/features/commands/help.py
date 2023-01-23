@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /help
+MateBot command executor class for /help
 """
 
 from typing import Optional
@@ -7,8 +7,9 @@ from typing import Optional
 import telegram
 from matebot_sdk import exceptions, schemas
 
+from .base import BaseCommand
+from .. import _common
 from ... import err, util
-from ..base import BaseCommand
 from ...parsing.types import command as command_type
 from ...parsing.util import Namespace
 
@@ -30,12 +31,14 @@ class HelpCommand(BaseCommand):
 
         self.parser.add_argument("command", type=command_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
@@ -43,27 +46,29 @@ class HelpCommand(BaseCommand):
             msg = self.get_help_for_command(args.command)
         else:
             try:
-                user = await self.client.get_core_user(update.effective_message.from_user)
+                user = await context.application.client.get_core_user(update.effective_message.from_user)
             except (err.MateBotException, exceptions.APIConnectionException):
-                msg = await self.get_help_usage(self.usage, None)
+                msg = await self.get_help_usage(self.usage, context, None)
                 await util.safe_call(
                     lambda: update.effective_message.reply_markdown(msg),
                     lambda: update.effective_message.reply_text(msg)
                 )
                 raise
-            msg = await self.get_help_usage(self.usage, user)
+            msg = await self.get_help_usage(self.usage, context, user)
 
         await util.safe_call(
             lambda: update.effective_message.reply_markdown(msg),
             lambda: update.effective_message.reply_text(msg)
         )
 
-    async def get_help_usage(self, usage: str, user: Optional[schemas.User] = None) -> str:
+    async def get_help_usage(self, usage: str, context: _common.ExtendedContext, user: Optional[schemas.User] = None) -> str:
         """
         Retrieve the help message from the help command without arguments
 
         :param usage: usage string of the help command
         :type usage: str
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :param user: optional User who issued the help command
         :type user: Optional[matebot_sdk.schemas.User]
         :return: fully formatted help message when invoking the help command without arguments
@@ -73,7 +78,7 @@ class HelpCommand(BaseCommand):
         command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(BaseCommand.AVAILABLE_COMMANDS.keys())))
         msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n{command_list}"
         dynamic_commands = "\n".join(sorted(
-            [f"- `{c.name}` for {self.client.format_balance(c.price)}" for c in await self.client.get_consumables()]
+            [f"- `{c.name}` for {context.application.client.format_balance(c.price)}" for c in await context.application.client.get_consumables()]
         ))
         msg += f"\n\nAdditionally, the following dynamic consumption commands are available:\n{dynamic_commands}"
 

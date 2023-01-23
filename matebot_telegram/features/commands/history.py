@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /history
+MateBot command executor class for /history
 """
 
 import csv
@@ -10,8 +10,9 @@ import tempfile
 import telegram
 from matebot_sdk import schemas
 
+from .base import BaseCommand
+from .. import _common
 from ... import util
-from ..base import BaseCommand
 from ...parsing.types import natural as natural_type
 from ...parsing.util import Namespace
 
@@ -47,21 +48,23 @@ class HistoryCommand(BaseCommand):
             choices=("json", "csv")
         )
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
         if args.export is None:
-            await self._handle_report(args, update)
+            await self._handle_report(args, update, context)
         else:
-            await self._handle_export(args, update)
+            await self._handle_export(args, update, context)
 
-    async def _handle_export(self, args: Namespace, update: telegram.Update) -> None:
+    async def _handle_export(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         Handle the request to export the full transaction log of a user
 
@@ -69,6 +72,8 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
@@ -76,14 +81,14 @@ class HistoryCommand(BaseCommand):
             await update.effective_message.reply_text("This command can only be used in private chat.")
             return
 
-        user = await self.client.get_core_user(update.effective_message.from_user)
-        transactions = await self.client.get_transactions(member_id=user.id)
+        user = await context.application.client.get_core_user(update.effective_message.from_user)
+        transactions = await context.application.client.get_transactions(member_id=user.id)
 
         def conv_transaction(t: schemas.Transaction) -> dict:
             return {
                 "id": t.id,
                 "amount": t.amount,
-                "amount_formatted": self.client.format_balance(t.amount),
+                "amount_formatted": context.application.client.format_balance(t.amount),
                 "sender": t.sender.id,
                 "receiver": t.receiver.id,
                 "reason": t.reason,
@@ -139,7 +144,7 @@ class HistoryCommand(BaseCommand):
                     )
                 )
 
-    async def _handle_report(self, args: Namespace, update: telegram.Update) -> None:
+    async def _handle_report(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         Handle the request to report the most current transaction entries of a user
 
@@ -147,10 +152,12 @@ class HistoryCommand(BaseCommand):
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
-        user = await self.client.get_core_user(update.effective_message.from_user)
+        user = await context.application.client.get_core_user(update.effective_message.from_user)
 
         def format_transaction(transaction: schemas.Transaction) -> str:
             timestamp = time.strftime('%d.%m.%Y %H:%M', time.localtime(int(transaction.timestamp)))
@@ -159,12 +166,12 @@ class HistoryCommand(BaseCommand):
             amount = transaction.amount
             if transaction.sender.id == user.id:
                 amount = -amount
-            formatted_amount = self.client.format_balance(amount)
+            formatted_amount = context.application.client.format_balance(amount)
             return f"{timestamp}: {formatted_amount:>7}: me {direction} {partner:<16} :: {transaction.reason}"
 
         logs = [
             format_transaction(t)
-            for t in await self.client.get_transactions(member_id=user.id, limit=args.length, descending=True)
+            for t in await context.application.client.get_transactions(member_id=user.id, limit=args.length, descending=True)
         ][::-1]
 
         if len(logs) == 0:

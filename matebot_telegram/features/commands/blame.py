@@ -1,11 +1,12 @@
 """
-MateBot command executor classes for /blame
+MateBot command executor class for /blame
 """
 
 import telegram
 from matebot_sdk.exceptions import MateBotSDKException
 
-from ..base import BaseCommand
+from .base import BaseCommand
+from .. import _common
 from ...parsing.types import natural as natural_type
 from ...parsing.util import Namespace
 
@@ -25,18 +26,20 @@ class BlameCommand(BaseCommand):
         )
         self.parser.add_argument("count", default=1, type=natural_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
-        user = await self.client.get_core_user(update.effective_message.from_user)
+        user = await context.application.client.get_core_user(update.effective_message.from_user)
         try:
-            debtors = await self.client.find_sponsors(user, args.count)
+            debtors = await context.application.client.find_sponsors(user, args.count)
             if len(debtors) == 0:
                 msg = "Good news! No one has to be blamed, all users have positive balances!"
             elif len(debtors) == 1:

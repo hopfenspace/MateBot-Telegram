@@ -1,10 +1,11 @@
 """
-MateBot command executor classes for /balance
+MateBot command executor class for /balance
 """
 
 import telegram
 
-from ..base import BaseCommand
+from .base import BaseCommand
+from .. import _common
 from ...parsing.util import Namespace
 from ...parsing.types import any_user_type
 
@@ -28,22 +29,24 @@ class BalanceCommand(BaseCommand):
 
         self.parser.add_argument("user", type=any_user_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
-        user = await self.client.get_core_user(update.effective_message.from_user)
+        user = await context.application.client.get_core_user(update.effective_message.from_user)
         if args.user:
             if user.privilege < PrivilegeLevel.VOUCHED:
                 await update.effective_message.reply_text("You are not permitted to use this command.")
             else:
                 await update.effective_message.reply_text(
-                    f"Balance of {args.user.name} is: {self.client.format_balance(args.user)}"
+                    f"Balance of {args.user.name} is: {context.application.client.format_balance(args.user)}"
                 )
         else:
-            await update.effective_message.reply_text(f"Your balance is: {self.client.format_balance(user)}")
+            await update.effective_message.reply_text(f"Your balance is: {context.application.client.format_balance(user)}")

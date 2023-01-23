@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /consume
+MateBot command executor class for /consume and the specialized consumption handler classes
 """
 
 from typing import List
@@ -8,9 +8,9 @@ import telegram.ext
 
 from matebot_sdk import schemas
 
-from .. import _app
+from .base import BaseCommand
+from .. import _app, _common
 from ... import client as _client
-from ..base import BaseCommand
 from ...parsing.types import natural as natural_type, extended_consumable_type
 from ...parsing.util import Namespace
 
@@ -33,38 +33,41 @@ class ConsumeCommand(BaseCommand):
         self.parser.add_argument("consumable", type=extended_consumable_type)
         self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
-        sender = await self.client.get_core_user(update.effective_message.from_user)
+        sender = await context.application.client.get_core_user(update.effective_message.from_user)
         amount = args.number
         consumable = args.consumable
 
         if isinstance(consumable, str) and consumable == "?":
-            msg = await self.get_consumable_help()
+            msg = await self.get_consumable_help(context)
             await update.effective_message.reply_text(msg)
 
         elif isinstance(consumable, schemas.Consumable):
-            consumption = await self.client.create_consumption(consumable, amount, sender)
+            consumption = await context.application.client.create_consumption(consumable, amount, sender)
             await update.effective_message.reply_text(
                 f"Enjoy your{('', f' {amount}')[amount != 1]} {consumable.name}{('', 's')[amount != 1]}! "
-                f"You paid {self.client.format_balance(consumption.amount)} to the community."
+                f"You paid {context.application.client.format_balance(consumption.amount)} to the community."
             )
 
         else:
             raise RuntimeError(f"Invalid consumable: {consumable!r} {type(consumable)}")
 
-    async def get_consumable_help(self) -> str:
+    @staticmethod
+    async def get_consumable_help(context: _common.ExtendedContext) -> str:
         def make_line(c: schemas.Consumable) -> str:
-            return f"- {c.name} (price {self.client.format_balance(c.price)}): {c.description}"
+            return f"- {c.name} (price {context.application.client.format_balance(c.price)}): {c.description}"
 
-        lines = "\n".join([make_line(c) for c in await self.client.get_consumables()])
+        lines = "\n".join([make_line(c) for c in await context.application.client.get_consumables()])
         return f"The following consumables are currently available:\n\n{lines}"
 
 
@@ -81,16 +84,16 @@ def build_consume_command(consumable: schemas.Consumable) -> BaseCommand:
             )
             self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
 
-        async def run(self, args: Namespace, update: telegram.Update) -> None:
-            issuer = await self.client.get_core_user(update.effective_message.from_user)
-            await self.client.create_consumption(consumable.name, args.number, issuer)
+        async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+            issuer = await context.application.client.get_core_user(update.effective_message.from_user)
+            await context.application.client.create_consumption(consumable.name, args.number, issuer)
             await update.effective_message.reply_text(
                 f"Enjoy your{('', f' {args.number}')[args.number != 1]} "
                 f"{consumable.name}{('', 's')[args.number != 1]}! "
                 f"{consumable.emoji * args.number}"
             )
 
-    return SpecificConsumptionCommand()
+    return type(f"{consumable.name.title()}ConsumptionCommand", (SpecificConsumptionCommand,), {})()
 
 
 async def get_consumable_commands(client: _client.AsyncMateBotSDKForTelegram) -> List[BaseCommand]:

@@ -5,7 +5,8 @@ MateBot command executor classes for /zwegat
 import telegram
 from matebot_sdk.schemas import PrivilegeLevel
 
-from ..base import BaseCommand
+from .base import BaseCommand
+from .. import _common
 from ...parsing.util import Namespace
 
 
@@ -21,24 +22,28 @@ class ZwegatCommand(BaseCommand):
             "This command can only be used by internal users."
         )
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
         sender = update.effective_message.from_user
-        user = await self.client.get_core_user(sender)
+        user = await context.application.client.get_core_user(sender)
         if user.privilege < PrivilegeLevel.INTERNAL:
-            await update.effective_message.reply_text("You are not permitted to use this command. See /help for details.")
+            await update.effective_message.reply_text(
+                "You are not permitted to use this command. See /help for details."
+            )
             return
 
-        balance = (await self.client.community).balance
+        balance = (await context.application.client.community).balance
         if balance >= 0:
-            msg = f"Peter errechnet ein massives Vermögen von {self.client.format_balance(balance)}!"
+            msg = f"Peter errechnet ein massives Vermögen von {context.application.client.format_balance(balance)}!"
         else:
-            msg = f"Peter errechnet Gesamtschulden von {self.client.format_balance(-balance)}!"
+            msg = f"Peter errechnet Gesamtschulden von {context.application.client.format_balance(-balance)}!"
         await update.effective_message.reply_text(msg)

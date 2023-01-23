@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /pay (deprecated)
+MateBot command executor class for /pay (deprecated)
 """
 
 from typing import ClassVar

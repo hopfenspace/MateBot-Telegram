@@ -8,7 +8,7 @@ from typing import List, Optional
 
 import pydantic
 
-from . import persistence
+from . import database, models
 
 
 @enum.unique
@@ -26,7 +26,7 @@ class SharedMessage(pydantic.BaseModel):
     message_id: int
 
     @staticmethod
-    def from_model(model: persistence.SharedMessage) -> "SharedMessage":
+    def from_model(model: models.SharedMessage) -> "SharedMessage":
         return SharedMessage(
             share_type=ShareType(model.share_type),
             share_id=model.share_id,
@@ -48,11 +48,15 @@ class SharedMessageHandler:
             share_type: Optional[ShareType] = None,
             share_id: Optional[int] = None
     ) -> List[SharedMessage]:
+        """
+        Get all messages, optionally filtering by share type and share ID
+        """
+
         if share_type is None and share_id is not None:
             raise ValueError("ShareType can't be unset when the share ID is set")
         with self._lock:
-            with persistence.get_new_session() as session:
-                query = session.query(persistence.SharedMessage)
+            with database.get_new_session() as session:
+                query = session.query(models.SharedMessage)
                 if share_type:
                     query = query.filter_by(share_type=share_type.value)
                     if share_id:
@@ -63,17 +67,20 @@ class SharedMessageHandler:
         return self.add_message_by(**shared_message.dict())
 
     def add_message_by(self, share_type: ShareType, share_id: int, chat_id: int, message_id: int) -> bool:
-        """Add a new shared message; return True if a new message was created, False otherwise"""
+        """
+        Add a new shared message; return True if a new message was created, False otherwise
+        """
+
         with self._lock:
-            with persistence.get_new_session() as session:
-                if session.query(persistence.SharedMessage).filter_by(
+            with database.get_new_session() as session:
+                if session.query(models.SharedMessage).filter_by(
                     share_type=share_type.value,
                     share_id=share_id,
                     chat_id=chat_id,
                     message_id=message_id
                 ).all():
                     return False
-                session.add(persistence.SharedMessage(
+                session.add(models.SharedMessage(
                     share_type=share_type.value,
                     share_id=share_id,
                     chat_id=chat_id,
@@ -86,10 +93,13 @@ class SharedMessageHandler:
         return self.delete_message_by(**shared_message.dict())
 
     def delete_message_by(self, share_type: ShareType, share_id: int, chat_id: int, message_id: int) -> bool:
-        """Delete the specified shared message; return True when anything was deleted, False otherwise"""
+        """
+        Delete the specified shared message; return True when anything was deleted, False otherwise
+        """
+
         with self._lock:
-            with persistence.get_new_session() as session:
-                messages = session.query(persistence.SharedMessage).filter_by(
+            with database.get_new_session() as session:
+                messages = session.query(models.SharedMessage).filter_by(
                     share_type=share_type.value,
                     share_id=share_id,
                     chat_id=chat_id,
@@ -103,10 +113,13 @@ class SharedMessageHandler:
         return True
 
     def delete_messages(self, share_type: ShareType, share_id: int) -> bool:
-        """Delete all specified shared messages; return True when anything was deleted, False otherwise"""
+        """
+        Delete all specified shared messages; return True when anything was deleted, False otherwise
+        """
+
         with self._lock:
-            with persistence.get_new_session() as session:
-                messages = session.query(persistence.SharedMessage).filter_by(
+            with database.get_new_session() as session:
+                messages = session.query(models.SharedMessage).filter_by(
                     share_type=share_type.value,
                     share_id=share_id
                 ).all()
@@ -118,10 +131,13 @@ class SharedMessageHandler:
         return True
 
     def pop_all_messages_by_chat(self, chat_id: int) -> List[SharedMessage]:
-        """Delete and return all shared messages with a common chat ID, regardless of share type or ID"""
+        """
+        Delete and return all shared messages with a common chat ID, regardless of share type or ID
+        """
+
         with self._lock:
-            with persistence.get_new_session() as session:
-                messages = session.query(persistence.SharedMessage).filter_by(chat_id=chat_id).all()
+            with database.get_new_session() as session:
+                messages = session.query(models.SharedMessage).filter_by(chat_id=chat_id).all()
                 results = [SharedMessage.from_model(model) for model in messages]
                 for m in messages:
                     session.delete(m)

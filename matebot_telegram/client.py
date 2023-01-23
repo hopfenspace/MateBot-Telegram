@@ -10,7 +10,7 @@ from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
 # Note that there's another import in the `format_balance` staticmethod
-from . import err, persistence, shared_messages as _shared_messages
+from . import database, err, models, shared_messages as _shared_messages
 
 
 class AsyncMateBotSDKForTelegram(AsyncSDK):
@@ -21,8 +21,8 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         self.shared_messages = _shared_messages.SharedMessageHandler()
 
     @staticmethod
-    def get_new_session() -> persistence.Session:
-        return persistence.get_new_session()
+    def get_new_session() -> database.Session:
+        return database.get_new_session()
 
     @staticmethod
     def format_balance(balance_or_user: Union[int, float, _User]):
@@ -38,9 +38,9 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         user = update.effective_user
         if user is None or user.is_bot:
             return
-        with persistence.get_new_session() as session:
+        with database.get_new_session() as session:
             with session.begin():
-                users = session.query(persistence.TelegramUser).filter_by(telegram_id=user.id).all()
+                users = session.query(models.TelegramUser).filter_by(telegram_id=user.id).all()
                 if len(users) == 1:
                     db_user = users[0]
                     db_user.first_name = user.first_name
@@ -53,16 +53,16 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
 
     @staticmethod
     def _lookup_telegram_identifier(identifier: str) -> int:
-        with persistence.get_new_session() as session:
+        with database.get_new_session() as session:
             with session.begin():
                 if identifier.startswith("@"):
                     identifier = identifier[1:]
-                users_by_username = session.query(persistence.TelegramUser).filter_by(username=identifier).all()
-                users_by_first_name = session.query(persistence.TelegramUser).filter_by(first_name=identifier).all()
+                users_by_username = session.query(models.TelegramUser).filter_by(username=identifier).all()
+                users_by_first_name = session.query(models.TelegramUser).filter_by(first_name=identifier).all()
                 users_by_full_name = []
                 if identifier.count(" ") == 1:
                     first, last = identifier.split(" ")
-                    users_by_full_name = session.query(persistence.TelegramUser).filter_by(
+                    users_by_full_name = session.query(models.TelegramUser).filter_by(
                         first_name=first, last_name=last
                     ).all()
                 users = set(users_by_username) | set(users_by_first_name) | set(users_by_full_name)
@@ -75,10 +75,10 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                     )
         raise err.AmbiguousUserSpec(f"Multiple users found for '{identifier}'. Please ensure unambiguous usernames.")
 
-    async def _ensure_not_existing(self, session: persistence.Session, telegram_user: telegram.User) -> Optional[_User]:
-        existing_user = session.query(persistence.TelegramUser).get(telegram_user.id)
+    async def _ensure_not_existing(self, session: database.Session, telegram_user: telegram.User) -> Optional[_User]:
+        existing_user = session.query(models.TelegramUser).get(telegram_user.id)
         if existing_user is not None:
-            record = session.query(persistence.RegistrationProcess).get(telegram_user.id)
+            record = session.query(models.RegistrationProcess).get(telegram_user.id)
             if record is not None:
                 session.delete(record)
                 session.commit()
@@ -86,12 +86,12 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         return None
 
     @staticmethod
-    def _handle_new_user_update(user_id: int, telegram_user: telegram.User, session: persistence.Session):
-        record = session.query(persistence.RegistrationProcess).get(telegram_user.id)
+    def _handle_new_user_update(user_id: int, telegram_user: telegram.User, session: database.Session):
+        record = session.query(models.RegistrationProcess).get(telegram_user.id)
         if record is not None:
             session.delete(record)
         session.commit()
-        session.add(persistence.TelegramUser(
+        session.add(models.TelegramUser(
             telegram_id=telegram_user.id,
             first_name=telegram_user.first_name,
             last_name=telegram_user.last_name,
@@ -124,7 +124,7 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         """
 
         with self.get_new_session() as session:
-            users = session.query(persistence.TelegramUser).filter_by(user_id=core_id).all()
+            users = session.query(models.TelegramUser).filter_by(user_id=core_id).all()
             if len(users) == 1:
                 return users[0].telegram_id, users[0].username
         return None

@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder
 from matebot_sdk.exceptions import APIConnectionException
 
 # Note that the submodule 'commands' will imported dynamically in the `init` coroutine below
-from . import api_callback, application as _app, client, config, rate_limiter, persistence
+from . import api_callback, application as _app, client, config, database, rate_limiter, persistence
 
 
 async def log_error(*args, **kwargs):
@@ -41,7 +41,7 @@ def get_init(logger: logging.Logger):
             logger.error(
                 f"Connecting to the API server failed. Starting the bot is not possible. "
                 f"Please verify the connectivity between the API server and the bot. "
-                f"Expecting to reach to API server there: {config.config.server}"
+                f"Expecting to reach to API server there: {application.config.server}"
             )
             await application.shutdown()
             return
@@ -52,14 +52,14 @@ def get_init(logger: logging.Logger):
         logger.debug("Configuring API callback handler")
         application.dispatcher = api_callback.APICallbackDispatcher(logging.getLogger("mbt.api-dispatcher"))
 
-        if not config.config.callback.enabled:
+        if not application.config.callback.enabled:
             logger.info("Callbacks have been disabled in the configuration file")
         else:
             app = api_callback.APICallbackApp()
-            logger.info(f"Starting tornado callback server on port {config.config.callback.port}")
+            logger.info(f"Starting tornado callback server on port {application.config.callback.port}")
             application.callback_server = app.listen(
-                address=config.config.callback.address,
-                port=config.config.callback.port
+                address=application.config.callback.address,
+                port=application.config.callback.port
             )
 
         logger.debug("Setting up feature handlers (e.g. commands, queries, messages, callbacks) ...")
@@ -91,11 +91,11 @@ def get_shutdown(logger: logging.Logger):
 
 
 def main(conf: config.Configuration) -> int:
-    logging.config.dictConfig(config.config.logging)
+    logging.config.dictConfig(conf.logging)
     logger = logging.getLogger("mbt.root")
     logger.info("Starting application ...")
 
-    persistence.init(conf.database_url, echo=conf.database_debug)
+    database.init(conf.database_url, echo=conf.database_debug)
     application = ApplicationBuilder() \
         .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt.app")}) \
         .token(config.config.token) \

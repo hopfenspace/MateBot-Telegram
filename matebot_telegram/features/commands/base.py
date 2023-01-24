@@ -107,8 +107,8 @@ class BaseCommand(_common.CommonBase):
 
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param context: Telegram callback context
-        :type context: telegram.ext.CallbackContext
+        :param context: extended Telegram callback context
+        :type context: ExtendedContext
         :return: None
         """
 

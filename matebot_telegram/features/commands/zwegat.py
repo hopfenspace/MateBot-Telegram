@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /zwegat
+MateBot command executor class for /zwegat
 """
 
 import telegram

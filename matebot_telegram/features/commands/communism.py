@@ -1,69 +1,16 @@
 """
-MateBot command executor classes for /communism and its callback queries
+MateBot command executor class for /communism
 """
 
-from typing import Awaitable, Callable
-
 import telegram.ext
-from matebot_sdk import schemas
 
-from . import _common
-from .. import client, shared_messages, util
-from ..api_callback import dispatcher
-from ..base import BaseCommand, BaseCallbackQuery
-from ..parsing.types import amount_type
-from ..parsing.actions import JoinAction
-from ..parsing.util import Namespace
-
-
-async def get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
-    creator = await sdk.get_user(communism.creator_id)
-    usernames = ", ".join(f"{p.user_name} ({p.quantity}x)" for p in communism.participants) or "None"
-    markdown = (
-        f"*Communism by {creator.name}*\n\n"
-        f"Reason: {communism.description}\n"
-        f"Amount: {sdk.format_balance(communism.amount)}\n"
-        f"Joined users ({sum(p.quantity for p in communism.participants)}): {usernames}\n"
-    )
-
-    if communism.active:
-        markdown += "\n_The communism is currently active._"
-    elif not communism.active:
-        markdown += "\n_The communism has been closed._"
-        if communism.multi_transaction:
-            transaction_count = len(communism.multi_transaction.transactions)
-            markdown += (
-                f"\n{transaction_count} transaction{('', 's')[transaction_count != 1]} "
-                f"{('has', 'have')[transaction_count != 1]} been processed for a total "
-                f"value of {sdk.format_balance(communism.multi_transaction.total_amount)}. "
-                "Take a look at /history for more details."
-            )
-        else:
-            markdown += "\nThe communism was aborted. No transactions have been processed."
-
-    return markdown
-
-
-def get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
-    if not communism.active:
-        return telegram.InlineKeyboardMarkup([])
-
-    def f(cmd):
-        return f"communism {cmd} {communism.id}"
-
-    return telegram.InlineKeyboardMarkup([
-        [
-            telegram.InlineKeyboardButton("JOIN (+)", callback_data=f("join")),
-            telegram.InlineKeyboardButton("LEAVE (-)", callback_data=f("leave")),
-        ],
-        [
-            telegram.InlineKeyboardButton("FORWARD", callback_data=f"forward communism {communism.id} ask -1")
-        ],
-        [
-            telegram.InlineKeyboardButton("COMPLETE", callback_data=f("close")),
-            telegram.InlineKeyboardButton("ABORT", callback_data=f("abort")),
-        ]
-    ])
+from .base import BaseCommand
+from .. import _common
+from ..common import communism
+from ... import shared_messages, util
+from ...parsing.types import amount_type
+from ...parsing.actions import JoinAction
+from ...parsing.util import Namespace
 
 
 class CommunismCommand(BaseCommand):
@@ -99,31 +46,31 @@ class CommunismCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
+        :param context: the custom context of the application
+        :type context: _common.ExtendedContext
         :return: None
         """
 
-        user = await self.client.get_core_user(update.effective_message.from_user)
+        user = await context.application.client.get_core_user(update.effective_message.from_user)
 
         if args.subcommand is None:
             return await _common.new_group_operation(
-                self.client.create_communism(user, args.amount, args.reason),
-                self.client,
-                lambda c: get_text(self.client, c),
+                context.application.client.create_communism(user, args.amount, args.reason),
+                context.application.client,
+                lambda c: get_text(context.application.client, c),
                 get_keyboard,
                 update.effective_message,
                 shared_messages.ShareType.COMMUNISM,
                 self.logger
             )
 
-        active_communisms = await self.client.get_communisms(active=True, creator_id=user.id)
+        active_communisms = await context.application.client.get_communisms(active=True, creator_id=user.id)
         if not active_communisms:
-            update.effective_message.reply_text("You don't have a communism in progress.")
+            await update.effective_message.reply_text("You don't have a communism in progress.")
             return
 
         if args.subcommand == "show":
@@ -152,136 +99,10 @@ class CommunismCommand(BaseCommand):
                 delete_shared_messages=True,
                 job_queue=self.client.job_queue
             )
-            update.effective_message.reply_text(
+            await update.effective_message.reply_text(
                 f"You have aborted your most recent communism of "
                 f"{self.client.format_balance(aborted_communism.amount)}!"
             )
 
         else:
             raise RuntimeError(f"Invalid communism subcommand detected, this shouldn't happen: {args.subcommand!r}")
-
-
-class CommunismCallbackQuery(BaseCallbackQuery):
-    """
-    Callback query executor for /communism
-    """
-
-    def __init__(self):
-        super().__init__(
-            "communism",
-            "^communism",
-            {
-                "join": self.join,
-                "leave": self.leave,
-                "close": self.close,
-                "abort": self.abort
-            }
-        )
-
-    async def _handle_update(
-            self,
-            update: telegram.Update,
-            function: Callable[[int, schemas.User, ...], Awaitable[schemas.Communism]],
-            delete: bool = False,
-            **kwargs
-    ) -> None:
-        _, communism_id = self.data.split(" ")
-        communism_id = int(communism_id)
-
-        sender = await self.client.get_core_user(update.callback_query.from_user)
-        communism = await function(communism_id, sender, **kwargs)
-
-        util.update_all_shared_messages(
-            update.callback_query.bot,
-            shared_messages.ShareType.COMMUNISM,
-            communism.id,
-            await get_text(self.client, communism),
-            self.logger,
-            get_keyboard(communism),
-            telegram.ParseMode.MARKDOWN,
-            delete_shared_messages=delete,
-            job_queue=self.client.job_queue
-        )
-
-    async def join(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        await self._handle_update(update, self.client.increase_communism_participation, count=1)
-        update.callback_query.answer("You have joined the communism.")
-
-    async def leave(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        await self._handle_update(update, self.client.decrease_communism_participation, count=1)
-        update.callback_query.answer("You have left the communism.")
-
-    async def close(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        await self._handle_update(update, self.client.close_communism, delete=True)
-        update.callback_query.answer("The communism has been closed.")
-
-    async def abort(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        await self._handle_update(update, self.client.abort_communism, delete=True)
-        update.callback_query.answer("The communism has been aborted.")
-
-
-@dispatcher.register_for(schemas.EventType.COMMUNISM_CREATED)
-async def _handle_communism_created(event: schemas.Event):
-    communism_id = int(event.data["id"])
-    communism = (await client.client.get_communisms(id=communism_id))[0]
-    util.send_auto_share_messages(
-        client.client.bot,
-        shared_messages.ShareType.COMMUNISM,
-        communism_id,
-        await get_text(client.client, communism),
-        keyboard=get_keyboard(communism),
-        job_queue=client.client.job_queue
-    )
-
-
-@dispatcher.register_for(schemas.EventType.COMMUNISM_UPDATED)
-async def _handle_communism_updated(event: schemas.Event):
-    communism_id = int(event.data["id"])
-    communism = (await client.client.get_communisms(id=communism_id))[0]
-    util.update_all_shared_messages(
-        client.client.bot,
-        shared_messages.ShareType.COMMUNISM,
-        communism_id,
-        await get_text(client.client, communism),
-        keyboard=get_keyboard(communism),
-        job_queue=client.client.job_queue
-    )
-
-
-@dispatcher.register_for(schemas.EventType.COMMUNISM_CLOSED)
-async def _handle_communism_closed(event: schemas.Event):
-    communism_id = int(event.data["id"])
-    communism = (await client.client.get_communisms(id=communism_id))[0]
-    util.update_all_shared_messages(
-        client.client.bot,
-        shared_messages.ShareType.COMMUNISM,
-        communism_id,
-        await get_text(client.client, communism),
-        keyboard=get_keyboard(communism),
-        delete_shared_messages=True,
-        job_queue=client.client.job_queue
-    )

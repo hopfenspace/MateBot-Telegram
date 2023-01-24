@@ -1,5 +1,5 @@
 """
-MateBot command executor classes for /vouch and its callback queries
+MateBot command executor class for /vouch
 """
 
 import telegram
@@ -99,7 +99,7 @@ class VouchCommand(BaseCommand):
                     )
             return
 
-        def reply(text: str) -> None:
+        async def reply(text: str) -> None:
             keyboard = telegram.InlineKeyboardMarkup([
                 [
                     telegram.InlineKeyboardButton(
@@ -112,9 +112,9 @@ class VouchCommand(BaseCommand):
                     )
                 ]
             ])
-            util.safe_call(
-                lambda: await update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: await update.effective_message.reply_text(text, reply_markup=keyboard)
+            await util.safe_call(
+                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
+                lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
             )
 
         if update.effective_message.chat.type != telegram.Chat.PRIVATE:
@@ -135,7 +135,7 @@ class VouchCommand(BaseCommand):
                 )
 
             else:
-                reply(
+                await reply(
                     f"*Do you really want to vouch for {args.user.name}?*\n\n"
                     "This will have some consequences:\n"
                     "- The external user will become able to perform operations that change "
@@ -156,7 +156,7 @@ class VouchCommand(BaseCommand):
 
             else:
                 checkout = context.application.client.format_balance(abs(args.user.balance))
-                reply(
+                await reply(
                     f"*Do you really want to stop vouching for {args.user.name}?*\n\n"
                     "This will have some consequences:\n"
                     f"- {args.user.name} won't be able to perform commands that would change "

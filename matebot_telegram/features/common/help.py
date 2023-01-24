@@ -1,3 +1,7 @@
+"""
+Common utilities for the help feature
+"""
+
 from typing import Optional
 
 from matebot_sdk.schemas import User

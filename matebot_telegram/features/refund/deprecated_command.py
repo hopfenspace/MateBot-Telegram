@@ -4,7 +4,7 @@ MateBot command executor class for /pay (deprecated)
 
 from typing import ClassVar
 
-from .refund import RefundCommand as _RefundCommand
+from .command import RefundCommand as _RefundCommand
 
 
 class PayCommand(_RefundCommand):

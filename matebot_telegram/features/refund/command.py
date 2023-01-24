@@ -6,7 +6,7 @@ from typing import ClassVar
 
 import telegram
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _common
 from ... import shared_messages, util
 from ..common.refund import get_text, get_keyboard

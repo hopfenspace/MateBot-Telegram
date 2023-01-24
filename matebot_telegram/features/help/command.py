@@ -5,7 +5,7 @@ MateBot command executor class for /help
 import telegram
 from matebot_sdk import exceptions
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _common
 from ..common import help as _help
 from ... import err, util

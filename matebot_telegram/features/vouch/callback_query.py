@@ -7,7 +7,7 @@ from typing import Awaitable, Callable
 import telegram
 from matebot_sdk import exceptions, schemas
 
-from .base import BaseCallbackQuery
+from .callback import BaseCallbackQuery
 from .. import _common
 
 

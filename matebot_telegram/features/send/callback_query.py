@@ -5,7 +5,7 @@ MateBot callback queries for the send command
 import telegram
 from matebot_sdk.exceptions import APIException
 
-from .base import BaseCallbackQuery
+from .callback import BaseCallbackQuery
 from .. import _common
 
 

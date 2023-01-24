@@ -6,7 +6,7 @@ import threading
 
 import telegram
 
-from .base import BaseCommand
+from .command import BaseCommand
 from ...parsing.util import Namespace
 
 

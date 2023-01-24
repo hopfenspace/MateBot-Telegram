@@ -4,7 +4,7 @@ MateBot command executor class for /donate
 
 import telegram
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _common
 from ...parsing.types import amount_type
 from ...parsing.util import Namespace

@@ -8,7 +8,7 @@ import telegram.ext
 
 from matebot_sdk import schemas
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _app, _common
 from ... import client as _client
 from ...parsing.types import natural as natural_type, extended_consumable_type

@@ -6,7 +6,7 @@ import time
 
 import telegram
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _common
 from ... import err, util
 from ...parsing.util import Namespace

@@ -5,7 +5,7 @@ MateBot command executor classes for /donate and its callback queries
 import telegram.ext
 from matebot_sdk.exceptions import APIException
 
-from .base import BaseCallbackQuery
+from .callback import BaseCallbackQuery
 
 
 class DonateCallbackQuery(BaseCallbackQuery):

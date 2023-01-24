@@ -7,7 +7,7 @@ from typing import Optional
 
 from matebot_sdk import schemas
 
-from .base import BaseCommand
+from .command import BaseCommand
 from ... import client, shared_messages, util
 from ...parsing.types import any_user_type
 from ...parsing.util import Namespace

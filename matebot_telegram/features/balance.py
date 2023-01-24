@@ -4,7 +4,7 @@ MateBot command executor class for /balance
 
 import telegram
 
-from .command import BaseCommand
+from .base import BaseCommand
 from .. import _common
 from ...parsing.util import Namespace
 from ...parsing.types import any_user_type

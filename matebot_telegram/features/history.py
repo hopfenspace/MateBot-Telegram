@@ -10,7 +10,7 @@ import tempfile
 import telegram
 from matebot_sdk import schemas
 
-from .base import BaseCommand
+from .command import BaseCommand
 from .. import _common
 from ... import util
 from ...parsing.types import natural as natural_type

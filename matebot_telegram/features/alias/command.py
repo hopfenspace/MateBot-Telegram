@@ -8,7 +8,7 @@ import telegram
 from matebot_sdk import schemas
 
 from .. import _app, _common
-from .base import BaseCommand
+from .command import BaseCommand
 from ... import util
 from ...parsing.util import Namespace
 

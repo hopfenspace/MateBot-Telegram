@@ -11,7 +11,7 @@ from typing import ClassVar, Dict, Optional
 
 import telegram.ext
 
-from .. import _common
+from . import _common
 from ... import err
 from ...parsing.parser import CommandParser
 from ...parsing.util import Namespace
@@ -91,7 +91,7 @@ class BaseCommand(_common.CommonBase):
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         :raises NotImplementedError: because this method should be overwritten by subclasses
         """

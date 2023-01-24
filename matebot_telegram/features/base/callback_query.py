@@ -9,7 +9,7 @@ from typing import Awaitable, Callable, Dict, Optional
 
 import telegram.ext
 
-from .. import _common
+from . import _common, ExtendedContext
 
 
 class BaseCallbackQuery(_common.CommonBase):
@@ -46,14 +46,14 @@ class BaseCallbackQuery(_common.CommonBase):
 
     name: str
     pattern: str
-    targets: Dict[str, Callable[[telegram.Update, _common.ExtendedContext], Optional[Awaitable[None]]]]
+    targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
     logger: logging.Logger
 
     def __init__(
             self,
             name: str,
             pattern: str,
-            targets: Dict[str, Callable[[telegram.Update, _common.ExtendedContext], Optional[Awaitable[None]]]]
+            targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
     ):
         super().__init__(logging.getLogger("mbt.callback"))
         if not isinstance(targets, dict):
@@ -63,7 +63,7 @@ class BaseCallbackQuery(_common.CommonBase):
         self.pattern = pattern
         self.targets = targets
 
-    async def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update

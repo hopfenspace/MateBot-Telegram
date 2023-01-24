@@ -1,14 +1,15 @@
+"""
+Base class for Telegram message handling used by this bot
 
+The base class provides argument parsing and error handling for subclasses
+"""
 
 import logging
-from typing import Awaitable, Callable, Dict, Optional, Tuple, TypeVar
+from typing import Optional
 
 import telegram.ext
 
-from matebot_sdk.exceptions import APIException, APIConnectionException
-
-from .. import _app, _common
-from ... import client, config, err
+from . import _common
 
 
 class BaseMessage(_common.CommonBase):
@@ -22,10 +23,8 @@ class BaseMessage(_common.CommonBase):
     def __init__(self, prefix: Optional[str]):
         super().__init__(logging.getLogger("mbt.message"))
         self.prefix = prefix
-        self.client: client.AsyncMateBotSDKForTelegram = client.client
-        self.config = config.config
 
-    def run(self, message: telegram.Message, context: telegram.ext.CallbackContext) -> Optional[Awaitable[None]]:
+    async def run(self, message: telegram.Message, context: _common.ExtendedContext) -> None:
         """
         Perform handler-specific actions
 
@@ -33,20 +32,20 @@ class BaseMessage(_common.CommonBase):
 
         :param message: incoming effective Telegram message which was filtered to contain a reply to a bot message
         :type message: telegram.Message
-        :param context: Telegram callback context
-        :type context: telegram.ext.CallbackContext
+        :param context: extended Telegram callback context
+        :type context: ExtendedContext
         :return: Optional[Awaitable[None]]
         :raises NotImplementedError: because this method should be overwritten by subclasses
         """
 
         raise NotImplementedError("Overwrite the BaseMessage.run() method in a subclass")
 
-    async def __call__(self, update: telegram.Update, context: telegram.ext.CallbackContext) -> None:
+    async def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
-        :param context: Telegram callback context
-        :type context: telegram.ext.CallbackContext
+        :param context: extended Telegram callback context
+        :type context: ExtendedContext
         :return: None
         :raises TypeError: when no inline result is attached to the Update object
         """
@@ -54,3 +53,4 @@ class BaseMessage(_common.CommonBase):
         msg = update.effective_message
         self.logger.debug(f"{type(self).__name__} by {msg.from_user.name}: '{msg.text}'")
         # util.execute_func(self.run, self.logger, msg, context) # TODO
+        await self._run(self.run, msg.reply_text, update.effective_message, context)

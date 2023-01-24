@@ -8,7 +8,7 @@ import logging
 
 import telegram.ext
 
-from .. import _common
+from . import _common, ExtendedContext
 
 
 class BaseInlineQuery(_common.CommonBase):
@@ -23,7 +23,7 @@ class BaseInlineQuery(_common.CommonBase):
         super().__init__(logging.getLogger("mbt.inline"))
         self.pattern = pattern
 
-    async def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update
@@ -124,7 +124,7 @@ class BaseInlineResult(_common.CommonBase):
         super().__init__(logging.getLogger("mbt.inline-result"))
         self.pattern = pattern
 
-    def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update

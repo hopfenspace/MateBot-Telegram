@@ -36,4 +36,75 @@ async def setup(logger: logging.Logger, application: ExtendedApplication):
 
     client = _app.client
 
-    # TODO
+    from . import api_callbacks
+
+    # from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
+    # from .forward import ForwardCallbackQuery, ForwardReplyMessage
+    # # from .handler import FilteredChosenInlineResultHandler
+    # from .message import CatchallReplyMessage
+
+    from .alias import AliasCommand, AliasCallbackQuery
+    from .balance import BalanceCommand
+    from .blame import BlameCommand
+    from .communism import CommunismCommand, CommunismCallbackQuery
+    from .consume import ConsumeCommand, get_consumable_commands
+    from .data import DataCommand
+    from .debug import DebugCommand
+    from .donate import DonateCommand, DonateCallbackQuery
+    from .help import HelpCommand, HelpInlineQuery
+    from .history import HistoryCommand
+    from .poll import PollCommand, PollCallbackQuery
+    from .refund import PayCommand, RefundCommand, RefundCallbackQuery
+    from .send import SendCommand, SendCallbackQuery
+    from .start import StartCommand, StartCallbackQuery
+    from .username import UsernameCommand
+    from .vouch import VouchCommand, VouchCallbackQuery
+    from .zwegat import ZwegatCommand
+
+    commands = [
+        AliasCommand(),
+        BalanceCommand(),
+        BlameCommand(),
+        CommunismCommand(),
+        ConsumeCommand(),
+        DataCommand(),
+        DebugCommand(),
+        DonateCommand(),
+        HelpCommand(),
+        HistoryCommand(),
+        PayCommand(),
+        PollCommand(),
+        RefundCommand(),
+        SendCommand(),
+        StartCommand(),
+        UsernameCommand(),
+        VouchCommand(),
+        ZwegatCommand()
+    ]
+    commands.extend(await get_consumable_commands(client))
+    for command in commands:
+        application.add_handler(telegram.ext.CommandHandler(command.name, command))
+    bot_commands = sorted([cmd.bot_command for cmd in commands], key=lambda b: b.command)
+    logger.info(f"Configuring {len(bot_commands)} bot commands ...")
+    await application.bot.set_my_commands(bot_commands)
+    logger.debug("Done.")
+
+    for callback_query in [
+        AliasCallbackQuery(),
+        CommunismCallbackQuery(),
+        DonateCallbackQuery(),
+        # ForwardCallbackQuery(),
+        RefundCallbackQuery(),
+        PollCallbackQuery(),
+        SendCallbackQuery(),
+        StartCallbackQuery(),
+        VouchCallbackQuery()
+    ]:
+        application.add_handler(telegram.ext.CallbackQueryHandler(callback_query, pattern=callback_query.pattern))
+
+    for message, filter_obj, group in [
+        # (ForwardReplyMessage(), ReplyMessageHandlerFilter(True, "forward"), 2),
+        # (ConsumeMessage(), CommandMessageFilter(False), 0),
+        # (CatchallReplyMessage(), ReplyMessageHandlerFilter(False, None), 2),
+    ]:
+        application.add_handler(telegram.ext.MessageHandler(filter_obj, message, block=False), group=group)

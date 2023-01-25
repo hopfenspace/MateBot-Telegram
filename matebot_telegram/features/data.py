@@ -6,10 +6,8 @@ import time
 
 import telegram
 
-from .command import BaseCommand
-from .. import _common
-from ... import err, util
-from ...parsing.util import Namespace
+from .base import BaseCommand, err, ExtendedContext, Namespace
+from .. import util
 
 
 class DataCommand(BaseCommand):
@@ -25,14 +23,14 @@ class DataCommand(BaseCommand):
             "To view your transactions, use the command `/history` instead."
         )
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
@@ -53,7 +51,10 @@ class DataCommand(BaseCommand):
                 relations = f"Voucher user: {voucher.name}"
 
         else:
-            debtors = list(map(lambda u: u.name, await context.application.client.get_users(voucher_id=user.id, active=True)))
+            debtors = list(map(
+                lambda u: u.name,
+                await context.application.client.get_users(voucher_id=user.id, active=True)
+            ))
             relations = f"Debtor user{'s' if len(debtors) != 1 else ''}: {', '.join(debtors) or 'None'}"
 
         app = await context.application.client.application
@@ -73,7 +74,10 @@ class DataCommand(BaseCommand):
         open_created_communisms = [c for c in created_communisms if c.active]
         open_created_refunds = [r for r in created_refunds if r.active]
         open_relevant_polls = [p for p in relevant_polls if p.active]
-        transactions = list(sorted(await context.application.client.get_transactions(member_id=user.id), key=lambda t: t.timestamp))
+        transactions = list(sorted(
+            await context.application.client.get_transactions(member_id=user.id),
+            key=lambda t: t.timestamp
+        ))
         last_transaction = (transactions and time.asctime(time.localtime(int(transactions[0].timestamp)))) or None
 
         result = (

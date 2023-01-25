@@ -5,10 +5,7 @@ MateBot command executor class for /blame
 import telegram
 from matebot_sdk.exceptions import MateBotSDKException
 
-from .command import BaseCommand
-from .. import _common
-from ...parsing.types import natural as natural_type
-from ...parsing.util import Namespace
+from .base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class BlameCommand(BaseCommand):
@@ -24,16 +21,16 @@ class BlameCommand(BaseCommand):
             "settle their debts, e.g. by buying stuff like new bottle crates. "
             "This command can only be executed by internal users."
         )
-        self.parser.add_argument("count", default=1, type=natural_type, nargs="?")
+        self.parser.add_argument("count", default=1, type=types.natural, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

@@ -10,11 +10,8 @@ import tempfile
 import telegram
 from matebot_sdk import schemas
 
-from .command import BaseCommand
-from .. import _common
-from ... import util
-from ...parsing.types import natural as natural_type
-from ...parsing.util import Namespace
+from .base import BaseCommand, ExtendedContext, Namespace, types
+from .. import util
 
 
 class HistoryCommand(BaseCommand):
@@ -39,7 +36,7 @@ class HistoryCommand(BaseCommand):
             "length",
             nargs="?",
             default=10,
-            type=natural_type
+            type=types.natural
         )
         self.parser.new_usage().add_argument(
             "export",
@@ -48,23 +45,24 @@ class HistoryCommand(BaseCommand):
             choices=("json", "csv")
         )
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
         if args.export is None:
-            await self._handle_report(args, update, context)
+            await self.handle_report(args, update, context)
         else:
-            await self._handle_export(args, update, context)
+            await self.handle_export(args, update, context)
 
-    async def _handle_export(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    @staticmethod
+    async def handle_export(args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         Handle the request to export the full transaction log of a user
 
@@ -73,7 +71,7 @@ class HistoryCommand(BaseCommand):
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
@@ -144,7 +142,8 @@ class HistoryCommand(BaseCommand):
                     )
                 )
 
-    async def _handle_report(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    @staticmethod
+    async def handle_report(args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         Handle the request to report the most current transaction entries of a user
 
@@ -153,7 +152,7 @@ class HistoryCommand(BaseCommand):
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

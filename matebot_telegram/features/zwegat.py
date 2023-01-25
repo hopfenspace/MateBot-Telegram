@@ -5,9 +5,7 @@ MateBot command executor class for /zwegat
 import telegram
 from matebot_sdk.schemas import PrivilegeLevel
 
-from .command import BaseCommand
-from .. import _common
-from ...parsing.util import Namespace
+from .base import BaseCommand, ExtendedContext, Namespace
 
 
 class ZwegatCommand(BaseCommand):
@@ -22,14 +20,14 @@ class ZwegatCommand(BaseCommand):
             "This command can only be used by internal users."
         )
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

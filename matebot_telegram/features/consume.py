@@ -5,14 +5,11 @@ MateBot command executor class for /consume and the specialized consumption hand
 from typing import List
 
 import telegram.ext
-
 from matebot_sdk import schemas
 
-from .command import BaseCommand
-from .. import _app, _common
-from ... import client as _client
-from ...parsing.types import natural as natural_type, extended_consumable_type
-from ...parsing.util import Namespace
+from . import _app
+from .base import BaseCommand, ExtendedContext, types, Namespace
+from ..client import AsyncMateBotSDKForTelegram
 
 
 class ConsumeCommand(BaseCommand):
@@ -30,17 +27,17 @@ class ConsumeCommand(BaseCommand):
             "`?` to get a list of all available consumable goods currently available."
         )
 
-        self.parser.add_argument("consumable", type=extended_consumable_type)
-        self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
+        self.parser.add_argument("consumable", type=types.extended_consumable_type)
+        self.parser.add_argument("number", default=1, type=types.natural, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
@@ -63,7 +60,7 @@ class ConsumeCommand(BaseCommand):
             raise RuntimeError(f"Invalid consumable: {consumable!r} {type(consumable)}")
 
     @staticmethod
-    async def get_consumable_help(context: _common.ExtendedContext) -> str:
+    async def get_consumable_help(context: ExtendedContext) -> str:
         def make_line(c: schemas.Consumable) -> str:
             return f"- {c.name} (price {context.application.client.format_balance(c.price)}): {c.description}"
 
@@ -82,9 +79,9 @@ def build_consume_command(consumable: schemas.Consumable) -> BaseCommand:
                 consumable.name,
                 f"{consumable.description} ({_app.client.format_balance(consumable.price)})"
             )
-            self.parser.add_argument("number", default=1, type=natural_type, nargs="?")
+            self.parser.add_argument("number", default=1, type=types.natural, nargs="?")
 
-        async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+        async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
             issuer = await context.application.client.get_core_user(update.effective_message.from_user)
             await context.application.client.create_consumption(consumable.name, args.number, issuer)
             await update.effective_message.reply_text(
@@ -96,7 +93,7 @@ def build_consume_command(consumable: schemas.Consumable) -> BaseCommand:
     return type(f"{consumable.name.title()}ConsumptionCommand", (SpecificConsumptionCommand,), {})()
 
 
-async def get_consumable_commands(client: _client.AsyncMateBotSDKForTelegram) -> List[BaseCommand]:
+async def get_consumable_commands(client: AsyncMateBotSDKForTelegram) -> List[BaseCommand]:
     """
     Return a list of bot commands for the individual consumables
     """

@@ -3,13 +3,9 @@ MateBot command executor class for /balance
 """
 
 import telegram
-
-from .base import BaseCommand
-from .. import _common
-from ...parsing.util import Namespace
-from ...parsing.types import any_user_type
-
 from matebot_sdk.schemas import PrivilegeLevel
+
+from .base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class BalanceCommand(BaseCommand):
@@ -27,16 +23,16 @@ class BalanceCommand(BaseCommand):
             "the 'balance' of this user is returned instead of yours."
         )
 
-        self.parser.add_argument("user", type=any_user_type, nargs="?")
+        self.parser.add_argument("user", type=types.any_user_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

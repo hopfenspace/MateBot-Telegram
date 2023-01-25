@@ -6,10 +6,8 @@ import telegram
 
 from matebot_sdk.exceptions import MateBotSDKException
 
-from .command import BaseCommand
-from .. import _common
-from ... import err
-from ...parsing.util import Namespace
+from .base import BaseCommand, err, ExtendedContext
+from ..parsing.util import Namespace
 
 
 class UsernameCommand(BaseCommand):
@@ -26,14 +24,14 @@ class UsernameCommand(BaseCommand):
         )
         self.parser.add_argument("username", type=str, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

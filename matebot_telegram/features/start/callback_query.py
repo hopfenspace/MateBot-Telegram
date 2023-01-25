@@ -1,3 +1,12 @@
+"""
+MateBot callback queries for the start command
+"""
+
+import telegram
+
+from ..base import BaseCallbackQuery, ExtendedContext
+from ... import models
+
 
 class StartCallbackQuery(BaseCallbackQuery):
     """
@@ -14,24 +23,25 @@ class StartCallbackQuery(BaseCallbackQuery):
             "select-app": self.select_app
         })
 
-    async def init(self, update: telegram.Update):
-        _, sender, selection = self.data.split(" ")
+    async def init(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender, selection = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        other_apps = [app for app in await self.client.get_applications() if app.name != self.client.app_name]
+        other_apps = [
+            app for app in await context.application.client.get_applications()
+            if app.id != context.application.client.app_id
+        ]
 
         if selection == "new" or len(other_apps) == 0:
             from_user = update.callback_query.from_user
             usernames = [
                 e for e in {from_user.username, from_user.first_name, from_user.full_name}
-                if not (await self.client.get_users(name=e, active=True))
+                if not (await context.application.client.get_users(name=e, active=True))
             ]
             if not usernames:
-                self.data = f"start set-name {sender}"
-                await self.set_name(update)
-                return
+                return await self.set_name(update, context, f"start set-name {sender}")
 
             def get_button(name: str) -> list:
                 return [
@@ -60,77 +70,84 @@ class StartCallbackQuery(BaseCallbackQuery):
         else:
             raise ValueError(f"Unknown option {selection!r}")
 
-    async def register(self, update: telegram.Update):
-        _, sender, *selection = self.data.split(" ")
+    async def register(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender, *selection = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
         if not selection:
-            self.data = f"set-name {sender}"
-            return await self.set_name(update)
+            return await self.set_name(update, context, f"set-name {sender}")
 
         username = " ".join(selection)
-        if await self.client.get_users(name=username):
+        if await context.application.client.get_users(name=username):
             await update.callback_query.answer(f"Sorry, the username '{username}' is not available.", show_alert=True)
-            self.data = f"set-name {sender}"
-            return await self.set_name(update)
+            return await self.set_name(update, context, f"set-name {sender}")
 
-        user = await self.client.sign_up_new_user(update.callback_query.from_user, username)
+        user = await context.application.client.sign_up_new_user(update.callback_query.from_user, username)
         self.logger.info(f"Added new app user: {user.name} / {user.id} (telegram ID {sender})")
-        await update.callback_query.message.edit_text("Your account has been created. Use /help to show available commands.")
+        await update.callback_query.message.edit_text(
+            "Your account has been created. Use /help to show available commands."
+        )
+        await update.callback_query.answer()
 
-    async def abort(self, update: telegram.Update):
-        _, sender = self.data.split(" ")
+    async def abort(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        with self.client.get_new_session() as session:
-            record = session.query(persistence.RegistrationProcess).get(sender)
+        self.logger.debug("Aborting registration process")
+        with context.application.client.get_new_session() as session:
+            record = session.query(models.RegistrationProcess).get(sender)
             if record is not None:
                 session.delete(record)
                 session.commit()
 
         await update.callback_query.message.edit_text("You have aborted the registration process. Use /start to begin.")
 
-    async def connect(self, update: telegram.Update):
-        _, sender = self.data.split(" ")
+    async def connect(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        with self.client.get_new_session() as session:
-            registration: persistence.RegistrationProcess = session.query(persistence.RegistrationProcess).get(sender)
+        with context.application.client.get_new_session() as session:
+            registration: models.RegistrationProcess = session.query(models.RegistrationProcess).get(sender)
             if registration is None:
-                await update.callback_query.message.edit_text("This feature can't be used, use /start to begin registration.")
+                await update.callback_query.message.edit_text(
+                    "This feature can't be used, use /start to begin registration."
+                )
                 return
             if (registration.application_id and registration.application_id == -1) or registration.core_user_id is None:
-                await update.callback_query.message.edit_text("Connecting with no selected user account is not supported.")
+                await update.callback_query.message.edit_text(
+                    "Connecting with no selected user account is not supported."
+                )
                 return
             user_id = registration.core_user_id
 
-        user = await self.client.sign_up_as_alias(update.callback_query.from_user, user_id)
+        user = await context.application.client.sign_up_as_alias(update.callback_query.from_user, user_id)
         self.logger.info(f"Added new alias for user: {user.name} / {user.id} (telegram ID {sender})")
         await update.callback_query.message.edit_text(
             "Your account has been connected. Use /help to show available commands.\n\n"
             "Note that you can't use the application at the moment, because this application alias "
             "must be confirmed by the other application. Login into the other app and use the "
-            f"confirmation features to confirm the alias '{sender}' for app '{self.client.app_name}'."
+            f"confirmation features to confirm the alias '{sender}' for app '{context.application.client.app_name}'."
         )
 
-    async def set_name(self, update: telegram.Update):
-        _, sender = self.data.split(" ")
+    async def set_name(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
-        with self.client.get_new_session() as session:
-            record = session.query(persistence.RegistrationProcess).get(sender)
+        self.logger.debug(f"Updating start procedure for {sender} to state set_name")
+        with context.application.client.get_new_session() as session:
+            record = session.query(models.RegistrationProcess).get(sender)
             if record is not None:
                 record.application_id = -1
             else:
-                record = persistence.RegistrationProcess(telegram_id=sender, application_id=-1)
+                record = models.RegistrationProcess(telegram_id=sender, application_id=-1)
             session.add(record)
             session.commit()
 
@@ -138,27 +155,26 @@ class StartCallbackQuery(BaseCallbackQuery):
                 "Which username to you want to use for your account? Please reply directly to this message."
             )
 
-    async def select_app(self, update: telegram.Update):
-        _, sender, app_id = self.data.split(" ")
+    async def select_app(self, update: telegram.Update, context: ExtendedContext, data: str):
+        _, sender, app_id = data.split(" ")
         sender = int(sender)
         app_id = int(app_id)
         if update.callback_query.from_user.id != sender:
             raise ValueError("Wrong Telegram ID")
 
         if app_id == -1:
-            self.data = f"init {sender} new"
-            return await self.init(update)
+            return await self.init(update, context, f"init {sender} new")
 
-        apps = await self.client.get_applications(id=app_id)
-        if not apps or len(apps) != 1 or apps[0].name == self.client.app_name:
+        apps = await context.application.client.get_applications(id=app_id)
+        if not apps or len(apps) != 1 or apps[0].name == context.application.client.app_name:
             raise ValueError("Expected to find one app but this app")
 
-        with self.client.get_new_session() as session:
-            record = session.query(persistence.RegistrationProcess).get(sender)
+        with context.application.client.get_new_session() as session:
+            record = session.query(models.RegistrationProcess).get(sender)
             if record is not None:
                 record.application_id = app_id
             else:
-                record = persistence.RegistrationProcess(telegram_id=sender, application_id=app_id)
+                record = models.RegistrationProcess(telegram_id=sender, application_id=app_id)
             session.add(record)
             session.commit()
 

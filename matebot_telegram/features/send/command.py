@@ -4,12 +4,8 @@ MateBot command executor classes for /send and its callback queries
 
 import telegram
 
-from .command import BaseCommand
-from .. import _common
+from ..base import BaseCommand, ExtendedContext, Namespace, types
 from ... import util
-from ...parsing.types import amount_type
-from ...parsing.types import any_user_type
-from ...parsing.util import Namespace
 
 
 class SendCommand(BaseCommand):
@@ -30,22 +26,22 @@ class SendCommand(BaseCommand):
             "Those are treated as description/reason for your transaction."
         )
 
-        self.parser.add_argument("amount", type=amount_type)
-        self.parser.add_argument("receiver", type=any_user_type)
+        self.parser.add_argument("amount", type=types.amount_type)
+        self.parser.add_argument("receiver", type=types.any_user_type)
         self.parser.add_argument("reason", default="<no description>", nargs="*")
         second_usage = self.parser.new_usage()
-        second_usage.add_argument("receiver", type=any_user_type)
-        second_usage.add_argument("amount", type=amount_type)
+        second_usage.add_argument("receiver", type=types.any_user_type)
+        second_usage.add_argument("amount", type=types.amount_type)
         second_usage.add_argument("reason", default="<no description>", nargs="*")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 

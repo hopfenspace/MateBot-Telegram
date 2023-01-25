@@ -17,12 +17,13 @@ class BaseCallbackQuery(_common.CommonBase):
     Base class for all MateBot callback queries executed by the CallbackQueryHandler
 
     It provides the stripped data of a callback button as string in the
-    data attribute. Some specific implementation should be a subclass of
+    ``data`` argument. Some specific implementation should be a subclass of
     this class. It must provide the constructor's parameter `targets` to
     work properly. The `targets` parameter is a dictionary connecting the
     data with associated function calls. Those functions or methods must
-    expect one parameter `update` which is filled with the correct
-    ``telegram.Update`` object. Any return value is ignored.
+    three parameters: `update` which is filled with the correct
+    ``telegram.Update`` object, `context` which holds the ``ExtendedContext``
+    and `data`, the stripped data string. Any return value is ignored.
 
     In order to properly use this class or a subclass thereof, you
     must supply a pattern to filter the callback query against to
@@ -41,7 +42,7 @@ class BaseCallbackQuery(_common.CommonBase):
     :param pattern: regular expression to filter callback query executors
     :type pattern: str
     :param targets: dict to associate data replies with function calls
-    :type targets: Dict[str, Callable[[telegram.Update, _common.ExtendedContext], Optional[Awaitable[None]]]]
+    :type targets: Dict[str, Callable[[telegram.Update, ExtendedContext, str], Awaitable[None]]]
     """
 
     name: str
@@ -85,21 +86,21 @@ class BaseCallbackQuery(_common.CommonBase):
 
         try:
             # self.client.patch_user_db_from_update(update)  # TODO
-            self.data = (data[:context.match.start()] + data[context.match.end():]).strip()
+            data = (data[:context.match.start()] + data[context.match.end():]).strip()
 
-            if self.data in self.targets:
-                target = self.targets[self.data]
+            if data in self.targets:
+                target = self.targets[data]
 
             else:
                 available = []
                 for k in self.targets:
-                    if self.data.startswith(k):
+                    if data.startswith(k):
                         available.append(k)
 
                 if len(available) == 0:
-                    raise IndexError(f"No target callable found for: '{self.data}' ({type(self).__name__})")
+                    raise IndexError(f"No target callable found for: '{data}' ({type(self).__name__})")
                 if len(available) > 1:
-                    raise IndexError(f"No unambiguous callable found for: '{self.data}' ({type(self).__name__})")
+                    raise IndexError(f"No unambiguous callable found for: '{data}' ({type(self).__name__})")
                 target = self.targets[available[0]]
 
         except (IndexError, ValueError, TypeError, RuntimeError):
@@ -109,4 +110,4 @@ class BaseCallbackQuery(_common.CommonBase):
             )
             raise
 
-        await self._run(target, update.callback_query.answer, update, context)
+        await self._run(target, update.callback_query.answer, update, context, data)

@@ -104,7 +104,6 @@ async def setup(logger: logging.Logger, application: ExtendedApplication):
 
     for message, filter_obj, group in [
         # (ForwardReplyMessage(), ReplyMessageHandlerFilter(True, "forward"), 2),
-        # (ConsumeMessage(), CommandMessageFilter(False), 0),
         # (CatchallReplyMessage(), ReplyMessageHandlerFilter(False, None), 2),
     ]:
         application.add_handler(telegram.ext.MessageHandler(filter_obj, message, block=False), group=group)

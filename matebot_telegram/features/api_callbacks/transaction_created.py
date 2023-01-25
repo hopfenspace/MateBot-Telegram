@@ -11,7 +11,7 @@ from ... import util
 
 
 @_app.dispatcher.register_for(schemas.EventType.TRANSACTION_CREATED)
-async def handle_incoming_transaction_notification(event: schemas.Event):
+async def handle_incoming_transaction_created_notification(event: schemas.Event):
     transaction = (await _app.client.get_transactions(id=int(event.data["id"])))[0]
     sender_user = _app.client.find_telegram_user(transaction.sender.id)
     receiver_user = _app.client.find_telegram_user(transaction.receiver.id)

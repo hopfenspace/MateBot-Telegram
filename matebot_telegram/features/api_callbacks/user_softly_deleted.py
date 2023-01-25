@@ -1,5 +1,5 @@
 """
-API callback handlers for the events USER_SOFTLY_DELETED and USER_UPDATED
+API callback handler for the event USER_SOFTLY_DELETED
 """
 
 from matebot_sdk import schemas
@@ -40,9 +40,3 @@ async def handle_user_softly_deleted(event: schemas.Event):
             msg.chat_id,
             msg.message_id
         )
-
-
-@_app.dispatcher.register_for(schemas.EventType.USER_UPDATED)
-async def handle_user_softly_deleted(event: schemas.Event):
-    # TODO: Implement this in case PTB's `user_data` is used purposefully; currently unnecessary function
-    pass

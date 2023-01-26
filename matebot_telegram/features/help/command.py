@@ -6,10 +6,8 @@ import telegram
 from matebot_sdk import exceptions
 
 from . import common
-from ..base import BaseCommand
-from ... import err, util
-from ...parsing.types import command as command_type
-from ...parsing.util import Namespace
+from ..base import BaseCommand, err, ExtendedContext, Namespace, types
+from ... import util
 
 
 class HelpCommand(BaseCommand):
@@ -27,32 +25,32 @@ class HelpCommand(BaseCommand):
             "/help [command]"
         )
 
-        self.parser.add_argument("command", type=command_type, nargs="?")
+        self.parser.add_argument("command", type=types.command, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
         if args.command:
-            msg = _help.get_help_for_command(args.command)
+            msg = common.get_help_for_command(args.command)
         else:
             try:
                 user = await context.application.client.get_core_user(update.effective_message.from_user)
             except (err.MateBotException, exceptions.APIConnectionException):
-                msg = await _help.get_help_usage(self.usage, context.application.client, None)
+                msg = await common.get_help_usage(self.usage, context.application.client, None)
                 await util.safe_call(
                     lambda: update.effective_message.reply_markdown(msg),
                     lambda: update.effective_message.reply_text(msg)
                 )
                 raise
-            msg = await _help.get_help_usage(self.usage, context.application.client, user)
+            msg = await common.get_help_usage(self.usage, context.application.client, user)
 
         await util.safe_call(
             lambda: update.effective_message.reply_markdown(msg),

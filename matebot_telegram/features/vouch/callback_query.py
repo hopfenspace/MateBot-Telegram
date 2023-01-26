@@ -1,5 +1,5 @@
 """
-MateBot callback queries for the vouch command
+MateBot callback query handler for the vouch command
 """
 
 from typing import Awaitable, Callable
@@ -7,8 +7,7 @@ from typing import Awaitable, Callable
 import telegram
 from matebot_sdk import exceptions, schemas
 
-from .callback import BaseCallbackQuery
-from .. import _common
+from ..base import BaseCallbackQuery, ExtendedContext
 
 
 class VouchCallbackQuery(BaseCallbackQuery):
@@ -33,7 +32,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
             update: telegram.Update,
             debtor: schemas.User,
             sender: schemas.User,
-            context: _common.ExtendedContext
+            context: ExtendedContext
     ):
         """
         Handle an update to start vouching for someone
@@ -56,7 +55,7 @@ class VouchCallbackQuery(BaseCallbackQuery):
             update: telegram.Update,
             debtor: schemas.User,
             sender: schemas.User,
-            context: _common.ExtendedContext
+            context: ExtendedContext
     ):
         """
         Handle an update to stop vouching for someone
@@ -83,13 +82,14 @@ class VouchCallbackQuery(BaseCallbackQuery):
             self,
             update: telegram.Update,
             func: Callable[[telegram.Update, schemas.User, schemas.User], Awaitable[None]],
-            context: _common.ExtendedContext
+            context: ExtendedContext,
+            data: str
     ) -> None:
         """
         Handle vouching by inspecting the Update and calling appropriate functions
         """
 
-        _, debtor_id, original_sender, option = self.data.split(" ")
+        _, debtor_id, original_sender, option = data.split(" ")
         debtor_id = int(debtor_id)
         original_sender = int(original_sender)
         debtor = await context.application.client.get_user(debtor_id)
@@ -108,24 +108,24 @@ class VouchCallbackQuery(BaseCallbackQuery):
             self.logger.debug(f"Voucher change request for user {debtor.id} accepted from {sender.name}")
             await func(update, debtor, sender)
         else:
-            raise ValueError(f"Invalid query data format: {self.data!r}")
+            raise ValueError(f"Invalid query data format: {data!r}")
 
-    async def add(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def add(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
         Handle the callback query that a user wanted to start vouching
         """
 
         try:
-            await self._handle_vouching(update, self._add, context)
+            await self._handle_vouching(update, self._add, context, data)
         finally:
             context.drop_callback_data(update.callback_query)
 
-    async def remove(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def remove(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
         Handle the callback query that a user wanted to quit vouching
         """
 
         try:
-            await self._handle_vouching(update, self._remove, context)
+            await self._handle_vouching(update, self._remove, context, data)
         finally:
             context.drop_callback_data(update.callback_query)

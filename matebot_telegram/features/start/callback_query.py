@@ -1,5 +1,5 @@
 """
-MateBot callback queries for the start command
+MateBot callback query for the start command
 """
 
 import telegram
@@ -24,6 +24,10 @@ class StartCallbackQuery(BaseCallbackQuery):
         })
 
     async def init(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        Handle the initial question to new users ("have you used the MateBot service before?")
+        """
+
         _, sender, selection = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -71,6 +75,10 @@ class StartCallbackQuery(BaseCallbackQuery):
             raise ValueError(f"Unknown option {selection!r}")
 
     async def register(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        Handle the second step where a user wants to create a new user account
+        """
+
         _, sender, *selection = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -92,6 +100,10 @@ class StartCallbackQuery(BaseCallbackQuery):
         await update.callback_query.answer()
 
     async def abort(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        Handle the cancellation of the registration process
+        """
+
         _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -107,6 +119,10 @@ class StartCallbackQuery(BaseCallbackQuery):
         await update.callback_query.message.edit_text("You have aborted the registration process. Use /start to begin.")
 
     async def connect(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        TODO
+        """
+
         _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -136,6 +152,10 @@ class StartCallbackQuery(BaseCallbackQuery):
         )
 
     async def set_name(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        TODO
+        """
+
         _, sender = data.split(" ")
         sender = int(sender)
         if update.callback_query.from_user.id != sender:
@@ -156,6 +176,10 @@ class StartCallbackQuery(BaseCallbackQuery):
             )
 
     async def select_app(self, update: telegram.Update, context: ExtendedContext, data: str):
+        """
+        Handle the second step of the process where a user said that the MateBot service has been used before
+        """
+
         _, sender, app_id = data.split(" ")
         sender = int(sender)
         app_id = int(app_id)

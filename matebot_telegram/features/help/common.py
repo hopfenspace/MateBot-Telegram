@@ -6,7 +6,7 @@ from typing import Optional
 
 from matebot_sdk.schemas import User
 
-from ..commands.command import BaseCommand
+from ..base import BaseCommand
 from ...client import AsyncMateBotSDKForTelegram
 
 

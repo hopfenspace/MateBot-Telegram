@@ -5,11 +5,8 @@ MateBot command executor class for /vouch
 import telegram
 from matebot_sdk import schemas
 
-from .command import BaseCommand
-from .. import _common
+from ..base import BaseCommand, ExtendedContext, Namespace, types
 from ... import util
-from ...parsing.types import any_user_type
-from ...parsing.util import Namespace
 
 
 class VouchCommand(BaseCommand):
@@ -39,19 +36,19 @@ class VouchCommand(BaseCommand):
         )
 
         p1 = self.parser.new_usage()
-        p1.add_argument("user", type=any_user_type)
+        p1.add_argument("user", type=types.any_user_type)
         p2 = self.parser.new_usage()
         p2.add_argument("command", choices=("add", "start", "remove", "stop"), type=lambda x: str(x).lower())
-        p2.add_argument("user", type=any_user_type)
+        p2.add_argument("user", type=types.any_user_type)
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
@@ -65,7 +62,9 @@ class VouchCommand(BaseCommand):
                 elif args.user.external:
                     if args.user.voucher_id:
                         voucher = await context.application.client.get_user(args.user.voucher_id)
-                        await update.effective_message.reply_text(f"Currently, {voucher.name} vouches for {args.user.name}.")
+                        await update.effective_message.reply_text(
+                            f"Currently, {voucher.name} vouches for {args.user.name}."
+                        )
                     else:
                         await update.effective_message.reply_text(f"Nobody vouches for {args.user.name} at the moment.")
                 else:
@@ -73,7 +72,9 @@ class VouchCommand(BaseCommand):
                     if not debtors:
                         await update.effective_message.reply_text(f"{args.user.name} vouches for nobody at the moment.")
                     else:
-                        await update.effective_message.reply_text(f"{args.user.name} vouches for {len(debtors)} other users.")
+                        await update.effective_message.reply_text(
+                            f"{args.user.name} vouches for {len(debtors)} other users."
+                        )
                 return
             if sender.voucher_id is not None:
                 assert sender.external
@@ -94,7 +95,10 @@ class VouchCommand(BaseCommand):
                 else:
                     await update.effective_message.reply_text(
                         "You currently vouch for the following users:\n"
-                        + "\n".join(f"- {u.name} (ID {u.id}): {context.application.client.format_balance(u.balance)}" for u in debtors)
+                        + "\n".join(
+                            f"- {u.name} (ID {u.id}): {context.application.client.format_balance(u.balance)}"
+                            for u in debtors
+                        )
                         + "\nUse the subcommands to manage your debtors. See the help page for details."
                     )
             return

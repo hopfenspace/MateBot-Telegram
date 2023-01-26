@@ -10,8 +10,8 @@ import telegram
 from matebot_sdk import schemas
 
 from .util import EntityString
-from .. import client, config, err
-from ..base import BaseCommand
+from .. import application, err
+from ..features.base import BaseCommand
 
 
 def amount_type(arg: str) -> int:
@@ -21,7 +21,8 @@ def amount_type(arg: str) -> int:
     See :func:`amount` for more details.
     """
 
-    value = amount(arg, config.config.currency.digits, config.config.currency.symbol)
+    currency = application.get_running_app().config.currency
+    value = amount(arg, currency.digits, currency.symbol)
     if value >= 2**31:
         raise ValueError("Integer too large!")
     return value
@@ -89,13 +90,16 @@ def natural(arg: str) -> int:
 
 
 def _conv_arg_to_user(arg: EntityString, allow_foreign_user: bool) -> Coroutine[Any, Any, schemas.User]:
+    app = application.get_running_app()
+    if app is None:
+        raise err.ParsingError("No application is currently running, accessing the API is therefore impossible.")
     if arg.entity and arg.entity.type == telegram.constants.MessageEntityType.TEXT_MENTION:
-        return client.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
+        return app.client.get_core_user(arg.entity.user, foreign_user=allow_foreign_user)
     elif arg.entity is None or arg.entity.type == telegram.constants.MessageEntityType.MENTION:
         name = str(arg)
         if name.startswith("@"):
             name = name[1:]
-        return client.client.get_core_user(name, foreign_user=allow_foreign_user)
+        return app.client.get_core_user(name, foreign_user=allow_foreign_user)
     else:
         raise err.ParsingError('No user mentioned. Try with "@".')
 
@@ -156,9 +160,12 @@ async def extended_consumable_type(arg: str) -> Union[schemas.Consumable, str]:
     :raises ValueError: when the consumable wasn't found or the string isn't "?"
     """
 
+    app = application.get_running_app()
+    if app is None:
+        raise err.ParsingError("No application is currently running, accessing the API is therefore impossible.")
     if arg.strip() == "?":
         return "?"
-    for consumable in await client.client.get_consumables():
+    for consumable in await app.client.get_consumables():
         if consumable.name.lower() == arg.lower():
             return consumable
     raise ValueError(f"{arg} is no known consumable")

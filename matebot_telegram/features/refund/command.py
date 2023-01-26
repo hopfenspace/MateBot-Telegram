@@ -9,7 +9,7 @@ import telegram
 from . import common
 from ..base import BaseCommand, ExtendedContext, Namespace, types
 from .. import _common  # TODO: Rework to finally drop this import
-from ... import shared_messages, util
+from ... import shared_messages
 from ...parsing.actions import JoinAction
 
 
@@ -89,12 +89,12 @@ class RefundCommand(BaseCommand):
             text = await common.get_text(None, aborted_refund)
             keyboard = common.get_keyboard(aborted_refund)
 
-            util.update_all_shared_messages(
-                context.bot,
+            await context.application.update_shared_messages(
                 shared_messages.ShareType.REFUND,
                 aborted_refund.id,
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
+                job_queue=True,
                 delete_shared_messages=True
             )

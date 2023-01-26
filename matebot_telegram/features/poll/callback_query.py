@@ -10,7 +10,7 @@ from matebot_sdk import exceptions, schemas
 from . import common
 from ..base import BaseCallbackQuery, ExtendedContext
 from .. import _common  # TODO: Rework the structure to drop this import
-from ... import shared_messages, util
+from ... import shared_messages
 
 
 class PollCallbackQuery(BaseCallbackQuery):
@@ -90,13 +90,13 @@ class PollCallbackQuery(BaseCallbackQuery):
 
         text = await common.get_text(context.application.client, response.poll)
         keyboard = common.get_keyboard(response.poll)
-        util.update_all_shared_messages(
-            context.bot,
+        await context.application.update_shared_messages(
             shared_messages.ShareType.POLL,
             poll_id,
             text,
             logger=self.logger,
-            keyboard=keyboard
+            keyboard=keyboard,
+            job_queue=True
         )
 
     async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
@@ -130,14 +130,13 @@ class PollCallbackQuery(BaseCallbackQuery):
 
         text = await common.get_text(context.application.client, poll)
         keyboard = common.get_keyboard(poll)
-        util.update_all_shared_messages(
-            context.bot,
+        await context.application.update_shared_messages(
             shared_messages.ShareType.POLL,
             poll.id,
             text,
             logger=self.logger,
             keyboard=keyboard,
             delete_shared_messages=True,
-            job_queue=context.application.job_queue
+            job_queue=True
         )
         await update.callback_query.answer()

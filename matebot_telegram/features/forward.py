@@ -2,6 +2,8 @@
 MateBot inline query executors to forward collective operations
 """
 
+# TODO: Rework everything! This complete module is currently broken!
+
 import re
 
 import telegram.ext

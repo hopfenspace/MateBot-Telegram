@@ -7,7 +7,7 @@ import telegram.ext
 from . import common
 from ..base import BaseCommand, ExtendedContext, Namespace, types
 from .. import _common  # TODO: Drop this import in favor of a restructured handler function
-from ... import shared_messages, util
+from ... import shared_messages
 from ...parsing.actions import JoinAction
 
 
@@ -83,15 +83,14 @@ class CommunismCommand(BaseCommand):
             text = await common.get_text(context.application.client, aborted_communism)
             keyboard = common.get_keyboard(aborted_communism)
 
-            util.update_all_shared_messages(
-                context.bot,
+            await context.application.update_shared_messages(
                 shared_messages.ShareType.COMMUNISM,
                 aborted_communism.id,
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
                 delete_shared_messages=True,
-                job_queue=context.application.job_queue
+                job_queue=True
             )
             await update.effective_message.reply_text(
                 f"You have aborted your most recent communism of "

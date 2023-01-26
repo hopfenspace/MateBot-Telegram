@@ -9,7 +9,7 @@ from matebot_sdk import schemas
 
 from . import common
 from ..base import BaseCallbackQuery, ExtendedContext
-from ... import shared_messages, util
+from ... import shared_messages
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):
@@ -44,8 +44,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         sender = await context.application.client.get_core_user(update.callback_query.from_user)
         communism = await function(communism_id, sender, **kwargs)
 
-        util.update_all_shared_messages(
-            context.bot,
+        await context.application.update_shared_messages(
             shared_messages.ShareType.COMMUNISM,
             communism.id,
             await common.get_text(context.application.client, communism),
@@ -53,7 +52,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             common.get_keyboard(communism),
             telegram.constants.ParseMode.MARKDOWN,
             delete_shared_messages=delete,
-            job_queue=context.job_queue
+            job_queue=True
         )
 
     async def join(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:

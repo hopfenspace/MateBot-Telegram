@@ -6,20 +6,19 @@ from matebot_sdk import schemas
 
 from . import common
 from .. import _app
-from ... import shared_messages, util
+from ... import shared_messages
 
 
 @_app.dispatcher.register_for(schemas.EventType.REFUND_CREATED)
 async def handle_refund_created(event: schemas.Event):
     refund_id = int(event.data["id"])
     refund = (await _app.client.get_refunds(id=refund_id))[0]
-    await util.send_auto_share_messages(
-        _app.bot,
+    await _app.send_auto_share_messages(
         shared_messages.ShareType.REFUND,
         refund_id,
         await common.get_text(None, refund),
         keyboard=common.get_keyboard(refund),
-        job_queue=_app.job_queue
+        job_queue=True
     )
 
 
@@ -27,13 +26,12 @@ async def handle_refund_created(event: schemas.Event):
 async def handle_refund_updated(event: schemas.Event):
     refund_id = int(event.data["id"])
     refund = (await _app.client.get_refunds(id=refund_id))[0]
-    util.update_all_shared_messages(
-        _app.bot,
+    await _app.update_shared_messages(
         shared_messages.ShareType.REFUND,
         refund_id,
         await common.get_text(None, refund),
         keyboard=common.get_keyboard(refund),
-        job_queue=_app.job_queue
+        job_queue=True
     )
 
 
@@ -41,12 +39,11 @@ async def handle_refund_updated(event: schemas.Event):
 async def handle_refund_closed(event: schemas.Event):
     refund_id = int(event.data["id"])
     refund = (await _app.client.get_refunds(id=refund_id))[0]
-    util.update_all_shared_messages(
-        _app.bot,
+    await _app.update_shared_messages(
         shared_messages.ShareType.REFUND,
         refund_id,
         await common.get_text(None, refund),
         keyboard=common.get_keyboard(refund),
         delete_shared_messages=True,
-        job_queue=_app.job_queue
+        job_queue=True
     )

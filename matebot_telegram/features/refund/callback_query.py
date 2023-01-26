@@ -8,7 +8,9 @@ import telegram
 
 from matebot_sdk import exceptions, schemas
 
+from . import common
 from ..base import BaseCallbackQuery, ExtendedContext
+from ... import shared_messages
 
 
 class RefundCallbackQuery(BaseCallbackQuery):
@@ -32,7 +34,8 @@ class RefundCallbackQuery(BaseCallbackQuery):
             update: telegram.Update,
             issuer: schemas.User,
             update_coroutine: Callable[[int, schemas.User], Awaitable[schemas.RefundVoteResponse]],
-            data: str
+            data: str,
+            context: ExtendedContext
     ) -> None:
         """
         Handle the vouching behavior for refunds, where the ``update_coroutine``
@@ -48,15 +51,15 @@ class RefundCallbackQuery(BaseCallbackQuery):
             f"You successfully voted {('against', 'for')[response.vote.vote]} the request."
         )
 
-        text = await get_text(None, response.refund)
-        keyboard = get_keyboard(response.refund)
-        util.update_all_shared_messages(
-            update.callback_query.bot,
+        text = await common.get_text(None, response.refund)
+        keyboard = common.get_keyboard(response.refund)
+        await context.application.update_shared_messages(
             shared_messages.ShareType.REFUND,
             refund_id,
             text,
             logger=self.logger,
-            keyboard=keyboard
+            keyboard=keyboard,
+            job_queue=True
         )
 
     async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
@@ -65,7 +68,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
         """
 
         issuer = await context.application.client.get_core_user(update.callback_query.from_user)
-        return await self._handle_add_vote(update, issuer, context.application.client.approve_refund, data)
+        return await self._handle_add_vote(update, issuer, context.application.client.approve_refund, data, context)
 
     async def disapprove(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
@@ -73,7 +76,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
         """
 
         issuer = await context.application.client.get_core_user(update.callback_query.from_user)
-        return await self._handle_add_vote(update, issuer, context.application.client.disapprove_refund, data)
+        return await self._handle_add_vote(update, issuer, context.application.client.disapprove_refund, data, context)
 
     async def abort(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
@@ -90,16 +93,16 @@ class RefundCallbackQuery(BaseCallbackQuery):
             await update.callback_query.answer(exc.message, show_alert=True)
             return
 
-        text = await get_text(None, refund)
-        keyboard = get_keyboard(refund)
-        util.update_all_shared_messages(
-            update.callback_query.bot,
+        text = await common.get_text(None, refund)
+        keyboard = common.get_keyboard(refund)
+        await context.application.update_shared_messages(
             shared_messages.ShareType.REFUND,
             refund.id,
             text,
             logger=self.logger,
             keyboard=keyboard,
             delete_shared_messages=True,
-            job_queue=context.application.job_queue
+            job_queue=True
         )
+        context.drop_callback_data(update.callback_query)
         await update.callback_query.answer()

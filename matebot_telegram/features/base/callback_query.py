@@ -9,10 +9,10 @@ from typing import Awaitable, Callable, Dict, Optional
 
 import telegram.ext
 
-from . import _common, ExtendedContext
+from ._common import CommonBase, ExtendedContext
 
 
-class BaseCallbackQuery(_common.CommonBase):
+class BaseCallbackQuery(CommonBase):
     """
     Base class for all MateBot callback queries executed by the CallbackQueryHandler
 

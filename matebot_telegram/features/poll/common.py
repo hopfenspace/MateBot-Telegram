@@ -1,5 +1,5 @@
 """
-MateBot command executor class for /poll
+Common utilities for MateBot poll handling
 """
 
 import time
@@ -7,7 +7,6 @@ import telegram
 
 from matebot_sdk import schemas
 
-from .. import _common
 from ... import client
 
 
@@ -44,4 +43,13 @@ async def get_text(sdk: client.AsyncMateBotSDKForTelegram, poll: schemas.Poll) -
 def get_keyboard(poll: schemas.Poll) -> telegram.InlineKeyboardMarkup:
     if not poll.active:
         return telegram.InlineKeyboardMarkup([])
-    return _common.get_voting_keyboard_for("poll", poll.id)
+    return telegram.InlineKeyboardMarkup([
+        [
+            telegram.InlineKeyboardButton("APPROVE", callback_data=f"poll approve {poll.id}"),
+            telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"poll disapprove {poll.id}"),
+        ],
+        [
+            telegram.InlineKeyboardButton("FORWARD", callback_data=f"forward poll {poll.id} ask -1"),
+            telegram.InlineKeyboardButton("ABORT", callback_data=f"poll abort {poll.id}")
+        ]
+    ])

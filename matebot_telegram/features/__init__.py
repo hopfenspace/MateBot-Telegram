@@ -49,7 +49,6 @@ async def setup(logger: logging.Logger, application: ExtendedApplication):
     from .communism import CommunismCommand, CommunismCallbackQuery
     from .consume import ConsumeCommand, get_consumable_commands
     from .data import DataCommand
-    from .debug import DebugCommand
     from .donate import DonateCommand, DonateCallbackQuery
     from .help import HelpCommand, HelpInlineQuery
     from .history import HistoryCommand
@@ -68,7 +67,6 @@ async def setup(logger: logging.Logger, application: ExtendedApplication):
         CommunismCommand(),
         ConsumeCommand(),
         DataCommand(),
-        DebugCommand(),
         DonateCommand(),
         HelpCommand(),
         HistoryCommand(),

@@ -1,5 +1,5 @@
 """
-Common functionality used to handle refunds
+Common utilities for MateBot refund handling
 """
 
 import time
@@ -7,12 +7,7 @@ import time
 import telegram
 from matebot_sdk import schemas
 
-from .. import _common
-from ... import client, shared_messages, util
-from ..base import BaseCommand
-from ...parsing.actions import JoinAction
-from ...parsing.types import amount_type
-from ...parsing.util import Namespace
+from .. import _app
 
 
 async def get_text(_, refund: schemas.Refund) -> str:
@@ -21,7 +16,7 @@ async def get_text(_, refund: schemas.Refund) -> str:
     markdown = (
         f"*Refund by {refund.creator.name}*\n"
         f"Reason: {refund.description}\n"
-        f"Amount: {client.client.format_balance(refund.amount)}\n"
+        f"Amount: {_app.client.format_balance(refund.amount)}\n"
         f"Created: {time.asctime(time.gmtime(refund.created))}\n\n"
         f"*Votes ({len(refund.votes)})*\n"
         f"Proponents ({len(approving)}): {', '.join(approving) or 'None'}\n"
@@ -45,4 +40,13 @@ async def get_text(_, refund: schemas.Refund) -> str:
 def get_keyboard(refund: schemas.Refund) -> telegram.InlineKeyboardMarkup:
     if not refund.active:
         return telegram.InlineKeyboardMarkup([])
-    return _common.get_voting_keyboard_for("refund", refund.id)
+    return telegram.InlineKeyboardMarkup([
+        [
+            telegram.InlineKeyboardButton("APPROVE", callback_data=f"refund approve {refund.id}"),
+            telegram.InlineKeyboardButton("DISAPPROVE", callback_data=f"refund disapprove {refund.id}"),
+        ],
+        [
+            telegram.InlineKeyboardButton("FORWARD", callback_data=f"forward refund {refund.id} ask -1"),
+            telegram.InlineKeyboardButton("ABORT", callback_data=f"refund abort {refund.id}")
+        ]
+    ])

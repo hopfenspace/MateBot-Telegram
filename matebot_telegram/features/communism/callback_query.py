@@ -1,4 +1,15 @@
+"""
+MateBot callback query handler for the communism command
+"""
 
+from typing import Awaitable, Callable
+
+import telegram
+from matebot_sdk import schemas
+
+from . import common
+from ..base import BaseCallbackQuery, ExtendedContext
+from ... import shared_messages, util
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):
@@ -21,64 +32,58 @@ class CommunismCallbackQuery(BaseCallbackQuery):
     async def _handle_update(
             self,
             update: telegram.Update,
+            context: ExtendedContext,
+            data: str,
             function: Callable[[int, schemas.User, ...], Awaitable[schemas.Communism]],
             delete: bool = False,
             **kwargs
     ) -> None:
-        _, communism_id = self.data.split(" ")
+        _, communism_id = data.split(" ")
         communism_id = int(communism_id)
 
-        sender = await self.client.get_core_user(update.callback_query.from_user)
+        sender = await context.application.client.get_core_user(update.callback_query.from_user)
         communism = await function(communism_id, sender, **kwargs)
 
         util.update_all_shared_messages(
-            update.callback_query.bot,
+            context.bot,
             shared_messages.ShareType.COMMUNISM,
             communism.id,
-            await get_text(self.client, communism),
+            await common.get_text(context.application.client, communism),
             self.logger,
-            get_keyboard(communism),
-            telegram.ParseMode.MARKDOWN,
+            common.get_keyboard(communism),
+            telegram.constants.ParseMode.MARKDOWN,
             delete_shared_messages=delete,
-            job_queue=self.client.job_queue
+            job_queue=context.job_queue
         )
 
-    async def join(self, update: telegram.Update) -> None:
+    async def join(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle the query of a user to join the communism (supports joining multiple times)
         """
 
-        await self._handle_update(update, self.client.increase_communism_participation, count=1)
+        await self._handle_update(update, context, data, context.application.client.increase_communism_participation)
         await update.callback_query.answer("You have joined the communism.")
 
-    async def leave(self, update: telegram.Update) -> None:
+    async def leave(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle the query of a user to leave the communism
         """
 
-        await self._handle_update(update, self.client.decrease_communism_participation, count=1)
+        await self._handle_update(update, context, data, context.application.client.decrease_communism_participation)
         await update.callback_query.answer("You have left the communism.")
 
-    async def close(self, update: telegram.Update) -> None:
+    async def close(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle the query to close (=accept) the communism
         """
 
-        await self._handle_update(update, self.client.close_communism, delete=True)
+        await self._handle_update(update, context, data, context.application.client.close_communism, delete=True)
         await update.callback_query.answer("The communism has been closed.")
 
-    async def abort(self, update: telegram.Update) -> None:
+    async def abort(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle the query to abort (=reject) the communism
         """
 
-        await self._handle_update(update, self.client.abort_communism, delete=True)
+        await self._handle_update(update, context, data, context.application.client.abort_communism, delete=True)
         await update.callback_query.answer("The communism has been aborted.")

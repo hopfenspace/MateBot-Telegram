@@ -1,19 +1,16 @@
 """
-MateBot command executor class for /poll
+MateBot callback query handler for the poll command
 """
 
-import time
-import telegram
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable
 
+import telegram
 from matebot_sdk import exceptions, schemas
 
 from . import common
-from .. import client, shared_messages, util
-from ..api_callback import application
-from ..base import BaseCallbackQuery, BaseCommand
-from ..parsing.types import any_user_type
-from ..parsing.util import Namespace
+from ..base import BaseCallbackQuery, ExtendedContext
+from .. import _common  # TODO: Rework the structure to drop this import
+from ... import shared_messages, util
 
 
 class PollCallbackQuery(BaseCallbackQuery):
@@ -34,24 +31,26 @@ class PollCallbackQuery(BaseCallbackQuery):
             }
         )
 
-    async def dont_open(self, update: telegram.Update) -> None:
-        _, _, _, original_sender = self.data.split(" ")
+    async def dont_open(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
+        """
+        TODO
+        """
+
+        _, _, _, original_sender = data.split(" ")
         if update.callback_query.from_user.id != int(original_sender):
             await update.callback_query.answer("Only the creator of this poll request can use it!")
             return
+        self.logger.debug("No poll should be opened right now")
         await update.callback_query.message.edit_text("You chose not to open a poll right now.", reply_markup=None)
+        context.drop_callback_data(update.callback_query)
         await update.callback_query.answer("No poll has been opened")
 
-    async def new(self, update: telegram.Update) -> None:
+    async def new(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        Create a new poll
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Create a new poll of a specified type
         """
 
-        _, affected_user, poll_type, original_sender = self.data.split(" ")
+        _, affected_user, poll_type, original_sender = data.split(" ")
         affected_user = int(affected_user)
         original_sender = int(original_sender)
         poll_type = schemas.PollVariant(poll_type)
@@ -60,13 +59,13 @@ class PollCallbackQuery(BaseCallbackQuery):
             await update.callback_query.answer("Only the creator of this poll request can alter it!")
             return
 
-        user = (await self.client.get_users(affected_user))[0]
-        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        user = (await context.application.client.get_users(affected_user))[0]
+        issuer = await context.application.client.get_core_user(update.callback_query.from_user)
         await _common.new_group_operation(
-            self.client.create_poll(affected_user, issuer, poll_type),
-            self.client,
-            lambda p: get_text(self.client, p),
-            get_keyboard,
+            context.application.client.create_poll(affected_user, issuer, poll_type),
+            context.application.client,
+            lambda p: common.get_text(context.application.client, p),
+            common.get_keyboard,
             update.callback_query.message,
             shared_messages.ShareType.POLL,
             self.logger
@@ -79,18 +78,20 @@ class PollCallbackQuery(BaseCallbackQuery):
     async def _handle_vote(
             self,
             update: telegram.Update,
+            context: ExtendedContext,
+            data: str,
             get_client_func: Callable[[int, schemas.User], Awaitable[schemas.PollVoteResponse]]
     ) -> None:
-        poll_id = int(self.data.split(" ")[-1])
+        poll_id = int(data.split(" ")[-1])
 
-        user = await self.client.get_core_user(update.callback_query.from_user)
+        user = await context.application.client.get_core_user(update.callback_query.from_user)
         response = await get_client_func(poll_id, user)
         await update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
 
-        text = await get_text(self.client, response.poll)
-        keyboard = get_keyboard(response.poll)
+        text = await common.get_text(context.application.client, response.poll)
+        keyboard = common.get_keyboard(response.poll)
         util.update_all_shared_messages(
-            update.callback_query.bot,
+            context.bot,
             shared_messages.ShareType.POLL,
             poll_id,
             text,
@@ -98,57 +99,45 @@ class PollCallbackQuery(BaseCallbackQuery):
             keyboard=keyboard
         )
 
-    async def approve(self, update: telegram.Update) -> None:
+    async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        Create a new poll
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        TODO
         """
 
-        return await self._handle_vote(update, self.client.approve_poll)
+        return await self._handle_vote(update, context, data, context.application.client.approve_poll)
 
-    async def disapprove(self, update: telegram.Update) -> None:
+    async def disapprove(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        Create a new poll
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        TODO
         """
 
-        return await self._handle_vote(update, self.client.disapprove_poll)
+        return await self._handle_vote(update, context, data, context.application.client.disapprove_poll)
 
-    async def abort(self, update: telegram.Update) -> None:
+    async def abort(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        Create a new poll
-
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        TODO
         """
 
-        _, poll_id = self.data.split(" ")
+        _, poll_id = data.split(" ")
         poll_id = int(poll_id)
 
-        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        issuer = await context.application.client.get_core_user(update.callback_query.from_user)
         try:
-            poll = await self.client.abort_poll(poll_id, issuer)
+            poll = await context.application.client.abort_poll(poll_id, issuer)
         except exceptions.APIException as exc:
             await update.callback_query.answer(exc.message, show_alert=True)
             return
 
-        text = await get_text(self.client, poll)
-        keyboard = get_keyboard(poll)
+        text = await common.get_text(context.application.client, poll)
+        keyboard = common.get_keyboard(poll)
         util.update_all_shared_messages(
-            update.callback_query.bot,
+            context.bot,
             shared_messages.ShareType.POLL,
             poll.id,
             text,
             logger=self.logger,
             keyboard=keyboard,
             delete_shared_messages=True,
-            job_queue=self.client.job_queue
+            job_queue=context.application.job_queue
         )
         await update.callback_query.answer()

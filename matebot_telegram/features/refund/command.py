@@ -6,13 +6,11 @@ from typing import ClassVar
 
 import telegram
 
-from .command import BaseCommand
-from .. import _common
+from . import common
+from ..base import BaseCommand, ExtendedContext, Namespace, types
+from .. import _common  # TODO: Rework to finally drop this import
 from ... import shared_messages, util
-from ..common.refund import get_text, get_keyboard
 from ...parsing.actions import JoinAction
-from ...parsing.types import amount_type
-from ...parsing.util import Namespace
 
 
 class RefundCommand(BaseCommand):
@@ -37,7 +35,7 @@ class RefundCommand(BaseCommand):
             "You can stop your currently active refund request using `stop`."
         )
 
-        self.parser.add_argument("amount", type=amount_type)
+        self.parser.add_argument("amount", type=types.amount_type)
         self.parser.add_argument("reason", action=JoinAction, nargs="*")
 
         self.parser.new_usage().add_argument(
@@ -46,29 +44,25 @@ class RefundCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        TODO
         """
 
-        sender = await self.client.get_core_user(update.effective_message.from_user)
+        sender = await context.application.client.get_core_user(update.effective_message.from_user)
 
         if args.subcommand is None:
             return await _common.new_group_operation(
-                self.client.create_refund(sender, args.amount, args.reason),
-                self.client,
-                lambda p: get_text(None, p),
-                get_keyboard,
+                context.application.client.create_refund(sender, args.amount, args.reason),
+                context.application.client,
+                lambda p: common.get_text(None, p),
+                common.get_keyboard,
                 update.effective_message,
                 shared_messages.ShareType.REFUND,
                 self.logger
             )
 
-        active_refunds = await self.client.get_refunds(active=True, creator_id=sender.id)
+        active_refunds = await context.application.client.get_refunds(active=True, creator_id=sender.id)
         if not active_refunds:
             await update.effective_message.reply_text(f"You don't have a {type(self).COMMAND_NAME} request in progress.")
             return
@@ -80,23 +74,23 @@ class RefundCommand(BaseCommand):
             )
 
         if args.subcommand == "show":
-            _common.show_updated_group_operation(
-                self.client,
+            await _common.show_updated_group_operation(
+                context.application.client,
                 update.effective_message,
-                await get_text(None, active_refunds[-1]),
-                get_keyboard(active_refunds[-1]),
+                await common.get_text(None, active_refunds[-1]),
+                common.get_keyboard(active_refunds[-1]),
                 shared_messages.ShareType.REFUND,
                 active_refunds[-1].id,
                 self.logger
             )
 
         elif args.subcommand == "stop":
-            aborted_refund = await self.client.abort_refund(active_refunds[-1], sender)
-            text = await get_text(None, aborted_refund)
-            keyboard = get_keyboard(aborted_refund)
+            aborted_refund = await context.application.client.abort_refund(active_refunds[-1], sender)
+            text = await common.get_text(None, aborted_refund)
+            keyboard = common.get_keyboard(aborted_refund)
 
             util.update_all_shared_messages(
-                update.effective_message.bot,
+                context.bot,
                 shared_messages.ShareType.REFUND,
                 aborted_refund.id,
                 text,

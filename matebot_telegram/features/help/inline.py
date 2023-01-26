@@ -7,9 +7,8 @@ from typing import Optional
 
 import telegram
 
-from .inline import BaseInlineQuery
-from ..common import help as _help
-from ..commands.command import BaseCommand
+from . import common
+from ..base import BaseCommand, BaseInlineQuery
 
 
 class HelpInlineQuery(BaseInlineQuery):
@@ -40,7 +39,7 @@ class HelpInlineQuery(BaseInlineQuery):
         if command not in BaseCommand.AVAILABLE_COMMANDS:
             return
 
-        text = _help.get_help_for_command(BaseCommand.AVAILABLE_COMMANDS[command])
+        text = common.get_help_for_command(BaseCommand.AVAILABLE_COMMANDS[command])
         return self.get_result(f"Help on /{command}", text, command, parse_mode=telegram.constants.ParseMode.MARKDOWN)
 
     def get_help(self) -> telegram.InlineQueryResult:

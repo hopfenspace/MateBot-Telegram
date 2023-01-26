@@ -1,6 +1,14 @@
+"""
+Common utilities for MateBot communism handling
+"""
+
+import telegram
+from matebot_sdk import schemas
+
+from ...client import AsyncMateBotSDKForTelegram
 
 
-async def get_text(sdk: client.AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
+async def get_text(sdk: AsyncMateBotSDKForTelegram, communism: schemas.Communism) -> str:
     creator = await sdk.get_user(communism.creator_id)
     usernames = ", ".join(f"{p.user_name} ({p.quantity}x)" for p in communism.participants) or "None"
     markdown = (
@@ -48,4 +56,3 @@ def get_keyboard(communism: schemas.Communism) -> telegram.InlineKeyboardMarkup:
             telegram.InlineKeyboardButton("ABORT", callback_data=f("abort")),
         ]
     ])
-

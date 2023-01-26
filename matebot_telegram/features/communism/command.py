@@ -4,13 +4,11 @@ MateBot command executor class for /communism
 
 import telegram.ext
 
-from .command import BaseCommand
-from .. import _common
-from ..common import communism
+from . import common
+from ..base import BaseCommand, ExtendedContext, Namespace, types
+from .. import _common  # TODO: Drop this import in favor of a restructured handler function
 from ... import shared_messages, util
-from ...parsing.types import amount_type
 from ...parsing.actions import JoinAction
-from ...parsing.util import Namespace
 
 
 class CommunismCommand(BaseCommand):
@@ -37,7 +35,7 @@ class CommunismCommand(BaseCommand):
             "You can stop your most recent, currently active communism using `stop`."
         )
 
-        self.parser.add_argument("amount", type=amount_type)
+        self.parser.add_argument("amount", type=types.amount_type)
         self.parser.add_argument("reason", nargs="+", action=JoinAction)
 
         self.parser.new_usage().add_argument(
@@ -46,13 +44,9 @@ class CommunismCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param context: the custom context of the application
-        :type context: _common.ExtendedContext
-        :return: None
+        Create a new communism with the supplied arguments, providing a message with attached inline keyboard
         """
 
         user = await context.application.client.get_core_user(update.effective_message.from_user)
@@ -61,8 +55,8 @@ class CommunismCommand(BaseCommand):
             return await _common.new_group_operation(
                 context.application.client.create_communism(user, args.amount, args.reason),
                 context.application.client,
-                lambda c: get_text(context.application.client, c),
-                get_keyboard,
+                lambda c: common.get_text(context.application.client, c),
+                common.get_keyboard,
                 update.effective_message,
                 shared_messages.ShareType.COMMUNISM,
                 self.logger
@@ -74,34 +68,34 @@ class CommunismCommand(BaseCommand):
             return
 
         if args.subcommand == "show":
-            _common.show_updated_group_operation(
-                self.client,
+            await _common.show_updated_group_operation(
+                context.application.client,
                 update.effective_message,
-                await get_text(self.client, active_communisms[-1]),
-                get_keyboard(active_communisms[-1]),
+                await common.get_text(context.application.client, active_communisms[-1]),
+                common.get_keyboard(active_communisms[-1]),
                 shared_messages.ShareType.COMMUNISM,
                 active_communisms[-1].id,
                 self.logger
             )
 
         elif args.subcommand == "stop":
-            aborted_communism = await self.client.abort_communism(active_communisms[-1], user)
-            text = await get_text(self.client, aborted_communism)
-            keyboard = get_keyboard(aborted_communism)
+            aborted_communism = await context.application.client.abort_communism(active_communisms[-1], user)
+            text = await common.get_text(context.application.client, aborted_communism)
+            keyboard = common.get_keyboard(aborted_communism)
 
             util.update_all_shared_messages(
-                update.effective_message.bot,
+                context.bot,
                 shared_messages.ShareType.COMMUNISM,
                 aborted_communism.id,
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
                 delete_shared_messages=True,
-                job_queue=self.client.job_queue
+                job_queue=context.application.job_queue
             )
             await update.effective_message.reply_text(
                 f"You have aborted your most recent communism of "
-                f"{self.client.format_balance(aborted_communism.amount)}!"
+                f"{context.application.client.format_balance(aborted_communism.amount)}!"
             )
 
         else:

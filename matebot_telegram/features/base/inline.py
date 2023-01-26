@@ -8,10 +8,10 @@ import logging
 
 import telegram.ext
 
-from . import _common, ExtendedContext
+from ._common import CommonBase, ExtendedContext
 
 
-class BaseInlineQuery(_common.CommonBase):
+class BaseInlineQuery(CommonBase):
     """
     Base class for all MateBot inline queries executed by the InlineQueryHandler
 
@@ -112,7 +112,7 @@ class BaseInlineQuery(_common.CommonBase):
         raise NotImplementedError("Overwrite the BaseInlineQuery.run() method in a subclass")
 
 
-class BaseInlineResult(_common.CommonBase):
+class BaseInlineResult(CommonBase):
     """
     Base class for all MateBot inline query results executed by the ChosenInlineResultHandler
 
@@ -124,7 +124,7 @@ class BaseInlineResult(_common.CommonBase):
         super().__init__(logging.getLogger("mbt.inline-result"))
         self.pattern = pattern
 
-    def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
+    async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update

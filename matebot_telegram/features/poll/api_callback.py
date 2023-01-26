@@ -1,22 +1,14 @@
 """
-MateBot command executor class for /poll
+API callback handlers for the events POLL_CREATED, POLL_UPDATED and POLL_CLOSED
 """
 
-import time
-import telegram
-from typing import Awaitable, Callable, Optional
+from matebot_sdk import schemas
 
-from matebot_sdk import exceptions, schemas
-
-from . import common
-from .. import client, shared_messages, util
-from ..api_callback import application
-from ..base import BaseCallbackQuery, BaseCommand
-from ..parsing.types import any_user_type
-from ..parsing.util import Namespace
+from .. import _app
+from ... import util
 
 
-@application.register_for(schemas.EventType.POLL_CREATED)
+@_app.dispatcher.register_for(schemas.EventType.POLL_CREATED)
 async def _handle_poll_created(event: schemas.Event):
     poll_id = int(event.data["id"])
     poll = (await client.client.get_polls(id=poll_id))[0]
@@ -30,8 +22,8 @@ async def _handle_poll_created(event: schemas.Event):
     )
 
 
-@application.register_for(schemas.EventType.POLL_UPDATED)
-async def _handle_poll_updated(event: schemas.Event):
+@_app.dispatcher.register_for(schemas.EventType.POLL_UPDATED)
+async def handle_poll_updated(event: schemas.Event):
     poll_id = int(event.data["id"])
     poll = (await client.client.get_polls(id=poll_id))[0]
     util.update_all_shared_messages(
@@ -44,8 +36,8 @@ async def _handle_poll_updated(event: schemas.Event):
     )
 
 
-@application.register_for(schemas.EventType.POLL_CLOSED)
-async def _handle_poll_closed(event: schemas.Event):
+@_app.dispatcher.register_for(schemas.EventType.POLL_CLOSED)
+async def handle_poll_closed(event: schemas.Event):
     poll_id = int(event.data["id"])
     poll = (await client.client.get_polls(id=poll_id))[0]
     util.update_all_shared_messages(

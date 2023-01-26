@@ -7,10 +7,9 @@ from typing import List
 import telegram
 from matebot_sdk import schemas
 
-from .. import _app, _common
-from .command import BaseCommand
+from .. import _app
+from ..base import BaseCommand, ExtendedContext, Namespace
 from ... import util
-from ...parsing.util import Namespace
 
 
 def fmt_alias(alias: schemas.Alias, apps: List[schemas.Application]) -> str:
@@ -45,14 +44,14 @@ class AliasCommand(BaseCommand):
             type=lambda x: str(x).lower()
         )
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param args: parsed namespace containing the arguments
         :type args: argparse.Namespace
         :param update: incoming Telegram update
         :type update: telegram.Update
         :param context: the custom context of the application
-        :type context: _common.ExtendedContext
+        :type context: ExtendedContext
         :return: None
         """
 
@@ -70,6 +69,7 @@ class AliasCommand(BaseCommand):
                 lambda: update.effective_message.reply_markdown_v2(msg),
                 lambda: update.effective_message.reply_text(msg)
             )
+
         elif args.subcommand == "accept":
             aliases = await context.application.client.get_aliases(user_id=user.id, confirmed=False)
             if not aliases:
@@ -86,6 +86,7 @@ class AliasCommand(BaseCommand):
                     for alias in aliases
                 ] + [[telegram.InlineKeyboardButton("Don't accept any alias now", callback_data=f"alias clear")]]
                 await update.effective_message.reply_text(msg, reply_markup=telegram.InlineKeyboardMarkup(keyboard))
+
         elif args.subcommand == "deny":
             aliases = [
                 a for a in await context.application.client.get_aliases(user_id=user.id)

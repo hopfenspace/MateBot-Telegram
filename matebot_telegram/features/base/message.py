@@ -9,10 +9,10 @@ from typing import Optional
 
 import telegram.ext
 
-from . import _common
+from ._common import CommonBase, ExtendedContext
 
 
-class BaseMessage(_common.CommonBase):
+class BaseMessage(CommonBase):
     """
     Base class for all MateBot message handlers
 
@@ -24,7 +24,7 @@ class BaseMessage(_common.CommonBase):
         super().__init__(logging.getLogger("mbt.message"))
         self.prefix = prefix
 
-    async def run(self, message: telegram.Message, context: _common.ExtendedContext) -> None:
+    async def run(self, message: telegram.Message, context: ExtendedContext) -> None:
         """
         Perform handler-specific actions
 
@@ -40,7 +40,7 @@ class BaseMessage(_common.CommonBase):
 
         raise NotImplementedError("Overwrite the BaseMessage.run() method in a subclass")
 
-    async def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         :param update: incoming Telegram update
         :type update: telegram.Update

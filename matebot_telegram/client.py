@@ -20,12 +20,12 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         super().__init__(*args, **kwargs)
         self.shared_messages = _shared_messages.SharedMessageHandler()
 
-    @staticmethod
-    def get_new_session() -> database.Session:
+    @classmethod
+    def get_new_session(cls) -> database.Session:
         return database.get_new_session()
 
-    @staticmethod
-    def format_balance(balance_or_user: Union[int, float, _User]):
+    @classmethod
+    def format_balance(cls, balance_or_user: Union[int, float, _User]):
         from .application import get_running_app
         currency = get_running_app().config.currency
         if isinstance(balance_or_user, _User):
@@ -33,8 +33,8 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
         v = balance_or_user / currency.factor
         return f"{v:.{currency.digits}f}{currency.symbol}"
 
-    @staticmethod
-    def patch_user_db_from_update(update: telegram.Update):
+    @classmethod
+    def patch_user_db_from_update(cls, update: telegram.Update):
         user = update.effective_user
         if user is None or user.is_bot:
             return
@@ -51,8 +51,8 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
                 elif len(users) > 1:
                     raise RuntimeError(f"Multiple user results for telegram ID {user.id}! Please file a bug report.")
 
-    @staticmethod
-    def _lookup_telegram_identifier(identifier: str) -> int:
+    @classmethod
+    def _lookup_telegram_identifier(cls, identifier: str) -> int:
         with database.get_new_session() as session:
             with session.begin():
                 if identifier.startswith("@"):
@@ -85,8 +85,8 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
             return await self.get_user(existing_user.user_id)
         return None
 
-    @staticmethod
-    def _handle_new_user_update(user_id: int, telegram_user: telegram.User, session: database.Session):
+    @classmethod
+    def _handle_new_user_update(cls, user_id: int, telegram_user: telegram.User, session: database.Session):
         record = session.query(models.RegistrationProcess).get(telegram_user.id)
         if record is not None:
             session.delete(record)

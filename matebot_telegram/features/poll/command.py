@@ -7,10 +7,8 @@ from typing import Optional
 
 from matebot_sdk import schemas
 
-from .command import BaseCommand
-from ... import client, shared_messages, util
-from ...parsing.types import any_user_type
-from ...parsing.util import Namespace
+from ..base import BaseCommand, ExtendedContext, Namespace, types
+from ... import util
 
 
 class PollCommand(BaseCommand):
@@ -34,18 +32,14 @@ class PollCommand(BaseCommand):
             "want the community to vote whether that other user should be banished."
         )
 
-        self.parser.add_argument("user", type=any_user_type, nargs="?")
+        self.parser.add_argument("user", type=types.any_user_type, nargs="?")
 
-    async def run(self, args: Namespace, update: telegram.Update) -> None:
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Create a new message with inline keyboard to request the type of poll
         """
 
-        sender = await self.client.get_core_user(update.effective_message.from_user)
+        sender = await context.application.client.get_core_user(update.effective_message.from_user)
         affected_user = args.user or sender
 
         def f(variant: Optional[schemas.PollVariant]) -> str:

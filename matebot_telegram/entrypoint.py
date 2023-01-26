@@ -44,7 +44,7 @@ def get_init(logger: logging.Logger):
                 f"Expecting to reach to API server there: {application.config.server}"
             )
             await application.shutdown()
-            return
+            raise
 
         logger.debug("Adding error handler...")
         application.add_error_handler(log_error)

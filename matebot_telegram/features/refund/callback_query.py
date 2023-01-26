@@ -1,3 +1,15 @@
+"""
+MateBot callback query for the refund command
+"""
+
+from typing import Awaitable, Callable
+
+import telegram
+
+from matebot_sdk import exceptions, schemas
+
+from ..base import BaseCallbackQuery, ExtendedContext
+
 
 class RefundCallbackQuery(BaseCallbackQuery):
     """
@@ -18,14 +30,23 @@ class RefundCallbackQuery(BaseCallbackQuery):
     async def _handle_add_vote(
             self,
             update: telegram.Update,
-            get_client_func: Callable[[int, schemas.User], Awaitable[schemas.RefundVoteResponse]]
+            issuer: schemas.User,
+            update_coroutine: Callable[[int, schemas.User], Awaitable[schemas.RefundVoteResponse]],
+            data: str
     ) -> None:
-        _, refund_id = self.data.split(" ")
+        """
+        Handle the vouching behavior for refunds, where the ``update_coroutine``
+        argument is the SDK method to approve or disapprove a single refund
+        and the ``user`` is the issuer of the command
+        """
+
+        _, refund_id = data.split(" ")
         refund_id = int(refund_id)
 
-        user = await self.client.get_core_user(update.callback_query.from_user)
-        response = await get_client_func(refund_id, user)
-        await update.callback_query.answer(f"You successfully voted {('against', 'for')[response.vote.vote]} the request.")
+        response = await update_coroutine(refund_id, issuer)
+        await update.callback_query.answer(
+            f"You successfully voted {('against', 'for')[response.vote.vote]} the request."
+        )
 
         text = await get_text(None, response.refund)
         keyboard = get_keyboard(response.refund)
@@ -38,37 +59,33 @@ class RefundCallbackQuery(BaseCallbackQuery):
             keyboard=keyboard
         )
 
-    async def approve(self, update: telegram.Update) -> None:
+    async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle a user event to approve a certain refund request
         """
 
-        return await self._handle_add_vote(update, self.client.approve_refund)
+        issuer = await context.application.client.get_core_user(update.callback_query.from_user)
+        return await self._handle_add_vote(update, issuer, context.application.client.approve_refund, data)
 
-    async def disapprove(self, update: telegram.Update) -> None:
+    async def disapprove(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
-        """
-
-        return await self._handle_add_vote(update, self.client.disapprove_refund)
-
-    async def abort(self, update: telegram.Update) -> None:
-        """
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :return: None
+        Handle a user event to disapprove a certain refund request
         """
 
-        _, refund_id = self.data.split(" ")
+        issuer = await context.application.client.get_core_user(update.callback_query.from_user)
+        return await self._handle_add_vote(update, issuer, context.application.client.disapprove_refund, data)
+
+    async def abort(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
+        """
+        Handle a user event to abort a certain refund request
+        """
+
+        _, refund_id = data.split(" ")
         refund_id = int(refund_id)
 
-        issuer = await self.client.get_core_user(update.callback_query.from_user)
+        issuer = await context.application.client.get_core_user(update.callback_query.from_user)
         try:
-            refund = await self.client.abort_refund(refund_id, issuer)
+            refund = await context.application.client.abort_refund(refund_id, issuer)
         except exceptions.APIException as exc:
             await update.callback_query.answer(exc.message, show_alert=True)
             return
@@ -83,6 +100,6 @@ class RefundCallbackQuery(BaseCallbackQuery):
             logger=self.logger,
             keyboard=keyboard,
             delete_shared_messages=True,
-            job_queue=self.client.job_queue
+            job_queue=context.application.job_queue
         )
         await update.callback_query.answer()

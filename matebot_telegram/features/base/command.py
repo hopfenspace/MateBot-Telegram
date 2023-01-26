@@ -11,13 +11,13 @@ from typing import ClassVar, Dict, Optional
 
 import telegram.ext
 
-from . import _common
+from ._common import CommonBase, ExtendedContext
 from ... import err
 from ...parsing.parser import CommandParser
 from ...parsing.util import Namespace
 
 
-class BaseCommand(_common.CommonBase):
+class BaseCommand(CommonBase):
     """
     Base class for all MateBot commands executed by the CommandHandler
 
@@ -80,7 +80,7 @@ class BaseCommand(_common.CommonBase):
         else:
             return self._usage
 
-    async def run(self, args: Namespace, update: telegram.Update, context: _common.ExtendedContext):
+    async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext):
         """
         Perform command-specific actions
 
@@ -98,7 +98,7 @@ class BaseCommand(_common.CommonBase):
 
         raise NotImplementedError("Overwrite the BaseCommand.run() method in a subclass")
 
-    async def __call__(self, update: telegram.Update, context: _common.ExtendedContext) -> None:
+    async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
         """
         Parse arguments of the incoming update and execute the .run() method in a separate thread
 

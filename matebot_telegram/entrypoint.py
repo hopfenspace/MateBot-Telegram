@@ -106,7 +106,7 @@ def main(conf: config.Configuration) -> int:
         .persistence(persistence.BotPersistence(logging.getLogger("mbt.persistence"), update_interval=10))
         .post_init(init)
         .post_shutdown(get_shutdown(logging.getLogger("mbt.shutdown")))
-        .rate_limiter(rate_limiter.RetryLimiter(logging.getLogger("mbt.limit")))
+        .rate_limiter(rate_limiter.ParseModeFixingLimiter(logging.getLogger("mbt.limit")))
         .build()
     )
 

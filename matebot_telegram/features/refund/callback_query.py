@@ -58,8 +58,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
             refund_id,
             text,
             logger=self.logger,
-            keyboard=keyboard,
-            job_queue=True
+            keyboard=keyboard
         )
 
     async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
@@ -101,8 +100,7 @@ class RefundCallbackQuery(BaseCallbackQuery):
             text,
             logger=self.logger,
             keyboard=keyboard,
-            delete_shared_messages=True,
-            job_queue=True
+            delete_shared_messages=True
         )
         context.drop_callback_data(update.callback_query)
         await update.callback_query.answer()

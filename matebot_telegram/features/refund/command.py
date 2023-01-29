@@ -95,6 +95,5 @@ class RefundCommand(BaseCommand):
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
-                job_queue=True,
                 delete_shared_messages=True
             )

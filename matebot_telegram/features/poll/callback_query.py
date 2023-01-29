@@ -95,8 +95,7 @@ class PollCallbackQuery(BaseCallbackQuery):
             poll_id,
             text,
             logger=self.logger,
-            keyboard=keyboard,
-            job_queue=True
+            keyboard=keyboard
         )
 
     async def approve(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
@@ -136,7 +135,6 @@ class PollCallbackQuery(BaseCallbackQuery):
             text,
             logger=self.logger,
             keyboard=keyboard,
-            delete_shared_messages=True,
-            job_queue=True
+            delete_shared_messages=True
         )
         await update.callback_query.answer()

@@ -2,6 +2,7 @@
 Extended Application to combine various MateBot Telegram core components in one place
 """
 
+import asyncio
 import logging
 from typing import List, Optional, Union
 
@@ -53,8 +54,7 @@ class ExtendedApplication(telegram.ext.Application):
             keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
             excluded: List[int] = None,
             try_parse_mode: telegram.constants.ParseMode = telegram.constants.ParseMode.MARKDOWN,
-            disable_notification: bool = True,
-            job_queue: bool = True
+            disable_notification: bool = True
     ) -> bool:
         """
         Send shared messages automatically to a predefined list of recipients
@@ -65,12 +65,8 @@ class ExtendedApplication(telegram.ext.Application):
         not send two messages to the same user (in case any user already
         received a separate message via some other channel or functionality).
 
-        If the job queue is set to False, all messages will be sent out in
-        order and will be awaited, which may slow down the calling function.
-        Otherwise, all jobs will be created to be executed in the next seconds.
-
-        Returns True for successful delivery (or queuing) of at least one
-        message, False otherwise (including if no receivers are configured).
+        Returns True for successful delivery of all the expected messages,
+        False otherwise (including if no receivers are configured).
         """
 
         if logger is None:
@@ -85,7 +81,8 @@ class ExtendedApplication(telegram.ext.Application):
         if receivers is None:
             return False
 
-        async def _send(receiver_: Union[str, int]):
+        async def _send(receiver_: Union[str, int]) -> None:
+            logger.debug(f"Trying to send message for {share_type} ({share_id}) to {receiver_!r} ...")
             message = await self.bot.send_message(
                 chat_id=receiver_,
                 text=text,
@@ -97,14 +94,18 @@ class ExtendedApplication(telegram.ext.Application):
             logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
 
         shared_messages = self.client.shared_messages.get_messages(share_type, share_id)
+        coroutines = []
         for receiver in set(receivers):
             if receiver in [int(m.chat_id) for m in shared_messages] + excluded:
                 continue
-            if job_queue:
-                self.job_queue.run_once(lambda: _send(receiver), 0)
-            else:
-                await _send(receiver)
-        return True
+            coroutines.append(_send(receiver))
+        errors = [obj for obj in await asyncio.gather(*coroutines, return_exceptions=True) if obj is not None]
+        for err in errors:
+            self.logger.error(
+                f"Sending didn't complete successfully for 'send_auto_share_messages' with {share_type} {share_id}",
+                exc_info=err
+            )
+        return len(errors) == 0
 
     async def update_shared_messages(
             self,
@@ -114,8 +115,7 @@ class ExtendedApplication(telegram.ext.Application):
             logger: Optional[logging.Logger] = None,
             keyboard: Optional[telegram.InlineKeyboardMarkup] = None,
             try_parse_mode: telegram.constants.ParseMode = telegram.constants.ParseMode.MARKDOWN,
-            delete_shared_messages: bool = False,
-            job_queue: bool = True
+            delete_shared_messages: bool = False
     ) -> bool:
         """
         Update all shared messages of a given share type and ID with some text
@@ -127,10 +127,6 @@ class ExtendedApplication(telegram.ext.Application):
         database (the Telegram message will be edited with the specified text,
         not deleted!). This prevents duplicate and outdated shared messages
         if a group operation (e.g., a communism) is closed or aborted.
-
-        If the job queue is set to False, all messages will be sent out in
-        order and will be awaited, which may slow down the calling function.
-        Otherwise, all jobs will be created to be executed in the next seconds.
 
         Returns True if no error occurred while sending or parsing messages.
         """
@@ -145,7 +141,8 @@ class ExtendedApplication(telegram.ext.Application):
                 if not str(exc).startswith("Message is not modified: specified new message content"):
                     raise
 
-        async def _handle_update(m: _shared_messages.SharedMessage):
+        async def _handle_update(m: _shared_messages.SharedMessage) -> None:
+            logger.debug(f"Trying to edit message {m.message_id} in chat {m.chat_id} by {share_type} ({share_id}) ...")
             await _edit_msg(
                 chat_id=m.chat_id,
                 message_id=m.message_id,
@@ -159,21 +156,16 @@ class ExtendedApplication(telegram.ext.Application):
 
         msgs = self.client.shared_messages.get_messages(share_type, share_id)
         logger.debug(f"Found {len(msgs)} shared messages for {share_type} ({share_id})")
-        success = True
-        for msg in msgs:
-            if job_queue:
-                self.job_queue.run_once(lambda: _handle_update(msg), 0)
-            else:
-                success = success and await _handle_update(msg)
-
-        if job_queue:
-            logger.debug("Detached calls to job queue, messages will be updated soon")
-        else:
-            if success:
-                logger.debug("Successfully updated all shared messages")
-            else:
-                logger.warning(f"Failed to update at least one shared message for {share_type} {share_id}")
-        return success
+        coroutines = [_handle_update(msg) for msg in msgs]
+        errors = [obj for obj in await asyncio.gather(*coroutines, return_exceptions=True) if obj is not None]
+        for err in errors:
+            self.logger.error(
+                f"Sending didn't complete successfully for 'send_auto_share_messages' with {share_type} {share_id}",
+                exc_info=err
+            )
+        if len(errors) == 0:
+            self.logger.debug("No errors encountered while editing the shared messages")
+        return len(errors) == 0
 
 
 # Global variables are discouraged but currently required to allow

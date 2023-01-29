@@ -48,7 +48,7 @@ async def handle_alias_confirmation_requested(event: schemas.Event):
         f"Alias username: {alias.username}"
     )
 
-    message = _app.bot.send_message(
+    message = await _app.bot.send_message(
         user[0],
         msg,
         reply_markup=telegram.InlineKeyboardMarkup([

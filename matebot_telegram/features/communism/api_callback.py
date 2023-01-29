@@ -17,8 +17,7 @@ async def handle_communism_created(event: schemas.Event):
         shared_messages.ShareType.COMMUNISM,
         communism_id,
         await common.get_text(_app.client, communism),
-        keyboard=common.get_keyboard(communism),
-        job_queue=True
+        keyboard=common.get_keyboard(communism)
     )
 
 
@@ -30,8 +29,7 @@ async def handle_communism_updated(event: schemas.Event):
         shared_messages.ShareType.COMMUNISM,
         communism_id,
         await common.get_text(_app.client, communism),
-        keyboard=common.get_keyboard(communism),
-        job_queue=True
+        keyboard=common.get_keyboard(communism)
     )
 
 
@@ -44,6 +42,5 @@ async def handle_communism_closed(event: schemas.Event):
         communism_id,
         await common.get_text(_app.client, communism),
         keyboard=common.get_keyboard(communism),
-        delete_shared_messages=True,
-        job_queue=True
+        delete_shared_messages=True
     )

@@ -51,8 +51,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
             self.logger,
             common.get_keyboard(communism),
             telegram.constants.ParseMode.MARKDOWN,
-            delete_shared_messages=delete,
-            job_queue=True
+            delete_shared_messages=delete
         )
 
     async def join(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:

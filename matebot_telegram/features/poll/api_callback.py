@@ -17,8 +17,7 @@ async def handle_poll_created(event: schemas.Event):
         shared_messages.ShareType.POLL,
         poll_id,
         await common.get_text(_app.client, poll),
-        keyboard=common.get_keyboard(poll),
-        job_queue=True
+        keyboard=common.get_keyboard(poll)
     )
 
 
@@ -30,8 +29,7 @@ async def handle_poll_updated(event: schemas.Event):
         shared_messages.ShareType.POLL,
         poll_id,
         await common.get_text(_app.client, poll),
-        keyboard=common.get_keyboard(poll),
-        job_queue=True
+        keyboard=common.get_keyboard(poll)
     )
 
 
@@ -44,6 +42,5 @@ async def handle_poll_closed(event: schemas.Event):
         poll_id,
         await common.get_text(_app.client, poll),
         keyboard=common.get_keyboard(poll),
-        delete_shared_messages=True,
-        job_queue=True
+        delete_shared_messages=True
     )

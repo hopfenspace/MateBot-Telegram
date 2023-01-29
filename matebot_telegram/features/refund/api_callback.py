@@ -17,8 +17,7 @@ async def handle_refund_created(event: schemas.Event):
         shared_messages.ShareType.REFUND,
         refund_id,
         await common.get_text(None, refund),
-        keyboard=common.get_keyboard(refund),
-        job_queue=True
+        keyboard=common.get_keyboard(refund)
     )
 
 
@@ -30,8 +29,7 @@ async def handle_refund_updated(event: schemas.Event):
         shared_messages.ShareType.REFUND,
         refund_id,
         await common.get_text(None, refund),
-        keyboard=common.get_keyboard(refund),
-        job_queue=True
+        keyboard=common.get_keyboard(refund)
     )
 
 
@@ -44,6 +42,5 @@ async def handle_refund_closed(event: schemas.Event):
         refund_id,
         await common.get_text(None, refund),
         keyboard=common.get_keyboard(refund),
-        delete_shared_messages=True,
-        job_queue=True
+        delete_shared_messages=True
     )

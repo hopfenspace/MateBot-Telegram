@@ -7,7 +7,6 @@ from matebot_sdk import exceptions
 
 from . import common
 from ..base import BaseCommand, err, ExtendedContext, Namespace, types
-from ... import util
 
 
 class HelpCommand(BaseCommand):
@@ -45,14 +44,8 @@ class HelpCommand(BaseCommand):
                 user = await context.application.client.get_core_user(update.effective_message.from_user)
             except (err.MateBotException, exceptions.APIConnectionException):
                 msg = await common.get_help_usage(self.usage, context.application.client, None)
-                await util.safe_call(
-                    lambda: update.effective_message.reply_markdown(msg),
-                    lambda: update.effective_message.reply_text(msg)
-                )
+                await update.effective_message.reply_markdown(msg)
                 raise
             msg = await common.get_help_usage(self.usage, context.application.client, user)
 
-        await util.safe_call(
-            lambda: update.effective_message.reply_markdown(msg),
-            lambda: update.effective_message.reply_text(msg)
-        )
+        await update.effective_message.reply_markdown(msg)

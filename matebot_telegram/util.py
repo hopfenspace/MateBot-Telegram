@@ -7,34 +7,14 @@ import json
 import logging
 import threading
 import traceback
-from typing import Any, Callable
 
 import telegram.ext
 
 from . import config
 
 
-_logger = logging.getLogger("util")
+_logger = logging.getLogger("mbt.util")
 _auto_send_lock = threading.Lock()
-
-
-async def safe_call(
-        default: Callable[[], Any],
-        fallback: Callable[[], Any],
-        use_result: bool = False,
-        logger: logging.Logger = None
-) -> Any:
-    try:
-        result = await default()
-        return result if use_result else True
-    except telegram.error.BadRequest as exc:
-        if not str(exc).startswith("Can't parse entities"):
-            raise
-        logger = logger or _logger
-        logger.exception(f"Calling sender function {default} failed due to entity parsing problems: {exc!s}")
-        result = await fallback()
-        logger.debug(f"Calling fallback function {fallback} was successful instead.")
-        return result if use_result else False
 
 
 async def log_error(update: telegram.Update, context: telegram.ext.ContextTypes.DEFAULT_TYPE) -> None:

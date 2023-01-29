@@ -6,7 +6,6 @@ import telegram
 from matebot_sdk import schemas
 
 from ..base import BaseCommand, ExtendedContext, Namespace, types
-from ... import util
 
 
 class VouchCommand(BaseCommand):
@@ -116,10 +115,7 @@ class VouchCommand(BaseCommand):
                     )
                 ]
             ])
-            await util.safe_call(
-                lambda: update.effective_message.reply_markdown(text, reply_markup=keyboard),
-                lambda: update.effective_message.reply_text(text, reply_markup=keyboard)
-            )
+            await update.effective_message.reply_markdown(text, reply_markup=keyboard)
 
         if update.effective_message.chat.type != telegram.Chat.PRIVATE:
             await update.effective_message.reply_text("This command should be executed in private chat.")
@@ -133,10 +129,7 @@ class VouchCommand(BaseCommand):
             if args.user.voucher_id == sender.id:
                 msg = f"You already vouch for {args.user.name}. If you " \
                     "want to stop this, use the command `/vouch stop <username>`."
-                await util.safe_call(
-                    lambda: update.effective_message.reply_text(msg, parse_mode=telegram.constants.ParseMode.MARKDOWN),
-                    lambda: update.effective_message.reply_text(msg)
-                )
+                await update.effective_message.reply_markdown(msg)
 
             else:
                 await reply(

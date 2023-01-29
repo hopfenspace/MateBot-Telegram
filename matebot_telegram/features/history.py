@@ -11,7 +11,6 @@ import telegram
 from matebot_sdk import schemas
 
 from .base import BaseCommand, ExtendedContext, Namespace, types
-from .. import util
 
 
 class HistoryCommand(BaseCommand):
@@ -170,7 +169,9 @@ class HistoryCommand(BaseCommand):
 
         logs = [
             format_transaction(t)
-            for t in await context.application.client.get_transactions(member_id=user.id, limit=args.length, descending=True)
+            for t in await context.application.client.get_transactions(
+                member_id=user.id, limit=args.length, descending=True
+            )
         ][::-1]
 
         if len(logs) == 0:
@@ -181,10 +182,7 @@ class HistoryCommand(BaseCommand):
         heading = f"Transaction history for {user.name}:\n```"
         text = f"{heading}\n{log}```"
         if len(text) < 4096:
-            await util.safe_call(
-                lambda: update.effective_message.reply_markdown_v2(text),
-                lambda: update.effective_message.reply_text(text)
-            )
+            await update.effective_message.reply_markdown_v2(text)
             return
 
         if update.effective_message.chat.type != update.effective_chat.PRIVATE:
@@ -198,16 +196,10 @@ class HistoryCommand(BaseCommand):
             for entry in logs:
                 if len("\n".join(results + [entry])) > 4096:
                     results.append("```")
-                    await util.safe_call(
-                        lambda: update.effective_message.reply_markdown_v2("\n".join(results)),
-                        lambda: update.effective_message.reply_text("\n".join(results))
-                    )
+                    await update.effective_message.reply_markdown_v2("\n".join(results))
                     results = ["```"]
                 results.append(entry)
 
             if len(results) > 0:
                 text = "\n".join(results + ["```"])
-                await util.safe_call(
-                    lambda: update.effective_message.reply_markdown_v2(text),
-                    lambda: update.effective_message.reply_text(text)
-                )
+                await update.effective_message.reply_markdown_v2(text)

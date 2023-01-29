@@ -8,7 +8,6 @@ from typing import Optional
 from matebot_sdk import schemas
 
 from ..base import BaseCommand, ExtendedContext, Namespace, types
-from ... import util
 
 
 class PollCommand(BaseCommand):
@@ -62,7 +61,4 @@ class PollCommand(BaseCommand):
             telegram.InlineKeyboardButton("Don't open a poll now", callback_data=f(None))
         ]])
 
-        await util.safe_call(
-            lambda: update.effective_message.reply_text(content, reply_markup=keyboard, parse_mode="Markdown"),
-            lambda: update.effective_message.reply_text(content, reply_markup=keyboard)
-        )
+        await update.effective_message.reply_markdown(content, reply_markup=keyboard)

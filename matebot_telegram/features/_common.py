@@ -39,11 +39,7 @@ async def new_group_operation(
     text = await get_text(result)
     keyboard = get_keyboard(result)
 
-    message: telegram.Message = await util.safe_call(
-        lambda: reply_message.reply_markdown(text, reply_markup=keyboard),
-        lambda: reply_message.reply_text(text, reply_markup=keyboard),
-        use_result=True
-    )
+    message: telegram.Message = await reply_message.reply_markdown(text, reply_markup=keyboard)
     if not sdk.shared_messages.add_message_by(share_type, result.id, message.chat_id, message.message_id):
         logger.error(f"Failed to add shared message for {share_type} {result.id}: {message.to_dict()}")
 
@@ -75,38 +71,22 @@ async def show_updated_group_operation(
     A group operation is currently only a communism or refund. Polls don't support 'show'.
     """
 
-    new_message = await util.safe_call(
-        lambda: msg.reply_markdown(text, reply_markup=keyboard),
-        lambda: msg.reply_text(text, reply_markup=keyboard),
-        use_result=True
-    )
+    new_message = await msg.reply_markdown(text, reply_markup=keyboard)
 
     for message in sdk.shared_messages.get_messages(share_type, operation_id):
         if message.chat_id != new_message.chat_id:
             continue
 
         try:
-            edited_message: telegram.Message = await util.safe_call(
-                lambda: msg.bot.edit_message_text(
-                    "\n\n".join(
-                        text.split("\n\n")[:-1]
-                        + ["_This message has been invalidated. Use the updated "
-                           f"message below to interact with this {share_type.value}._"]
-                    ),
-                    message.chat_id,
-                    message.message_id,
-                    parse_mode=telegram.constants.ParseMode.MARKDOWN
+            edited_message: telegram.Message = await msg.bot.edit_message_text(
+                "\n\n".join(
+                    text.split("\n\n")[:-1]
+                    + ["_This message has been invalidated. Use the updated "
+                       f"message below to interact with this {share_type.value}._"]
                 ),
-                lambda: msg.bot.edit_message_text(
-                    "\n\n".join(
-                        text.split("\n\n")[:-1]
-                        + ["_This message has been invalidated. Use the updated "
-                           f"message below to interact with this {share_type.value}._"]
-                    ),
-                    message.chat_id,
-                    message.message_id
-                ),
-                use_result=True
+                message.chat_id,
+                message.message_id,
+                parse_mode=telegram.constants.ParseMode.MARKDOWN
             )
         except telegram.error.TelegramError as exc:
             logger.warning(f"Failed to edit shared msg of {share_type} {operation_id}: {type(exc).__name__}: {exc!s}")

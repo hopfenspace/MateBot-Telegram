@@ -5,7 +5,6 @@ API callback handlers for the event VOUCHER_UPDATED
 from matebot_sdk import schemas
 
 from .. import _app
-from ... import util
 
 
 @_app.dispatcher.register_for(schemas.EventType.VOUCHER_UPDATED)
@@ -29,20 +28,14 @@ async def handle_voucher_updated(event: schemas.Event):
 
     if debtor_telegram is not None:
         if voucher_id is None:
-            await util.safe_call(
-                lambda: _app.bot.send_message(
-                    debtor_telegram[0],
-                    "Your voucher has been changed. You don't have any active voucher anymore. "
-                    f"Therefore, some features of the bot have just been disabled for you.{info}"
-                ),
-                lambda: None
+            await _app.bot.send_message(
+                debtor_telegram[0],
+                "Your voucher has been changed. You don't have any active voucher anymore. "
+                f"Therefore, some features of the bot have just been disabled for you.{info}"
             )
         elif voucher is not None:
-            await util.safe_call(
-                lambda: _app.bot.send_message(
-                    debtor_telegram[0],
-                    f"Good news! You have a new voucher user: {voucher.name}{voucher_alias} now "
-                    f"vouches for you and will be held responsible for your actions. See /help for details."
-                ),
-                lambda: None
+            await _app.bot.send_message(
+                debtor_telegram[0],
+                f"Good news! You have a new voucher user: {voucher.name}{voucher_alias} now "
+                f"vouches for you and will be held responsible for your actions. See /help for details."
             )

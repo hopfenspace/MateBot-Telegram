@@ -4,8 +4,7 @@ MateBot command executor classes for /send and its callback queries
 
 import telegram
 
-from ..base import BaseCommand, ExtendedContext, Namespace, types
-from ... import util
+from ..base import BaseCommand, ExtendedContext, Namespace, RLArgs, types
 
 
 class SendCommand(BaseCommand):
@@ -65,15 +64,21 @@ class SendCommand(BaseCommand):
             telegram.InlineKeyboardButton("CONFIRM", callback_data=e("confirm")),
             telegram.InlineKeyboardButton("ABORT", callback_data=e("abort"))
         ]])
-        await util.safe_call(
-            lambda: update.effective_message.reply_markdown(
+        try:
+            await context.bot.send_message(
+                update.effective_message.chat_id,
                 f"Do you want to send {formatted_amount} to {args.receiver.name}?\nDescription: `{reason}`",
-                reply_markup=keyboard
-            ),
-            lambda: update.effective_message.reply_text(
+                disable_web_page_preview=True,
+                parse_mode=telegram.constants.ParseMode.MARKDOWN,
+                reply_to_message_id=update.effective_message.message_id,
+                reply_markup=keyboard,
+                rate_limit_args=RLArgs(fix_parser_errors=False)
+            )
+        except telegram.error.BadRequest as exc:
+            self.logger.warning(f"BadRequest during send: {exc!s}")
+            await update.effective_message.reply_text(
                 f"Do you want to send {formatted_amount} to {args.receiver.name}?\n\n"
-                f"Attention: Since your description contains forbidden characters like underscores "
+                f"Attention: Since your description contains un-parseable characters like underscores "
                 f"or apostrophes, the description '<no reason>' will be used as a fallback value.",
                 reply_markup=keyboard
             )
-        )

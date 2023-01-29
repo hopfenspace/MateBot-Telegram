@@ -7,7 +7,6 @@ import time
 import telegram
 
 from .base import BaseCommand, err, ExtendedContext, Namespace
-from .. import util
 
 
 class DataCommand(BaseCommand):
@@ -104,7 +103,4 @@ class DataCommand(BaseCommand):
             f"Use the /history command to see your transaction log."
         )
 
-        await util.safe_call(
-            lambda: update.effective_message.reply_markdown(result),
-            lambda: update.effective_message.reply_text(result)
-        )
+        await update.effective_message.reply_markdown(result)

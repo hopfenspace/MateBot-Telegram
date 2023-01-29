@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 import telegram.ext
 import tornado.web
 
-from . import api_callback, client as _client, config as _config, shared_messages as _shared_messages, util as _util
+from . import api_callback, client as _client, config as _config, shared_messages as _shared_messages
 
 
 class ExtendedApplication(telegram.ext.Application):
@@ -86,21 +86,12 @@ class ExtendedApplication(telegram.ext.Application):
             return False
 
         async def _send(receiver_: Union[str, int]):
-            message = await _util.safe_call(
-                lambda: self.bot.send_message(
-                    chat_id=receiver_,
-                    text=text,
-                    parse_mode=try_parse_mode,
-                    disable_notification=disable_notification,
-                    reply_markup=keyboard,
-                ),
-                lambda: self.bot.send_message(
-                    chat_id=receiver_,
-                    text=text,
-                    disable_notification=disable_notification,
-                    reply_markup=keyboard,
-                ),
-                use_result=True
+            message = await self.bot.send_message(
+                chat_id=receiver_,
+                text=text,
+                parse_mode=try_parse_mode,
+                disable_notification=disable_notification,
+                reply_markup=keyboard
             )
             self.client.shared_messages.add_message_by(share_type, share_id, message.chat_id, message.message_id)
             logger.debug(f"Added message {message.message_id} in chat {message.chat_id} to {share_type} ({share_id})")
@@ -155,18 +146,11 @@ class ExtendedApplication(telegram.ext.Application):
                     raise
 
         async def _handle_update(m: _shared_messages.SharedMessage):
-            await _util.safe_call(
-                lambda: _edit_msg(
-                    chat_id=m.chat_id,
-                    message_id=m.message_id,
-                    parse_mode=try_parse_mode,
-                    reply_markup=keyboard
-                ),
-                lambda: _edit_msg(
-                    chat_id=m.chat_id,
-                    message_id=m.message_id,
-                    reply_markup=keyboard
-                )
+            await _edit_msg(
+                chat_id=m.chat_id,
+                message_id=m.message_id,
+                parse_mode=try_parse_mode,
+                reply_markup=keyboard
             )
             logger.debug(f"Updated message {m.message_id} in chat {m.chat_id} by {share_type} ({share_id})")
             if delete_shared_messages:

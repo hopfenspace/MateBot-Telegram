@@ -9,7 +9,6 @@ from matebot_sdk import schemas
 
 from .. import _app
 from ..base import BaseCommand, ExtendedContext, Namespace
-from ... import util
 
 
 def fmt_alias(alias: schemas.Alias, apps: List[schemas.Application]) -> str:
@@ -65,10 +64,7 @@ class AliasCommand(BaseCommand):
             applications = await context.application.client.get_applications()
             msg = f"You currently have the following registered aliases:\n" \
                   + "\n".join([fmt_alias(alias, applications) for alias in aliases])
-            await util.safe_call(
-                lambda: update.effective_message.reply_markdown_v2(msg),
-                lambda: update.effective_message.reply_text(msg)
-            )
+            await update.effective_message.reply_markdown_v2(msg)
 
         elif args.subcommand == "accept":
             aliases = await context.application.client.get_aliases(user_id=user.id, confirmed=False)

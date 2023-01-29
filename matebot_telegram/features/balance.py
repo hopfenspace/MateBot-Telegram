@@ -45,4 +45,6 @@ class BalanceCommand(BaseCommand):
                     f"Balance of {args.user.name} is: {context.application.client.format_balance(args.user)}"
                 )
         else:
-            await update.effective_message.reply_text(f"Your balance is: {context.application.client.format_balance(user)}")
+            await update.effective_message.reply_text(
+                f"Your balance is: {context.application.client.format_balance(user)}"
+            )

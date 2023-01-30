@@ -34,7 +34,6 @@ class Configuration(_pydantic.BaseModel):
     class ChatConfiguration(_pydantic.BaseModel):
         transactions: List[int]
         notification: List[int]
-        stacktrace: List[int]
         debugging: List[int]
 
     application: _pydantic.constr(max_length=255)

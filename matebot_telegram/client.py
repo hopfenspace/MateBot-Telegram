@@ -4,13 +4,14 @@ MateBot SDK client to be used across the project
 
 from typing import Optional, Tuple, Union
 
+import httpx
 import telegram.ext
 
 from matebot_sdk.sdk import AsyncSDK
 from matebot_sdk.schemas import User as _User
 
 # Note that there's another import in the `format_balance` staticmethod
-from . import database, err, models, shared_messages as _shared_messages
+from . import config, database, err, models, shared_messages as _shared_messages
 
 
 class AsyncMateBotSDKForTelegram(AsyncSDK):
@@ -19,6 +20,23 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.shared_messages = _shared_messages.SharedMessageHandler()
+
+    async def check_telegram_connectivity(self, conf: config.Configuration, timeout: Optional[float] = None) -> bool:
+        """
+        Try reaching the Telegram API manually to verify its connectivity
+        """
+
+        try:
+            self._logger.debug("Trying to connect to the Telegram API manually to verify connectivity ...")
+            if timeout:
+                r = await self._client.get(f"https://api.telegram.org/bot{conf.token}/getme", timeout=timeout)
+            else:
+                r = await self._client.get(f"https://api.telegram.org/bot{conf.token}/getme")
+            r.raise_for_status()
+        except httpx.HTTPError as exc:
+            self._logger.warning(f"Verifying connectivity to Telegram API failed: {exc!r}")
+            return False
+        return True
 
     @classmethod
     def get_new_session(cls) -> database.Session:

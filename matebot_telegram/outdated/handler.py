@@ -33,7 +33,7 @@ class FilteredChosenInlineResultHandler(telegram.ext.Handler):
 
         :param update: incoming Telegram Update
         :type update: telegram.Update
-        :return: information to the dispatcher if this handler should handle the update
+        :return: information to the application if this handler should handle the update
         :rtype: typing.Union[bool, re.Match]
         """
 

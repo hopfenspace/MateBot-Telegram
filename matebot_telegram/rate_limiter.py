@@ -72,10 +72,12 @@ class RetryLimiter(telegram.ext.BaseRateLimiter):
             try:
                 return await callback(*args, **kwargs)
             except telegram.error.RetryAfter as exc:
-                self._logger.info(f"Rate limit hit. Retrying {callback} in {exc.retry_after} seconds.")
-                await asyncio.sleep(exc.retry_after)
+                # Not waiting the full delayed time is sometimes useful to speed up execution for high delays
+                t = round(float(exc.retry_after) / 2, 1) if exc.retry_after > 5 else float(exc.retry_after)
+                self._logger.info(f"Rate limit hit. Retrying call to {endpoint!r} in {t} of {exc.retry_after} seconds.")
+                await asyncio.sleep(t / 2)
             except telegram.error.TimedOut:
-                self._logger.info(f"Timeout occurred. Retrying {callback} in {timeout_retry} seconds.")
+                self._logger.info(f"Timeout occurred. Retrying call to {endpoint!r} in {timeout_retry} seconds.")
                 await asyncio.sleep(timeout_retry)
                 timeout_retry *= 2
             except telegram.error.TelegramError as exc:
@@ -128,7 +130,7 @@ class ParseModeFixingLimiter(RetryLimiter):
 
         except telegram.error.BadRequest as exc:
             if not str(exc).startswith(type(self).PARSER_ERROR_PHRASE):
-                self._logger.warning("Upcoming BadRequest could not be prevented by dropping the parse mode")
+                self._logger.debug("Upcoming BadRequest could not be prevented by dropping the parse mode")
                 raise
             self._logger.debug(f"BadRequest with parser error encountered for endpoint {endpoint!r}")
             if not rate_limit_args.fix_parser_errors or "parse_mode" not in data:

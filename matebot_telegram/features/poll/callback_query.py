@@ -8,8 +8,7 @@ import telegram
 from matebot_sdk import exceptions, schemas
 
 from . import common
-from ..base import BaseCallbackQuery, ExtendedContext
-from .. import _common  # TODO: Rework the structure to drop this import
+from ..base import BaseCallbackQuery, ExtendedContext, group_operations
 from ... import shared_messages
 
 
@@ -61,13 +60,14 @@ class PollCallbackQuery(BaseCallbackQuery):
 
         user = (await context.application.client.get_users(affected_user))[0]
         issuer = await context.application.client.get_core_user(update.callback_query.from_user)
-        await _common.new_group_operation(
-            context.application.client.create_poll(affected_user, issuer, poll_type),
-            context.application.client,
-            lambda p: common.get_text(context.application.client, p),
-            common.get_keyboard,
-            update.callback_query.message,
+        poll = await context.application.client.create_poll(affected_user, issuer, poll_type)
+        await group_operations.new(
+            poll,
             shared_messages.ShareType.POLL,
+            context,
+            await common.get_text(context.application.client, poll),
+            common.get_keyboard(poll),
+            update.callback_query.message,
             self.logger
         )
         await update.callback_query.message.edit_text(

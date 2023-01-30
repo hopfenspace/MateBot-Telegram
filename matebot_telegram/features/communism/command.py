@@ -5,8 +5,7 @@ MateBot command executor class for /communism
 import telegram.ext
 
 from . import common
-from ..base import BaseCommand, ExtendedContext, Namespace, types
-from .. import _common  # TODO: Drop this import in favor of a restructured handler function
+from ..base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ... import shared_messages
 from ...parsing.actions import JoinAction
 
@@ -52,13 +51,14 @@ class CommunismCommand(BaseCommand):
         user = await context.application.client.get_core_user(update.effective_message.from_user)
 
         if args.subcommand is None:
-            return await _common.new_group_operation(
-                context.application.client.create_communism(user, args.amount, args.reason),
-                context.application.client,
-                lambda c: common.get_text(context.application.client, c),
-                common.get_keyboard,
-                update.effective_message,
+            communism = await context.application.client.create_communism(user, args.amount, args.reason)
+            return await group_operations.new(
+                communism,
                 shared_messages.ShareType.COMMUNISM,
+                context,
+                await common.get_text(context.application.client, communism),
+                common.get_keyboard(communism),
+                update.effective_message,
                 self.logger
             )
 
@@ -68,13 +68,13 @@ class CommunismCommand(BaseCommand):
             return
 
         if args.subcommand == "show":
-            await _common.show_updated_group_operation(
-                context.application.client,
-                update.effective_message,
+            await group_operations.show(
+                active_communisms[-1],
+                shared_messages.ShareType.COMMUNISM,
+                context,
                 await common.get_text(context.application.client, active_communisms[-1]),
                 common.get_keyboard(active_communisms[-1]),
-                shared_messages.ShareType.COMMUNISM,
-                active_communisms[-1].id,
+                update.effective_message,
                 self.logger
             )
 
@@ -89,8 +89,7 @@ class CommunismCommand(BaseCommand):
                 text,
                 logger=self.logger,
                 keyboard=keyboard,
-                delete_shared_messages=True,
-                job_queue=True
+                delete_shared_messages=True
             )
             await update.effective_message.reply_text(
                 f"You have aborted your most recent communism of "

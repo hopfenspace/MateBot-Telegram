@@ -7,8 +7,7 @@ from typing import ClassVar
 import telegram
 
 from . import common
-from ..base import BaseCommand, ExtendedContext, Namespace, types
-from .. import _common  # TODO: Rework to finally drop this import
+from ..base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ... import shared_messages
 from ...parsing.actions import JoinAction
 
@@ -52,19 +51,22 @@ class RefundCommand(BaseCommand):
         sender = await context.application.client.get_core_user(update.effective_message.from_user)
 
         if args.subcommand is None:
-            return await _common.new_group_operation(
-                context.application.client.create_refund(sender, args.amount, args.reason),
-                context.application.client,
-                lambda p: common.get_text(None, p),
-                common.get_keyboard,
-                update.effective_message,
+            refund = await context.application.client.create_refund(sender, args.amount, args.reason)
+            return await group_operations.new(
+                refund,
                 shared_messages.ShareType.REFUND,
+                context,
+                await common.get_text(None, refund),
+                common.get_keyboard(refund),
+                update.effective_message,
                 self.logger
             )
 
         active_refunds = await context.application.client.get_refunds(active=True, creator_id=sender.id)
         if not active_refunds:
-            await update.effective_message.reply_text(f"You don't have a {type(self).COMMAND_NAME} request in progress.")
+            await update.effective_message.reply_text(
+                f"You don't have a {type(self).COMMAND_NAME} request in progress."
+            )
             return
 
         if len(active_refunds) > 1:
@@ -74,13 +76,13 @@ class RefundCommand(BaseCommand):
             )
 
         if args.subcommand == "show":
-            await _common.show_updated_group_operation(
-                context.application.client,
-                update.effective_message,
+            await group_operations.show(
+                active_refunds[-1],
+                shared_messages.ShareType.REFUND,
+                context,
                 await common.get_text(None, active_refunds[-1]),
                 common.get_keyboard(active_refunds[-1]),
-                shared_messages.ShareType.REFUND,
-                active_refunds[-1].id,
+                update.effective_message,
                 self.logger
             )
 

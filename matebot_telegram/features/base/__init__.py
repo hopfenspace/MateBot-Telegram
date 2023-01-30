@@ -3,6 +3,7 @@ from .command import BaseCommand
 from .inline import BaseInlineQuery, BaseInlineResult
 from .message import BaseMessage
 from ._common import err, ExtendedContext
+from . import group_operations
 
 from ...parsing import types
 from ...parsing.util import Namespace

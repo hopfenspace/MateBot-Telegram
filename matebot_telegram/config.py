@@ -50,6 +50,7 @@ class Configuration(_pydantic.BaseModel):
     callback: CallbackConfiguration
     auto_forward: AutoForwardConfiguration
     chats: ChatConfiguration
+    base_logger: str
     logging: dict
 
 

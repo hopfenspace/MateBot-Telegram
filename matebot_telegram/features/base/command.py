@@ -5,13 +5,12 @@ The base class provides argument parsing and error handling for subclasses
 """
 
 import os
-
-import logging
 from typing import ClassVar, Dict, Optional
 
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
+from .. import _app
 from ... import err
 from ...parsing.parser import CommandParser
 from ...parsing.util import Namespace
@@ -51,7 +50,7 @@ class BaseCommand(CommonBase):
     AVAILABLE_COMMANDS: ClassVar[Dict[str, "BaseCommand"]] = {}
 
     def __init__(self, name: str, description: str, usage: Optional[str] = None):
-        super().__init__(logging.getLogger("mbt.command"))
+        super().__init__(_app.logger.getChild("command").getChild(type(self).__name__))
         self.name = name
         self._usage = usage
         self.description = description

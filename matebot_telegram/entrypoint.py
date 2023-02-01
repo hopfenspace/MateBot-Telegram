@@ -17,8 +17,9 @@ from matebot_sdk.exceptions import APIConnectionException
 from . import api_callback, application as _app, client, config, context, database, rate_limiter, persistence
 
 
-def get_init(logger: logging.Logger):
+def get_init(base_logger: logging.Logger):
     async def init(application: _app.ExtendedApplication):
+        logger = base_logger.getChild("init")
         logger.info("Setting up the SDK")
         logger.debug(f"Running threads: {threading.enumerate()}")
 
@@ -31,7 +32,7 @@ def get_init(logger: logging.Logger):
                 app_name=application.config.application,
                 password=application.config.password,
                 callback=callback,
-                logger=logging.getLogger("mbt.client"),
+                logger=base_logger.getChild("client"),
                 verify=application.config.ssl_verify and (application.config.ca_path or True),
                 user_agent=application.config.user_agent or None
             )
@@ -91,24 +92,24 @@ def get_shutdown(logger: logging.Logger):
 
 def main(conf: config.Configuration) -> int:
     logging.config.dictConfig(conf.logging)
-    logger = logging.getLogger("mbt.root")
-    logger.info("Starting application ...")
+    base_logger = logging.getLogger(conf.base_logger)
+    base_logger.info("Starting application ...")
 
     database.init(conf.database_url, echo=conf.database_debug)
-    init = get_init(logging.getLogger("mbt.init"))
+    init = get_init(base_logger)
     application = (
         ApplicationBuilder()
-        .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt")})
+        .application_class(_app.ExtendedApplication, {"config": conf, "logger": base_logger})
         .token(conf.token)
         .context_types(context.ExtendedContextType)
         .arbitrary_callback_data(1024)
-        .persistence(persistence.BotPersistence(logging.getLogger("mbt.persistence"), update_interval=10))
+        .persistence(persistence.BotPersistence(base_logger.getChild("persistence"), update_interval=10))
         .post_init(init)
-        .post_shutdown(get_shutdown(logging.getLogger("mbt.shutdown")))
-        .rate_limiter(rate_limiter.ParseModeFixingLimiter(logging.getLogger("mbt.limit")))
+        .post_shutdown(get_shutdown(base_logger.getChild("shutdown")))
+        .rate_limiter(rate_limiter.ParseModeFixingLimiter(base_logger.getChild("limit")))
         .build()
     )
 
     application.run_polling()
-    logger.info("Stopped MateBot Telegram.")
+    base_logger.info("Stopped MateBot Telegram.")
     return 0

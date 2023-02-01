@@ -4,12 +4,12 @@ Base class for callback queries used by this bot
 The base class provides target method detection and error handling for subclasses
 """
 
-import logging
 from typing import Awaitable, Callable, Dict, Optional
 
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
+from .. import _app
 
 
 class BaseCallbackQuery(CommonBase):
@@ -48,7 +48,6 @@ class BaseCallbackQuery(CommonBase):
     name: str
     pattern: str
     targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
-    logger: logging.Logger
 
     def __init__(
             self,
@@ -56,7 +55,7 @@ class BaseCallbackQuery(CommonBase):
             pattern: str,
             targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
     ):
-        super().__init__(logging.getLogger("mbt.callback"))
+        super().__init__(_app.logger.getChild("callback").getChild(type(self).__name__))
         if not isinstance(targets, dict):
             raise TypeError("Expected dict or None")
 

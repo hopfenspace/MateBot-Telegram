@@ -8,6 +8,7 @@
     "ca_path": "<Optional path to a CA file for TLS connections to the API server; empty string for system CA>",
     "user_agent": "<Optional specific user agent string used to query the API server; empty string for default>",
     "token": "<Telegram bot token>",
+    "base_logger": "mbt (name of the base/parent logger for this program)",
     "workers": 1,
     "currency": {
         "digits": 2,

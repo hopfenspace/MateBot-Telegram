@@ -4,12 +4,12 @@ Base class for Telegram message handling used by this bot
 The base class provides argument parsing and error handling for subclasses
 """
 
-import logging
 from typing import Optional
 
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
+from .. import _app
 
 
 class BaseMessage(CommonBase):
@@ -21,7 +21,7 @@ class BaseMessage(CommonBase):
     """
 
     def __init__(self, prefix: Optional[str]):
-        super().__init__(logging.getLogger("mbt.message"))
+        super().__init__(_app.logger.getChild("message").getChild(type(self).__name__))
         self.prefix = prefix
 
     async def run(self, message: telegram.Message, context: ExtendedContext) -> None:

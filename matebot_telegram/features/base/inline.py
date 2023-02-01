@@ -4,11 +4,10 @@ Base class for inline queries and inline results used by this bot
 The base class provides argument parsing and error handling for subclasses
 """
 
-import logging
-
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
+from .. import _app
 
 
 class BaseInlineQuery(CommonBase):
@@ -20,7 +19,7 @@ class BaseInlineQuery(CommonBase):
     """
 
     def __init__(self, pattern: str):
-        super().__init__(logging.getLogger("mbt.inline"))
+        super().__init__(_app.logger.getChild("inline").getChild(type(self).__name__))
         self.pattern = pattern
 
     async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:
@@ -121,7 +120,7 @@ class BaseInlineResult(CommonBase):
     """
 
     def __init__(self, pattern: str):
-        super().__init__(logging.getLogger("mbt.inline-result"))
+        super().__init__(_app.logger.getChild("inline-result").getChild(type(self).__name__))
         self.pattern = pattern
 
     async def __call__(self, update: telegram.Update, context: ExtendedContext) -> None:

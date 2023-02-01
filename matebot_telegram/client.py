@@ -162,7 +162,7 @@ class AsyncMateBotSDKForTelegram(AsyncSDK):
 
         pretty = None
         if isinstance(identifier, telegram.User):
-            pretty = identifier.username or identifier.first_name
+            pretty = f"@{identifier.username}" or identifier.first_name
             identifier = identifier.id
         if isinstance(identifier, str):
             pretty = identifier

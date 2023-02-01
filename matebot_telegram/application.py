@@ -13,6 +13,27 @@ from . import api_callback, client as _client, config as _config, shared_message
 
 
 class ExtendedApplication(telegram.ext.Application):
+    """
+    Extended version of PTB's Application class to combine various core components in one place
+
+    Since the application is part of the context given to handler coroutines,
+    the handlers can easily access the application and its attributes to access
+    various program key components. Those components include the following:
+     - a logger which may be used to create children (but not used directly)
+     - the configured MateBot SDK instance which can be queried to
+       interact with the core API server
+     - the loaded program configuration for easier access without reloading
+     - the dispatcher of API callback requests used to register new callback
+       handlers via the ``dispatcher.register`` function
+     - the callback server which is a HTTP server listening for incoming
+       API callback requests to be forwarded to the dispatcher
+
+    Additionally, it provides two convenient methods to handle shared messages.
+
+    Do not create more than one instance of this class, since handling multiple
+    SDK instances, callback servers and application listeners is not supported.
+    """
+
     client: _client.AsyncMateBotSDKForTelegram
     config: _config.Configuration
     logger: logging.Logger
@@ -26,7 +47,7 @@ class ExtendedApplication(telegram.ext.Application):
 
         # Storing the logger here provides the advantage of easier changes if necessary
         # (the API callback handlers should therefore use `app.event_logger` for logging)
-        self._api_event_handler_logger = logging.getLogger("mbt.api-event")
+        self._api_event_handler_logger = self.logger.getChild("api-event")
 
         self.client = None  # noqa, the client has to be set in the post_init method
         self.dispatcher = None  # noqa, the dispatcher has to be set in the post_init method

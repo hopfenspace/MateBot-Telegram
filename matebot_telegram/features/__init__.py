@@ -119,8 +119,6 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from . import api_callbacks
 
     from .base.filter import CommandMessageFilter, ReplyMessageFilter
-    # from .handler import FilteredChosenInlineResultHandler
-    # from .message import CatchallReplyMessage
 
     from .alias import AliasCommand, AliasCallbackQuery
     from .balance import BalanceCommand
@@ -135,7 +133,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from .poll import PollCommand, PollCallbackQuery
     from .refund import PayCommand, RefundCommand, RefundCallbackQuery
     from .send import SendCommand, SendCallbackQuery
-    from .start import StartCommand, StartCallbackQuery
+    from .start import StartCommand, StartCallbackQuery, StartReplyMessage
     from .username import UsernameCommand
     from .vouch import VouchCommand, VouchCallbackQuery
     from .zwegat import ZwegatCommand
@@ -180,10 +178,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     ]:
         application.add_handler(telegram.ext.CallbackQueryHandler(callback_query, pattern=callback_query.pattern))
 
-    for message, filter_obj, group in [
-        (ForwardReplyMessage(), ReplyMessageFilter("forward"), 2),
-        # (CatchallReplyMessage(), ReplyMessageFilter(None), 2),
-    ]:
-        application.add_handler(telegram.ext.MessageHandler(filter_obj, message, block=False), group=group)
+    application.add_handler(telegram.ext.MessageHandler(ReplyMessageFilter("forward"), ForwardReplyMessage()))
+    application.add_handler(telegram.ext.MessageHandler(ReplyMessageFilter("start"), StartReplyMessage()))
 
     application.add_handler(telegram.ext.InlineQueryHandler(HelpInlineQuery("")))

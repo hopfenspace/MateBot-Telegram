@@ -1,28 +1,26 @@
 """
-MateBot catchall message classes
+MateBot message handler for the signup procedure (initiated by the command /start)
 """
 
 import telegram.ext
 from matebot_sdk.exceptions import MateBotSDKException
 
-from .. import persistence
-from .base import BaseMessage
-
-# TODO: Rework everything
+from ..base import BaseMessage, ExtendedContext
+from ... import models
 
 
-class CatchallReplyMessage(BaseMessage):
+class StartReplyMessage(BaseMessage):
     """
-    Catchall handler for reply messages to a message sent by the bot itself
+    Message handler for registering new users and selecting foreign aliases or setting custom usernames
     """
 
     def __init__(self):
-        super().__init__(None)
+        super().__init__("start")
 
-    async def run(self, msg: telegram.Message, context: telegram.ext.CallbackContext) -> None:
+    async def run(self, msg: telegram.Message, context: ExtendedContext) -> None:
         sender = msg.from_user.id
-        with self.client.get_new_session() as session:
-            record = session.query(persistence.RegistrationProcess).get(msg.from_user.id)
+        with context.application.client.get_new_session() as session:
+            record = session.query(models.RegistrationProcess).get(msg.from_user.id)
             if record is None:
                 # No message is expected if the user isn't currently signing up
                 return
@@ -31,14 +29,7 @@ class CatchallReplyMessage(BaseMessage):
                 # Expecting the foreign app alias as the content of the message
                 alias = msg.text
                 app = record.application_id
-                users = await self.client.get_users(
-                    community=False,
-                    active=True,
-                    alias_application_id=app,
-                    alias_confirmed=True,
-                    alias_username=alias
-                )
-                apps = await self.client.get_applications(id=app)
+                apps = await context.application.client.get_applications(id=app)
                 if len(apps) != 1:
                     self.logger.warning(f"App {app} doesn't exist while connecting new user account")
                     await msg.reply_text(
@@ -48,16 +39,23 @@ class CatchallReplyMessage(BaseMessage):
                         ]])
                     )
                     return
-                app_name = apps[0].name
+
+                users = await context.application.client.get_users(
+                    community=False,
+                    active=True,
+                    alias_application_id=app,
+                    alias_confirmed=True,
+                    alias_username=alias
+                )
                 if len(users) == 1:
                     user = users[0]
                 else:
                     try:
-                        user = await self.client.get_user(alias)
+                        user = await context.application.client.get_user(alias)
                     except MateBotSDKException:
                         await msg.reply_text(
                             f"No user known as '{alias}' and no alias '{alias}' for application "
-                            f"{app_name!r} has been found. Please ensure that you "
+                            f"{apps[0].name!r} has been found. Please ensure that you "
                             f"spelled it correctly and try again by replying to this message.",
                             reply_markup=telegram.InlineKeyboardMarkup([[
                                 telegram.InlineKeyboardButton("ABORT SIGN-UP", callback_data=f"start abort {sender}")
@@ -81,7 +79,7 @@ class CatchallReplyMessage(BaseMessage):
             elif record.application_id == -1 and record.selected_username is None:
                 # Expecting the new username as the content of the message
                 username = msg.text
-                if await self.client.get_users(name=username):
+                if await context.application.client.get_users(name=username):
                     await msg.reply_text(
                         f"Sorry, the username '{username}' is not available. "
                         "Please choose another name by replying.",
@@ -100,7 +98,7 @@ class CatchallReplyMessage(BaseMessage):
                 return
 
             else:
-                await msg.reply_text("There's something odd, something that should not happen. Please file a bug report.")
+                await msg.reply_text("Sorry, something went wrong unexpectedly! :(\nPlease file a bug report.")
                 self.logger.debug(f"Record: {record.__dict__}")
                 self.logger.warning(f"Invalid registration setup for user {sender}")
                 raise RuntimeError("Registration record is in a bad state")

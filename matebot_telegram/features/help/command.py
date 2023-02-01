@@ -42,6 +42,10 @@ class HelpCommand(BaseCommand):
         else:
             try:
                 user = await context.application.client.get_core_user(update.effective_message.from_user)
+            except (err.UniqueUserNotFound, err.UserNotVerified, err.NoUserFound):
+                msg = await common.get_help_usage(self.usage, context.application.client, None)
+                await update.effective_message.reply_markdown(msg)
+                return
             except (err.MateBotException, exceptions.APIConnectionException):
                 msg = await common.get_help_usage(self.usage, context.application.client, None)
                 await update.effective_message.reply_markdown(msg)

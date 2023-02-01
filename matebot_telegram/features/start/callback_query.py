@@ -172,7 +172,10 @@ class StartCallbackQuery(BaseCallbackQuery):
             session.commit()
 
             await update.callback_query.message.edit_text(
-                "Which username to you want to use for your account? Please reply directly to this message."
+                "Which username to you want to use for your account? Please reply directly to this message.",
+                reply_markup=telegram.InlineKeyboardMarkup([[
+                    telegram.InlineKeyboardButton("ABORT SIGN-UP", callback_data=f"start abort {sender}")
+                ]])
             )
 
     async def select_app(self, update: telegram.Update, context: ExtendedContext, data: str):
@@ -205,5 +208,8 @@ class StartCallbackQuery(BaseCallbackQuery):
         await update.callback_query.message.edit_text(
             "What's the username you have used across the MateBot instances? "
             "It's required to connect your new account with the existing one. "
-            "Please reply to this message directly."
+            "Please reply to this message directly.",
+            reply_markup=telegram.InlineKeyboardMarkup([[
+                telegram.InlineKeyboardButton("ABORT SIGN-UP", callback_data=f"start abort {sender}")
+            ]])
         )

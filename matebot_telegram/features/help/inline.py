@@ -51,8 +51,8 @@ class HelpInlineQuery(BaseInlineQuery):
 
         return self.get_result(
             "Help",
-            "This bot provides inline support. To get more information about inline "
-            "bots, look at [the Telegram blog](https://telegram.org/blog/inline-bots).\n\n"
+            "This bot provides inline support. To get more information about inline bots "
+            "in general, look at [the Telegram blog](https://telegram.org/blog/inline-bots).\n\n"
             "Currently, the inline support is limited to showing help pages for various commands. "
             "This feature set may be extended in future versions of the bot.",
             parse_mode=telegram.constants.ParseMode.MARKDOWN

@@ -60,4 +60,4 @@ def get_help_for_command(command: BaseCommand) -> str:
     """
 
     usages = "\n".join(map(lambda x: f"`/{command.name} {x}`", command.parser.usages))
-    return f"*Usages:*\n{usages}\n\n*Description:*\n{command.description}"
+    return f"*Help page about '{command.name}'*\n\n*Usages:*\n{usages}\n\n*Description:*\n{command.description}"

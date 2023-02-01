@@ -185,3 +185,5 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
         # (CatchallReplyMessage(), ReplyMessageHandlerFilter(False, None), 2),
     ]:
         application.add_handler(telegram.ext.MessageHandler(filter_obj, message, block=False), group=group)
+
+    application.add_handler(telegram.ext.InlineQueryHandler(HelpInlineQuery("")))

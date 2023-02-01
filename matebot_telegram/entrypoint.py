@@ -1,5 +1,12 @@
+"""
+Entrypoint module to the MateBot Telegram bot implementation
+
+To execute the bot, just load the configuration file by some means,
+e.g. reading from file, and run the ``main`` function. It will create
+the application instance and execute the program's event loop.
+"""
+
 import threading
-import traceback
 import logging.config
 
 from telegram.ext import ApplicationBuilder
@@ -8,11 +15,6 @@ from matebot_sdk.exceptions import APIConnectionException
 
 # Note that the submodule 'commands' will imported dynamically in the `init` coroutine below
 from . import api_callback, application as _app, client, config, context, database, rate_limiter, persistence
-
-
-async def log_error(*args, **kwargs):
-    # TODO: Completely rework. Access to sys.exc_info is possible
-    traceback.print_exc()
 
 
 def get_init(logger: logging.Logger):
@@ -45,9 +47,6 @@ def get_init(logger: logging.Logger):
             )
             await application.shutdown()
             raise
-
-        logger.debug("Adding error handler...")
-        application.add_error_handler(log_error)
 
         logger.debug("Configuring API callback handler")
         application.dispatcher = api_callback.APICallbackDispatcher(logging.getLogger("mbt.api-dispatcher"))
@@ -99,7 +98,7 @@ def main(conf: config.Configuration) -> int:
     init = get_init(logging.getLogger("mbt.init"))
     application = (
         ApplicationBuilder()
-        .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt.app")})
+        .application_class(_app.ExtendedApplication, {"config": conf, "logger": logging.getLogger("mbt")})
         .token(conf.token)
         .context_types(context.ExtendedContextType)
         .arbitrary_callback_data(1024)

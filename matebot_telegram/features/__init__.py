@@ -118,9 +118,8 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
 
     from . import api_callbacks
 
-    # from .filter import CommandMessageFilter, ReplyMessageHandlerFilter
-    # from .forward import ForwardCallbackQuery, ForwardReplyMessage
-    # # from .handler import FilteredChosenInlineResultHandler
+    from .base.filter import CommandMessageFilter, ReplyMessageFilter
+    # from .handler import FilteredChosenInlineResultHandler
     # from .message import CatchallReplyMessage
 
     from .alias import AliasCommand, AliasCallbackQuery
@@ -130,6 +129,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from .consume import ConsumeCommand, get_consumable_commands
     from .data import DataCommand
     from .donate import DonateCommand, DonateCallbackQuery
+    from .forward import ForwardCallbackQuery, ForwardReplyMessage
     from .help import HelpCommand, HelpInlineQuery
     from .history import HistoryCommand
     from .poll import PollCommand, PollCallbackQuery
@@ -171,7 +171,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
         DonateCallbackQuery(),
-        # ForwardCallbackQuery(),
+        ForwardCallbackQuery(),
         RefundCallbackQuery(),
         PollCallbackQuery(),
         SendCallbackQuery(),
@@ -181,8 +181,8 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
         application.add_handler(telegram.ext.CallbackQueryHandler(callback_query, pattern=callback_query.pattern))
 
     for message, filter_obj, group in [
-        # (ForwardReplyMessage(), ReplyMessageHandlerFilter(True, "forward"), 2),
-        # (CatchallReplyMessage(), ReplyMessageHandlerFilter(False, None), 2),
+        (ForwardReplyMessage(), ReplyMessageFilter("forward"), 2),
+        # (CatchallReplyMessage(), ReplyMessageFilter(None), 2),
     ]:
         application.add_handler(telegram.ext.MessageHandler(filter_obj, message, block=False), group=group)
 

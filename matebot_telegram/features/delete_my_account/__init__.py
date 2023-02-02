@@ -1,0 +1,2 @@
+from .callback_query import DeleteMyAccountCallbackQuery
+from .command import DeleteMyAccountCommand

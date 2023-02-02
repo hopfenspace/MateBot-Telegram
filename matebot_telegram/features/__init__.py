@@ -126,6 +126,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from .communism import CommunismCommand, CommunismCallbackQuery
     from .consume import ConsumeCommand, get_consumable_commands
     from .data import DataCommand
+    from .delete_my_account import DeleteMyAccountCommand, DeleteMyAccountCallbackQuery
     from .donate import DonateCommand, DonateCallbackQuery
     from .forward import ForwardCallbackQuery, ForwardReplyMessage
     from .help import HelpCommand, HelpInlineQuery
@@ -145,6 +146,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
         CommunismCommand(),
         ConsumeCommand(),
         DataCommand(),
+        DeleteMyAccountCommand(),
         DonateCommand(),
         HelpCommand(),
         HistoryCommand(),
@@ -168,6 +170,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     for callback_query in [
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
+        DeleteMyAccountCallbackQuery(),
         DonateCallbackQuery(),
         ForwardCallbackQuery(),
         RefundCallbackQuery(),

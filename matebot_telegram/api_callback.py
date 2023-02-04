@@ -39,7 +39,7 @@ class APICallbackDispatcher(BaseCallbackDispatcher):
         for event in events.events:
             for target, args, kwargs in self._storage.get(event.event, []):
                 try:
-                    await self.run_callback(target, event, target, *args, **kwargs)
+                    await self.run_callback(target, event, *args, **kwargs)
                 except Exception as exc:
                     self.logger and self.logger.exception(
                         f"{type(exc).__name__} in callback handler {target} for event {event!r} with {args}, {kwargs}"

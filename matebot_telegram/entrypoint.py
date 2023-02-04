@@ -66,7 +66,7 @@ def get_init(base_logger: logging.Logger):
         try:
             from . import features
         except:
-            logger.exception("Failed to import the submodule 'commands'. Check for syntax and import errors!")
+            logger.exception("Failed to import the submodule 'features'. Check for syntax and import errors!")
             raise
         try:
             await features.setup(logger, application)

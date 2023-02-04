@@ -116,10 +116,9 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     application.add_error_handler(_handle_error)
     client = application.client
 
+    from ..base.filter import ReplyMessageFilter
+
     from . import api_callbacks
-
-    from .base.filter import CommandMessageFilter, ReplyMessageFilter
-
     from .alias import AliasCommand, AliasCallbackQuery
     from .balance import BalanceCommand
     from .blame import BlameCommand
@@ -139,6 +138,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from .vouch import VouchCommand, VouchCallbackQuery
     from .zwegat import ZwegatCommand
 
+    # Command handlers
     commands = [
         AliasCommand(),
         BalanceCommand(),
@@ -167,6 +167,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     await application.bot.set_my_commands(bot_commands)
     logger.debug("Done.")
 
+    # Callback query handlers
     for callback_query in [
         AliasCallbackQuery(),
         CommunismCallbackQuery(),
@@ -181,7 +182,9 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     ]:
         application.add_handler(telegram.ext.CallbackQueryHandler(callback_query, pattern=callback_query.pattern))
 
+    # Message handlers
     application.add_handler(telegram.ext.MessageHandler(ReplyMessageFilter("forward"), ForwardReplyMessage()))
     application.add_handler(telegram.ext.MessageHandler(ReplyMessageFilter("start"), StartReplyMessage()))
 
+    # Inline query handlers
     application.add_handler(telegram.ext.InlineQueryHandler(HelpInlineQuery("")))

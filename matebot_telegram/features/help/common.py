@@ -7,26 +7,22 @@ from typing import Optional
 from matebot_sdk.schemas import User
 
 from ...base import BaseCommand
-from ...client import AsyncMateBotSDKForTelegram
 
 
-async def get_help_usage(usage: str, client: AsyncMateBotSDKForTelegram, issuer: Optional[User] = None) -> str:
+async def get_help_usage(usage: str, issuer: Optional[User] = None) -> str:
     """
     Retrieve the help message from the help command without arguments
 
     :param usage: usage string of the help command
-    :param client: the async SDK client for telegram
     :param issuer: optional User who issued the help command
     :return: fully formatted help message when invoking the help command without arguments
     """
 
-    command_list = "\n".join(map(lambda c: f" - `{c}`", sorted(BaseCommand.AVAILABLE_COMMANDS.keys())))
-    msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n{command_list}"
-    dynamic_commands = "\n".join(sorted(
-        [f"- `{c.name}` for {client.format_balance(c.price)}" for c in
-         await client.get_consumables()]
+    command_list = "\n".join(map(
+        lambda c: f" - `{c}`: {BaseCommand.AVAILABLE_COMMANDS[c].bot_command.description}",
+        sorted(BaseCommand.AVAILABLE_COMMANDS.keys())
     ))
-    msg += f"\n\nAdditionally, the following dynamic consumption commands are available:\n{dynamic_commands}"
+    msg = f"*MateBot Telegram help page*\n\nUsage of this command: `{usage}`\n\nList of commands:\n{command_list}"
 
     if issuer and not issuer.active:
         msg += "\n\nYour user account has been disabled. You're not allowed to interact with the bot."

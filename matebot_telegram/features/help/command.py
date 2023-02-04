@@ -3,7 +3,6 @@ MateBot command executor class for /help
 """
 
 import telegram
-from matebot_sdk import exceptions
 
 from . import common
 from ...base import BaseCommand, err, ExtendedContext, Namespace, types
@@ -28,13 +27,7 @@ class HelpCommand(BaseCommand):
 
     async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param context: the custom context of the application
-        :type context: ExtendedContext
-        :return: None
+        Provide the general help page or a specific command manual to a user
         """
 
         if args.command:
@@ -43,13 +36,13 @@ class HelpCommand(BaseCommand):
             try:
                 user = await context.application.client.get_core_user(update.effective_message.from_user)
             except (err.UniqueUserNotFound, err.UserNotVerified, err.NoUserFound):
-                msg = await common.get_help_usage(self.usage, context.application.client, None)
+                msg = await common.get_help_usage(self.usage, None)
                 await update.effective_message.reply_markdown(msg)
                 return
-            except (err.MateBotException, exceptions.APIConnectionException):
-                msg = await common.get_help_usage(self.usage, context.application.client, None)
+            except err.MateBotException:
+                msg = await common.get_help_usage(self.usage, None)
                 await update.effective_message.reply_markdown(msg)
                 raise
-            msg = await common.get_help_usage(self.usage, context.application.client, user)
+            msg = await common.get_help_usage(self.usage, user)
 
         await update.effective_message.reply_markdown(msg)

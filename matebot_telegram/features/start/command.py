@@ -4,7 +4,7 @@ MateBot command executor class for /start
 
 import telegram.ext
 
-from ..base import BaseCommand, err, ExtendedContext, Namespace
+from ...base import BaseCommand, err, ExtendedContext, Namespace
 
 
 class StartCommand(BaseCommand):

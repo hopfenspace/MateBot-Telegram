@@ -5,8 +5,8 @@ MateBot command executor class for /communism
 import telegram.ext
 
 from . import common
-from ..base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ... import shared_messages
+from ...base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ...parsing.actions import JoinAction
 
 

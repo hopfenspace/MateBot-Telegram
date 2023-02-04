@@ -5,7 +5,7 @@ MateBot callback queries for the forwarding feature of group operations
 import telegram.ext
 
 from .common import CALLBACK_REGEX
-from ..base import BaseCallbackQuery, ExtendedContext
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class ForwardCallbackQuery(BaseCallbackQuery):

@@ -8,7 +8,7 @@ import telegram
 from matebot_sdk import schemas
 
 from .. import _app
-from ..base import BaseCommand, ExtendedContext, Namespace
+from ...base import BaseCommand, ExtendedContext, Namespace
 
 
 def fmt_alias(alias: schemas.Alias, apps: List[schemas.Application]) -> str:

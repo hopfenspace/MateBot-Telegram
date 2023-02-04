@@ -6,7 +6,7 @@ import time
 
 import telegram
 
-from .base import BaseCommand, err, ExtendedContext, Namespace
+from ..base import BaseCommand, err, ExtendedContext, Namespace
 
 
 class DataCommand(BaseCommand):

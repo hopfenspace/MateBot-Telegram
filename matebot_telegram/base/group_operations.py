@@ -11,7 +11,7 @@ from typing import TypeVar
 import telegram.ext
 
 from ._common import ExtendedContext
-from ... import shared_messages
+from .. import shared_messages
 
 
 GroupOpType = TypeVar("GroupOpType")  # examples: communism, poll, refund

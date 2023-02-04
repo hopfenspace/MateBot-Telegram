@@ -6,7 +6,7 @@ import telegram
 from matebot_sdk import exceptions
 
 from . import common
-from ..base import BaseCommand, err, ExtendedContext, Namespace, types
+from ...base import BaseCommand, err, ExtendedContext, Namespace, types
 
 
 class HelpCommand(BaseCommand):

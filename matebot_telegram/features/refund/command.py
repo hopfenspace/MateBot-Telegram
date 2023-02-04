@@ -7,8 +7,8 @@ from typing import ClassVar
 import telegram
 
 from . import common
-from ..base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ... import shared_messages
+from ...base import BaseCommand, ExtendedContext, group_operations, Namespace, types
 from ...parsing.actions import JoinAction
 
 

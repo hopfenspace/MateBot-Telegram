@@ -6,7 +6,7 @@ import telegram
 
 from matebot_sdk.exceptions import MateBotSDKException
 
-from .base import BaseCommand, err, ExtendedContext
+from ..base import BaseCommand, err, ExtendedContext
 from ..parsing.util import Namespace
 
 

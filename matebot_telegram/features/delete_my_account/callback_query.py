@@ -4,7 +4,7 @@ MateBot callback query handler for the delete_my_account command
 
 import telegram
 
-from ..base import BaseCallbackQuery, ExtendedContext
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class DeleteMyAccountCallbackQuery(BaseCallbackQuery):

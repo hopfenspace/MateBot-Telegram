@@ -5,8 +5,8 @@ MateBot message handler for the signup procedure (initiated by the command /star
 import telegram.ext
 from matebot_sdk.exceptions import MateBotSDKException
 
-from ..base import BaseMessage, ExtendedContext
 from ... import models
+from ...base import BaseMessage, ExtendedContext
 
 
 class StartReplyMessage(BaseMessage):

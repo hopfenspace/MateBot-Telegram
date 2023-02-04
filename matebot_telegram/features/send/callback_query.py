@@ -5,7 +5,7 @@ MateBot callback queries for the send command
 import telegram
 from matebot_sdk.exceptions import APIException
 
-from ..base import BaseCallbackQuery, ExtendedContext
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class SendCallbackQuery(BaseCallbackQuery):

@@ -9,7 +9,6 @@ from typing import Optional
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
-from .. import _app
 
 
 class BaseMessage(CommonBase):
@@ -21,7 +20,7 @@ class BaseMessage(CommonBase):
     """
 
     def __init__(self, prefix: Optional[str]):
-        super().__init__(_app.logger.getChild("message").getChild(type(self).__name__))
+        super().__init__("message")
         self.prefix = prefix
 
     async def run(self, message: telegram.Message, context: ExtendedContext) -> None:

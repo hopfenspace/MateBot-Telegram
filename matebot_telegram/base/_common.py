@@ -7,11 +7,11 @@ from typing import Awaitable, Callable, TypeVar
 
 from matebot_sdk.exceptions import APIException, APIConnectionException
 
-from ... import err
-from ...context import ExtendedContext
+from .. import err
+from ..context import ExtendedContext
+from ..application import get_running_app
 
-
-_ = ExtendedContext  # re-exporting the `ExtendedContext` value
+_ = ExtendedContext  # re-exporting the `ExtendedContext` class
 FUNC_ARG_TYPE = TypeVar("FUNC_ARG_TYPE")
 FUNC_ARG_RETURN_TYPE = TypeVar("FUNC_ARG_RETURN_TYPE")
 
@@ -23,8 +23,8 @@ class CommonBase:
 
     logger: logging.Logger
 
-    def __init__(self, logger: logging.Logger):
-        self.logger: logging.Logger = logger
+    def __init__(self, logger_suffix: str):
+        self.logger: logging.Logger = get_running_app().logger.getChild(logger_suffix).getChild(type(self).__name__)
 
     async def _run(
             self,

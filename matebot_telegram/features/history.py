@@ -10,7 +10,7 @@ import tempfile
 import telegram
 from matebot_sdk import schemas
 
-from .base import BaseCommand, ExtendedContext, Namespace, types
+from ..base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class HistoryCommand(BaseCommand):

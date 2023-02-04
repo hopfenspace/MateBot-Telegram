@@ -4,8 +4,8 @@ MateBot callback query for the start command
 
 import telegram
 
-from ..base import BaseCallbackQuery, ExtendedContext
 from ... import models
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class StartCallbackQuery(BaseCallbackQuery):

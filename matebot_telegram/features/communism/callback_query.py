@@ -8,8 +8,8 @@ import telegram
 from matebot_sdk import schemas
 
 from . import common
-from ..base import BaseCallbackQuery, ExtendedContext
 from ... import shared_messages
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class CommunismCallbackQuery(BaseCallbackQuery):

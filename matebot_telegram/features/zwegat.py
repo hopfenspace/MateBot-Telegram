@@ -5,7 +5,7 @@ MateBot command executor class for /zwegat
 import telegram
 from matebot_sdk.schemas import PrivilegeLevel
 
-from .base import BaseCommand, ExtendedContext, Namespace
+from ..base import BaseCommand, ExtendedContext, Namespace
 
 
 class ZwegatCommand(BaseCommand):

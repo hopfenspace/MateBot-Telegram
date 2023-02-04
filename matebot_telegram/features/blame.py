@@ -5,7 +5,7 @@ MateBot command executor class for /blame
 import telegram
 from matebot_sdk.exceptions import MateBotSDKException
 
-from .base import BaseCommand, ExtendedContext, Namespace, types
+from ..base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class BlameCommand(BaseCommand):

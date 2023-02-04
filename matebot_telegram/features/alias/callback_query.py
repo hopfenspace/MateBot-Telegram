@@ -7,8 +7,8 @@ from typing import Optional, Tuple
 import telegram
 from matebot_sdk import schemas
 
-from ..base import BaseCallbackQuery, ExtendedContext
 from ... import shared_messages
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class AliasCallbackQuery(BaseCallbackQuery):

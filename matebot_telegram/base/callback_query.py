@@ -9,7 +9,6 @@ from typing import Awaitable, Callable, Dict, Optional
 import telegram.ext
 
 from ._common import CommonBase, ExtendedContext
-from .. import _app
 
 
 class BaseCallbackQuery(CommonBase):
@@ -55,7 +54,7 @@ class BaseCallbackQuery(CommonBase):
             pattern: str,
             targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
     ):
-        super().__init__(_app.logger.getChild("callback").getChild(type(self).__name__))
+        super().__init__("callback")
         if not isinstance(targets, dict):
             raise TypeError("Expected dict or None")
 

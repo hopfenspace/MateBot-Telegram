@@ -8,8 +8,8 @@ import telegram
 from matebot_sdk import exceptions, schemas
 
 from . import common
-from ..base import BaseCallbackQuery, ExtendedContext, group_operations
 from ... import shared_messages
+from ...base import BaseCallbackQuery, ExtendedContext, group_operations
 
 
 class PollCallbackQuery(BaseCallbackQuery):

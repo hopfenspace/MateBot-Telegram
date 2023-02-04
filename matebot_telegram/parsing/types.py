@@ -11,7 +11,7 @@ from matebot_sdk import schemas
 
 from .util import EntityString
 from .. import application, err
-from ..features.base import BaseCommand
+from ..base import BaseCommand
 
 
 def amount_type(arg: str) -> int:

@@ -5,7 +5,7 @@ MateBot command executor class for /vouch
 import telegram
 from matebot_sdk import schemas
 
-from ..base import BaseCommand, ExtendedContext, Namespace, types
+from ...base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class VouchCommand(BaseCommand):

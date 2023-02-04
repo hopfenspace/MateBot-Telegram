@@ -5,7 +5,7 @@ MateBot callback query handler for the donate command
 import telegram.ext
 from matebot_sdk.exceptions import APIException
 
-from ..base import BaseCallbackQuery, ExtendedContext
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class DonateCallbackQuery(BaseCallbackQuery):

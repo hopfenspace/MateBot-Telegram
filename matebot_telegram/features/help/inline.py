@@ -8,7 +8,7 @@ from typing import Optional
 import telegram
 
 from . import common
-from ..base import BaseCommand, BaseInlineQuery
+from ...base import BaseCommand, BaseInlineQuery
 
 
 class HelpInlineQuery(BaseInlineQuery):

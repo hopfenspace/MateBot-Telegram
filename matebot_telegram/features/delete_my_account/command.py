@@ -4,7 +4,7 @@ MateBot command executor class for /delete_my_account
 
 import telegram.ext
 
-from ..base import BaseCommand, err, ExtendedContext, Namespace
+from ...base import BaseCommand, err, ExtendedContext, Namespace
 
 
 class DeleteMyAccountCommand(BaseCommand):

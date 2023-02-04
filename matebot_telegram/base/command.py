@@ -9,11 +9,9 @@ from typing import ClassVar, Dict, Optional
 
 import telegram.ext
 
-from ._common import CommonBase, ExtendedContext
-from .. import _app
-from ... import err
-from ...parsing.parser import CommandParser
-from ...parsing.util import Namespace
+from ._common import CommonBase, err, ExtendedContext
+from ..parsing.parser import CommandParser
+from ..parsing.util import Namespace
 
 
 class BaseCommand(CommonBase):
@@ -50,7 +48,7 @@ class BaseCommand(CommonBase):
     AVAILABLE_COMMANDS: ClassVar[Dict[str, "BaseCommand"]] = {}
 
     def __init__(self, name: str, description: str, usage: Optional[str] = None):
-        super().__init__(_app.logger.getChild("command").getChild(type(self).__name__))
+        super().__init__("command")
         self.name = name
         self._usage = usage
         self.description = description

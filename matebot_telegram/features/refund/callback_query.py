@@ -9,8 +9,8 @@ import telegram
 from matebot_sdk import exceptions, schemas
 
 from . import common
-from ..base import BaseCallbackQuery, ExtendedContext
 from ... import shared_messages
+from ...base import BaseCallbackQuery, ExtendedContext
 
 
 class RefundCallbackQuery(BaseCallbackQuery):

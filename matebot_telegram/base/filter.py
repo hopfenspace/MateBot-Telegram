@@ -13,7 +13,7 @@ from typing import Optional
 
 import telegram.ext
 
-from .. import _app
+from ._common import get_running_app
 
 
 class CommandMessageFilter(telegram.ext.filters.MessageFilter):
@@ -42,7 +42,7 @@ class ReplyMessageFilter(telegram.ext.filters.MessageFilter):
 
     def filter(self, message: telegram.Message) -> bool:
         reply_to = message.reply_to_message
-        if reply_to and reply_to.from_user.is_bot and reply_to.from_user.id == _app.bot.id:
+        if reply_to and reply_to.from_user.is_bot and reply_to.from_user.id == get_running_app().bot.id:
             if self.callback_data_prefix:
                 markup = reply_to.reply_markup
                 if markup is None:

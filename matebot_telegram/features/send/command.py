@@ -4,7 +4,7 @@ MateBot command executor classes for /send and its callback queries
 
 import telegram
 
-from ..base import BaseCommand, ExtendedContext, Namespace, RLArgs, types
+from ...base import BaseCommand, ExtendedContext, Namespace, RLArgs, types
 
 
 class SendCommand(BaseCommand):

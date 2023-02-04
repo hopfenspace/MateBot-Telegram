@@ -5,9 +5,9 @@ from .message import BaseMessage
 from ._common import err, ExtendedContext
 from . import group_operations
 
-from ...parsing import types
-from ...parsing.util import Namespace
-from ...rate_limiter import RLArgs
+from ..parsing import types
+from ..parsing.util import Namespace
+from ..rate_limiter import RLArgs
 
 # Those assignments allow re-exporting without linter errors and without using the __all__ variable
 _ = err

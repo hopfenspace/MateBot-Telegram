@@ -8,7 +8,7 @@ import telegram.ext
 from matebot_sdk import schemas
 
 from . import _app
-from .base import BaseCommand, ExtendedContext, types, Namespace
+from ..base import BaseCommand, ExtendedContext, types, Namespace
 from ..client import AsyncMateBotSDKForTelegram
 
 

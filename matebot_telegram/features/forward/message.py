@@ -8,11 +8,11 @@ import telegram.ext
 from matebot_sdk import exceptions, schemas
 
 from .common import MESSAGE_CALLBACK_REGEX
-from ..base import BaseMessage, err, ExtendedContext
 from ..communism.common import get_text as get_communism_text, get_keyboard as get_communism_keyboard
 from ..poll.common import get_text as get_poll_text, get_keyboard as get_poll_keyboard
 from ..refund.common import get_text as get_refund_text, get_keyboard as get_refund_keyboard
 from ... import shared_messages
+from ...base import BaseMessage, err, ExtendedContext
 
 
 class ForwardReplyMessage(BaseMessage):

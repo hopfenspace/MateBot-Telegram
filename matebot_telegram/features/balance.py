@@ -5,7 +5,7 @@ MateBot command executor class for /balance
 import telegram
 from matebot_sdk.schemas import PrivilegeLevel
 
-from .base import BaseCommand, ExtendedContext, Namespace, types
+from ..base import BaseCommand, ExtendedContext, Namespace, types
 
 
 class BalanceCommand(BaseCommand):

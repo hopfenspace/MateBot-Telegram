@@ -29,10 +29,10 @@ class AliasCallbackQuery(BaseCallbackQuery):
         )
 
     @classmethod
-    async def clear(cls, update: telegram.Update, context: ExtendedContext) -> None:
+    async def clear(cls, update: telegram.Update, context: ExtendedContext, _: str) -> None:
+        context.drop_callback_data(update.callback_query)
         if update.callback_query.message is not None:
             await update.callback_query.message.edit_text("This message has been cleared.", reply_markup=None)
-        context.drop_callback_data(update.callback_query)
         await update.callback_query.answer()
 
     async def _get_alias_and_user(
@@ -42,7 +42,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
             data: str
     ) -> Optional[Tuple[schemas.Alias, schemas.User]]:
         """
-        TODO
+        Return the alias referenced in the data if the query's origin user is its owner
         """
 
         _, alias_id, original_sender = data.split(" ")
@@ -64,7 +64,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
 
     async def accept(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        TODO
+        Accept a currently unconfirmed alias
         """
 
         result = await self._get_alias_and_user(update, context, data)
@@ -84,7 +84,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
 
     async def deny(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        TODO
+        Deny and delete aliases, which works for confirmed and unconfirmed aliases
         """
 
         result = await self._get_alias_and_user(update, context, data)
@@ -102,7 +102,7 @@ class AliasCallbackQuery(BaseCallbackQuery):
 
     async def report(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
-        TODO
+        TODO: Deny and delete aliases, but also report this to the bot administrator(s) via direct message
         """
 
         raise NotImplementedError

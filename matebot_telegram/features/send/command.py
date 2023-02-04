@@ -35,13 +35,7 @@ class SendCommand(BaseCommand):
 
     async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param context: the custom context of the application
-        :type context: ExtendedContext
-        :return: None
+        Allow users to send money to other users via a inline keyboard to accept the transaction
         """
 
         if isinstance(args.reason or [], list):

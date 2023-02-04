@@ -14,17 +14,20 @@ class SendCallbackQuery(BaseCallbackQuery):
     """
 
     def __init__(self):
-        super().__init__("send", "^send", {
-            "abort": self.abort,
-            "confirm": self.confirm
-        })
+        super().__init__(
+            "send",
+            "^send",
+            {
+                "abort": self.abort,
+                "confirm": self.confirm
+            }
+        )
 
     async def confirm(self, update: telegram.Update, context: ExtendedContext, data: str) -> None:
         """
         Confirm and process a transaction request based on incoming callback queries
         """
 
-        self.logger.debug("Confirming transaction")
         _, amount, original_sender, receiver_id = data.split(" ")
         amount = int(amount)
         original_sender = int(original_sender)
@@ -35,6 +38,7 @@ class SendCallbackQuery(BaseCallbackQuery):
             await update.callback_query.answer(f"Only the creator of this transaction can confirm it!")
             return
 
+        self.logger.debug("Confirming transaction")
         reason = None
         for entity in update.callback_query.message.parse_entities():
             if entity.type == telegram.MessageEntity.CODE:
@@ -69,7 +73,6 @@ class SendCallbackQuery(BaseCallbackQuery):
         Abort a transaction request and drop the inline reply keyboard
         """
 
-        self.logger.debug("Aborting transaction")
         _, _, original_sender, _ = data.split(" ")
         original_sender = int(original_sender)
 
@@ -77,6 +80,7 @@ class SendCallbackQuery(BaseCallbackQuery):
             await update.callback_query.answer(f"Only the creator of this transaction can abort it!")
             return
 
+        self.logger.debug("Aborting transaction")
         await update.callback_query.message.edit_text(
             "You aborted the operation. No money has been sent.",
             reply_markup=telegram.InlineKeyboardMarkup([])

@@ -75,6 +75,7 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         Handle the query to close (=accept) the communism
         """
 
+        # The check whether the user is allowed to perform this action is done in the core API
         await self._handle_update(update, context, data, context.application.client.close_communism, delete=True)
         await update.callback_query.answer("The communism has been closed.")
 
@@ -83,5 +84,6 @@ class CommunismCallbackQuery(BaseCallbackQuery):
         Handle the query to abort (=reject) the communism
         """
 
+        # The check whether the user is allowed to perform this action is done in the core API
         await self._handle_update(update, context, data, context.application.client.abort_communism, delete=True)
         await update.callback_query.answer("The communism has been aborted.")

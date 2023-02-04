@@ -45,13 +45,7 @@ class AliasCommand(BaseCommand):
 
     async def run(self, args: Namespace, update: telegram.Update, context: ExtendedContext) -> None:
         """
-        :param args: parsed namespace containing the arguments
-        :type args: argparse.Namespace
-        :param update: incoming Telegram update
-        :type update: telegram.Update
-        :param context: the custom context of the application
-        :type context: ExtendedContext
-        :return: None
+        Show the user's aliases or manage them via inline keyboard to accept or deny them
         """
 
         if update.effective_chat.type != telegram.Chat.PRIVATE:

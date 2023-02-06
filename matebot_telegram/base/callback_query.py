@@ -4,7 +4,7 @@ Base class for callback queries used by this bot
 The base class provides target method detection and error handling for subclasses
 """
 
-from typing import Awaitable, Callable, Dict, Optional
+from typing import Awaitable, Callable, Dict, Optional, Union
 
 import telegram.ext
 
@@ -45,18 +45,18 @@ class BaseCallbackQuery(CommonBase):
     """
 
     name: str
-    pattern: str
+    pattern: Union[str, type]
     targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
 
     def __init__(
             self,
             name: str,
-            pattern: str,
+            pattern: Union[str, type],
             targets: Dict[str, Callable[[telegram.Update, ExtendedContext], Optional[Awaitable[None]]]]
     ):
         super().__init__("callback")
         if not isinstance(targets, dict):
-            raise TypeError("Expected dict or None")
+            raise TypeError(f"Expected dict, found {type(targets)}")
 
         self.name = name
         self.pattern = pattern
@@ -81,6 +81,11 @@ class BaseCallbackQuery(CommonBase):
             raise RuntimeError("No callback data found")
         if context.match is None:
             raise RuntimeError("No pattern match found")
+
+        # The match is usually a regex match, but it might be a boolean if the pattern was a type
+        if isinstance(context.match, bool):
+            target = self.targets[""]
+            return await self._run(target, update.callback_query.answer, update, context, data)
 
         try:
             # self.client.patch_user_db_from_update(update)  # TODO

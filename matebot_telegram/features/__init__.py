@@ -119,6 +119,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
     from ..base.filter import ReplyMessageFilter
 
     from . import api_callbacks
+    from ._invalid_callback_data import InvalidCallbackDataCallbackQuery
     from .alias import AliasCommand, AliasCallbackQuery
     from .balance import BalanceCommand
     from .blame import BlameCommand
@@ -174,6 +175,7 @@ async def setup(logger: _logging.Logger, application: _ExtendedApplication):
         DeleteMyAccountCallbackQuery(),
         DonateCallbackQuery(),
         ForwardCallbackQuery(),
+        InvalidCallbackDataCallbackQuery(),
         RefundCallbackQuery(),
         PollCallbackQuery(),
         SendCallbackQuery(),

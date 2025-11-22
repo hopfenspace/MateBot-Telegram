@@ -1,4 +1,4 @@
-FROM python:3.14
+FROM python:3.11
 ENV LANG=C.UTF-8
 WORKDIR /app
 COPY requirements.txt .
